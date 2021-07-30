@@ -1,3 +1,5 @@
 .idea/
 files/
+files_*/
 labeled.csv
+labeled_*.csv

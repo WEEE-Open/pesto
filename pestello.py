@@ -13,6 +13,7 @@ def get_files(paths):
     results = []
     serials = set()
     errors = False
+    counter = 1
 
     try:
         for file in paths:
@@ -20,9 +21,23 @@ def get_files(paths):
             if os.path.isdir(file):
                 for filename in os.listdir(file):
                     filename = file.rstrip('/') + '/' + filename
-                    parse_file(filename, results, serials)
+                    try:
+                        parse_file(filename, results, serials, counter)
+                        counter += 1
+                    except BaseException as e:
+                        if isinstance(e, KeyboardInterrupt) or isinstance(e, EOFError):
+                            raise e
+                        print(f"Error reading {filename}")
+                        continue
             elif os.path.isfile(file):
-                parse_file(file, results, serials)
+                try:
+                    parse_file(file, results, serials, counter)
+                    counter += 1
+                except BaseException as e:
+                    if isinstance(e, KeyboardInterrupt) or isinstance(e, EOFError):
+                        raise e
+                    print(f"Error reading {file}")
+                    continue
             else:
                 print(f"{file} is not a file nor a directory")
                 errors = True
@@ -55,7 +70,8 @@ def get_files(paths):
         exit(1)
 
 
-def parse_file(filename: str, results: list, serials: set):
+def parse_file(filename: str, results: list, serials: set, counter: int):
+    print(f"File {counter}")
     attributes = {
         "Start_Stop_Count",
         "Reallocated_Sector_Ct",
@@ -107,7 +123,7 @@ def parse_file(filename: str, results: list, serials: set):
             if data_section:
                 for attr in attributes:
                     if attr in line:
-                        val = line.split(" ")[-1].strip()
+                        val = line.split("(")[0].split(" ")[-1].strip()
                         if attr == "Power_On_Hours":
                             found["Power_On_Hours_Exact"] = "false"
                             if 'h' in val:
@@ -130,10 +146,10 @@ def parse_file(filename: str, results: list, serials: set):
 
     for k in found:
         if k == "Power_On_Hours":
-            details = f" ({int(found[k])/24:.2f} server days, {int(found[k])/8/304:.2f} office years)"
+            details = f" ({int(found[k])/24/365:.2f} server years, {int(found[k])/8/304:.2f} office years)"
             if found["Power_On_Hours_Exact"] == "false":
                 if 20 > int(found[k]) / 60 / 24 / 365 > 1:
-                    details += f" (or, if minutes, {int(found[k]) / 60 / 24:.2f} server days, {int(found[k]) / 60 / 8 / 304:.2f} office years)"
+                    details += f" (or, if minutes, {int(found[k]) / 60 / 24 / 365:.2f} server years, {int(found[k]) / 60 / 8 / 304:.2f} office years)"
         else:
             details = ""
         if found[k].isnumeric() and int(found[k]) != 0:
@@ -146,9 +162,9 @@ def parse_file(filename: str, results: list, serials: set):
 
     answered = False
     while not answered:
-        r = input("Is it OK, OLD, FAIL or discard? [K,O,F,X] ")
+        r = input("Is it OK, SUS, OLD, FAIL or discard? [K,S,O,F,X] ")
         r = r.lower()
-        if r == 'k':
+        if r == 'k' or r == 'y':
             found['Status'] = 'OK'
             results.append(found)
             answered = True
@@ -158,6 +174,10 @@ def parse_file(filename: str, results: list, serials: set):
             answered = True
         elif r == 'f':
             found['Status'] = 'FAIL'
+            results.append(found)
+            answered = True
+        elif r == 's':
+            found['Status'] = 'SUS'
             results.append(found)
             answered = True
         elif r == 'x':
