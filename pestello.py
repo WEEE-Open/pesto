@@ -53,6 +53,21 @@ def get_files(paths):
 
 
 def parse_file(filename: str, results: list, serials: set):
+    attributes = {
+        "Start_Stop_Count",
+        "Reallocated_Sector_Ct",
+        "Seek_Error_Rate",
+        "Power_On_Hours",
+        "Power_Cycle_Count",
+        "SSD_Life_Left",
+        "Lifetime_Writes_GiB",
+        "Power_On_Hours",
+        "Load_Cycle_Count",
+        "Reallocated_Event_Count",
+        "Current_Pending_Sector",
+        "Offline_Uncorrectable"
+    }
+
     found = dict()
     errors = 0
 
