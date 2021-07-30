@@ -5,6 +5,9 @@ import csv
 import argparse
 import os
 
+RED = "\033[31;40m"
+END_ESCAPE = "\033[0;0m"
+
 
 def get_files(paths):
     results = []
@@ -28,7 +31,7 @@ def get_files(paths):
     except EOFError:
         pass
 
-    print(f"{serials} unique disks parsed, {results} labeled")
+    print(f"{len(serials)} unique disks parsed, {len(results)} labeled")
 
     header = []
     header_set = set()
@@ -87,7 +90,7 @@ def parse_file(filename: str, results: list, serials: set):
                 data_section = True
                 errors_section = False
                 continue
-            if "CCTF" in line:
+            if "SMART Error Log Version" in line:
                 info_section = False
                 data_section = False
                 errors_section = True
@@ -118,17 +121,27 @@ def parse_file(filename: str, results: list, serials: set):
 
     found["Errors_UNC"] = str(errors)
 
-    if found["Serial_Number"] in serials:
-        print(f"Skipping {found['Serial_Number']} in {filename}")
-        return
-    else:
-        serials.add(found["Serial_Number"])
+    if "Serial_Number" in found:
+        if found["Serial_Number"] in serials:
+            print(f"Skipping {found['Serial_Number']} in {filename}")
+            return
+        else:
+            serials.add(found["Serial_Number"])
 
     for k in found:
         if k == "Power_On_Hours":
-            print(f"{k}: {found[k]} ({int(found[k])/24:.2f} server days, {int(found[k])/8/304:.2f} office years)")
+            details = f" ({int(found[k])/24:.2f} server days, {int(found[k])/8/304:.2f} office years)"
+            if found["Power_On_Hours_Exact"] == "false":
+                if 20 > int(found[k]) / 60 / 24 / 365 > 1:
+                    details += f" (or, if minutes, {int(found[k]) / 60 / 24:.2f} server days, {int(found[k]) / 60 / 8 / 304:.2f} office years)"
         else:
-            print(f"{k}: {found[k]}")
+            details = ""
+        if found[k].isnumeric() and int(found[k]) != 0:
+            color1 = RED
+            color2 = END_ESCAPE
+        else:
+            color1 = color2 = ""
+        print(f"{k}: {color1}{found[k]}{color2}{details}")
     print(f"File is {filename}")
 
     answered = False
@@ -149,7 +162,7 @@ def parse_file(filename: str, results: list, serials: set):
             answered = True
         elif r == 'x':
             answered = True
-
+    print()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Classify SMART data manually. Now.')
