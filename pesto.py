@@ -98,7 +98,9 @@ def smartAnalizer(data):
     elif check == "OLD":
         print(BLUE + "SMART DATA CHECK  --->  OLD" + END_ESCAPE)
     elif check == "FAIL":
-        print(RED + "SMART DATA CHECK  --->  FAIL" + END_ESCAPE)
+        print(RED + "SMART DATA CHECK  --->  FAIL\nHowever, check if the disc is functional" + END_ESCAPE)
+    
+    print("\nIl risultato è indicativo, non gettare l'hard disk se il check è FAIL")
             
 # ---------------------------------------------------------------------
 
