@@ -11,43 +11,33 @@ END_ESCAPE = "\033[0;0m"
 
 
 def get_files(paths):
+    filenames = []
     results = []
     serials = set()
     errors = False
     counter = 1
 
-    try:
-        for file in paths:
-            file: str
-            if os.path.isdir(file):
-                for filename in os.listdir(file):
-                    filename = file.rstrip('/') + '/' + filename
-                    try:
-                        parse_file(filename, results, serials, counter)
-                        counter += 1
-                    except BaseException as e:
-                        if isinstance(e, KeyboardInterrupt) or isinstance(e, EOFError):
-                            raise e
-                        print(f"Error reading {filename}")
-                        print(traceback.format_exc())
-                        continue
-            elif os.path.isfile(file):
-                try:
-                    parse_file(file, results, serials, counter)
-                    counter += 1
-                except BaseException as e:
-                    if isinstance(e, KeyboardInterrupt) or isinstance(e, EOFError):
-                        raise e
-                    print(f"Error reading {file}")
-                    print(traceback.format_exc())
-                    continue
-            else:
-                print(f"{file} is not a file nor a directory")
-                errors = True
-    except KeyboardInterrupt:
-        pass
-    except EOFError:
-        pass
+    for file in paths:
+        file: str
+        if os.path.isdir(file):
+            for filename in os.listdir(file):
+                filenames.append(file.rstrip('/') + '/' + filename)
+        elif os.path.isfile(file):
+            filenames.append(file)
+        else:
+            print(f"{file} is not a file nor a directory")
+            errors = True
+
+    for filename in filenames:
+        try:
+            parse_file(filename, results, serials, counter)
+            counter += 1
+        except (KeyboardInterrupt, EOFError):
+            break
+        except:
+            print(f"Error reading {filename}")
+            print(traceback.format_exc())
+            pass
 
     print(f"{len(serials)} unique disks parsed, {len(results)} labeled")
 
@@ -163,18 +153,19 @@ def parse_file(filename: str, results: list, serials: set, counter: int):
         return
 
     for k in found:
+        details = ""
         if k == "Total_LBAs_Written":
             details = f" ({int(found[k])*512/1024/1024/1024:.2f} GiB)"
         elif k == "Power_On_Hours":
             try:
-                details = f" ({int(found[k])/24/365:.2f} server years, {int(found[k])/8/304:.2f} office years)"
+                server = int(found[k]) / 24 / 365
+                office = int(found[k]) / 8 / 304
+                details = f" ({server:.2f} server years, {office:.2f} office years)"
                 if found["Power_On_Hours_Exact"] == "false":
-                    if 20 > int(found[k]) / 60 / 24 / 365 > 1:
-                        details += f" (or, if minutes, {int(found[k]) / 60 / 24 / 365:.2f} server years, {int(found[k]) / 60 / 8 / 304:.2f} office years)"
+                    if server >= 20:
+                        details += f" (or, if minutes, {server/60:.2f} server years, {office/60:.2f} office years)"
             except:
                 pass
-        else:
-            details = ""
         if found[k].isnumeric() and int(found[k]) != 0:
             color1 = RED
             color2 = END_ESCAPE

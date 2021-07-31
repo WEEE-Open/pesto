@@ -11,6 +11,13 @@ def main(directory: str):
     col_names_set = set()
     col_names = []
 
+
+    col_names_set.add("Brand")
+    col_names.append("Brand")
+    col_names_set.add("Model_Family")
+    col_names.append("Model_Family")
+    col_names_set.add("Serial_Number")
+    col_names.append("Serial_Number")
     for filename in os.listdir(directory):
         fullpath = directory.rstrip('/') + '/' + filename
         if filename.startswith('labeled_') and filename.endswith('.csv') and filename != 'labeled_out.csv':
