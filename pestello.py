@@ -84,7 +84,15 @@ def parse_file(filename: str, results: list, serials: set, counter: int):
         "Load_Cycle_Count",
         "Reallocated_Event_Count",
         "Current_Pending_Sector",
-        "Offline_Uncorrectable"
+        "Offline_Uncorrectable",
+        "High_Fly_Writes",
+        "UDMA_CRC_Error_Count",
+        "Power-Off_Retract_Count",
+        "G-Sense_Error_Rate",
+        "Spin_Retry_Count",
+        "Spin_Up_Time",
+        "Throughput_Performance",
+        "Raw_Read_Error_Rate",
     }
 
     found = dict()
@@ -113,7 +121,8 @@ def parse_file(filename: str, results: list, serials: set, counter: int):
                 continue
             if info_section:
                 if 'Model Family:  ' in line:
-                    val = line.split('  ', 1)[1]
+                    val = line.split('  ', 1)[1].strip()
+                    found["Brand"] = val.split(' ', 1)[0]
                     found["Model_Family"] = val.strip()
 
                 if 'Serial Number' in line:
@@ -143,6 +152,10 @@ def parse_file(filename: str, results: list, serials: set, counter: int):
             return
         else:
             serials.add(found["Serial_Number"])
+
+    if len(found) <= 1:
+        print(f"Skipping empty disk in {filename}")
+        return
 
     for k in found:
         if k == "Power_On_Hours":

@@ -3,3 +3,4 @@ files/
 files_*/
 labeled.csv
 labeled_*.csv
+.~lock.*
