@@ -4,6 +4,7 @@
 import csv
 import argparse
 import os
+import traceback
 
 RED = "\033[31;40m"
 END_ESCAPE = "\033[0;0m"
@@ -28,6 +29,7 @@ def get_files(paths):
                         if isinstance(e, KeyboardInterrupt) or isinstance(e, EOFError):
                             raise e
                         print(f"Error reading {filename}")
+                        print(traceback.format_exc())
                         continue
             elif os.path.isfile(file):
                 try:
@@ -37,6 +39,7 @@ def get_files(paths):
                     if isinstance(e, KeyboardInterrupt) or isinstance(e, EOFError):
                         raise e
                     print(f"Error reading {file}")
+                    print(traceback.format_exc())
                     continue
             else:
                 print(f"{file} is not a file nor a directory")
@@ -93,6 +96,7 @@ def parse_file(filename: str, results: list, serials: set, counter: int):
         "Spin_Up_Time",
         "Throughput_Performance",
         "Raw_Read_Error_Rate",
+        "Total_LBAs_Written",
     }
 
     found = dict()
@@ -125,8 +129,8 @@ def parse_file(filename: str, results: list, serials: set, counter: int):
                     found["Brand"] = val.split(' ', 1)[0]
                     found["Model_Family"] = val.strip()
 
-                if 'Serial Number' in line:
-                    val = line.split('  ', 1)[1]
+                if 'Serial Number:' in line:
+                    val = line.split('Serial Number:', 2)[1]
                     found["Serial_Number"] = val.strip()
                 continue
             if data_section:
@@ -146,23 +150,29 @@ def parse_file(filename: str, results: list, serials: set, counter: int):
 
     found["Errors_UNC"] = str(errors)
 
-    if "Serial_Number" in found:
-        if found["Serial_Number"] in serials:
-            print(f"Skipping {found['Serial_Number']} in {filename}")
-            return
-        else:
-            serials.add(found["Serial_Number"])
+    if "Serial_Number" not in found:
+        found["Serial_Number"] = filename
+    if found["Serial_Number"] in serials:
+        print(f"Skipping {found['Serial_Number']} in {filename}")
+        return
+    else:
+        serials.add(found["Serial_Number"])
 
-    if len(found) <= 1:
+    if len(found) <= 2:
         print(f"Skipping empty disk in {filename}")
         return
 
     for k in found:
-        if k == "Power_On_Hours":
-            details = f" ({int(found[k])/24/365:.2f} server years, {int(found[k])/8/304:.2f} office years)"
-            if found["Power_On_Hours_Exact"] == "false":
-                if 20 > int(found[k]) / 60 / 24 / 365 > 1:
-                    details += f" (or, if minutes, {int(found[k]) / 60 / 24 / 365:.2f} server years, {int(found[k]) / 60 / 8 / 304:.2f} office years)"
+        if k == "Total_LBAs_Written":
+            details = f" ({int(found[k])*512/1024/1024/1024:.2f} GiB)"
+        elif k == "Power_On_Hours":
+            try:
+                details = f" ({int(found[k])/24/365:.2f} server years, {int(found[k])/8/304:.2f} office years)"
+                if found["Power_On_Hours_Exact"] == "false":
+                    if 20 > int(found[k]) / 60 / 24 / 365 > 1:
+                        details += f" (or, if minutes, {int(found[k]) / 60 / 24 / 365:.2f} server years, {int(found[k]) / 60 / 8 / 304:.2f} office years)"
+            except:
+                pass
         else:
             details = ""
         if found[k].isnumeric() and int(found[k]) != 0:
@@ -196,6 +206,7 @@ def parse_file(filename: str, results: list, serials: set, counter: int):
         elif r == 'x':
             answered = True
     print()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Classify SMART data manually. Now.')
