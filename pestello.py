@@ -5,6 +5,7 @@ import csv
 import argparse
 import os
 import traceback
+import re
 
 RED = "\033[31;40m"
 END_ESCAPE = "\033[0;0m"
@@ -122,15 +123,27 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
                         del found["Serial_Number"]
                 continue
             if data_section:
-                parts_test = line.split(' ')
+                parts_test = line.strip().split(' ')
                 try:
-                    param_value = int(parts_test[0])
+                    param_value = int(parts_test[0].strip())
                 except ValueError:
                     continue
                 if len(parts_test) >= 3 and 0 <= param_value <= 256:
                     found_at_least_one = True
-                    attr = parts_test[1]
+                    attr = parts_test[1].strip()
+
+                    if len(attr) <= 0:
+                        continue
+                    if attr == "structures":
+                        continue
+                    # Skip bad parsing (matching *******, "Not tested:", 0 and other strings)
+                    if len(re.sub('[a-zA-Z_]+', '', attr)) > 0:
+                        continue
+
                     val = line.split("(")[0].split(" ")[-1].strip()
+                    if len(val) <= 0:
+                        continue
+
                     if 'h' in val and 'm' in val:
                         val = val.split("h")[0]
                     elif 'Temperature' in attr:
