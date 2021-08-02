@@ -7,7 +7,6 @@ Created on Fri Jul 30 10:54:18 2021
 """
 
 import subprocess
-import os
 import paramiko
 import sys
 import os
@@ -65,8 +64,8 @@ class Ui(QtWidgets.QMainWindow):
 
         # exec button
         self.execButton = self.findChild(QtWidgets.QPushButton, 'execButton')
-        self.execButton.setIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__)) + '/assets/asdrow.png'))
-        self.execButton.clicked.connect(self.execProgram)
+        self.execButton.setIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__)) + '/assets/arrow.png'))
+        self.execButton.clicked.connect(self.exec_program)
 
         # text field
         self.textField = self.findChild(QtWidgets.QTextEdit, 'textEdit')
@@ -79,20 +78,27 @@ class Ui(QtWidgets.QMainWindow):
 
     def setup(self):
         # ssh session initialization
-        ssh = SshSession(IP, USER, PASSWD)
-        ssh.initialize()
-
-        # get lsblk results
-        drives = getDisks(ssh)
+        settings = open(os.path.dirname(os.path.realpath(__file__)) + r"\settings.conf","r")
+        for line in settings.readlines():
+            if 'remoteMode' in line:
+                if line.split("=")[1].rstrip("\n") == '0':
+                    drives = local_setup(sys.platform)
+                else:
+                    ssh = SshSession(IP, USER, PASSWD)
+                    ssh.initialize()
+                    drives = get_disks(ssh)  # get lsblk results
+                    ssh.kill()
 
         for row, d in enumerate(drives):
             self.table.setRowCount(row+1)
             self.table.setItem(row, 0, QtWidgets.QTableWidgetItem(d[0]))
-            self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(d[1]))
+            if sys.platform == 'win32':
+                self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(str(int(float(d[1])/1000000000)) + " GiB"))
+            else:
+                self.table.setItem(row, 1, QtWidgets.QTableWidgetItem(d[1]))
 
-        ssh.kill()
 
-    def execProgram(self):
+    def exec_program(self):
         self.textField.clear()
         ssh = SshSession(IP, USER, PASSWD)
         ssh.initialize()
@@ -100,10 +106,10 @@ class Ui(QtWidgets.QMainWindow):
             return
         idx = self.table.currentRow()
         drive = self.table.item(idx, 0).text()
-        data, MAX = smartParser(drive, ssh)
-        text = dataOutput(data, MAX)
+        data, max = smart_parser(drive, ssh)
+        text = data_output(data, max)
         text.append("\n##########################\n")
-        text = smartAnalizer(data, text)
+        text = smart_analizer(data, text)
         for line in text:
             if "SMART DATA CHECK" in line:
                 if "OLD" in line:
@@ -139,7 +145,7 @@ class SshSession:
         return output
 
 
-def smartParser(drive: str, ssh):
+def smart_parser(drive: str, ssh):
     output = ssh.execute('sudo smartctl -a /dev/' + drive)
     attributes = []
     for line in output:
@@ -169,7 +175,7 @@ def smartParser(drive: str, ssh):
     return results, MAX
 
 
-def dataOutput(data, MAX):
+def data_output(data, MAX):
     output = []
     for row in data:
         temp = row[0]
@@ -185,7 +191,7 @@ def dataOutput(data, MAX):
 def normalizer(rawValue):
     return(rawValue)
 
-def smartAnalizer(data, text):
+def smart_analizer(data, text):
     for attribute in data:
         if attribute[0] == "Power_On_Hours":
             value = normalizer(attribute[2])
@@ -219,7 +225,7 @@ def smartAnalizer(data, text):
     text.append("\nIl risultato è indicativo, non gettare l'hard disk se il check è FAIL")
     return text
 
-def getDisks(ssh):
+def get_disks(ssh):
     output = ssh.execute('lsblk -d')
     result = []
     for line in output:
@@ -228,6 +234,25 @@ def getDisks(ssh):
             temp = temp.split(" ")
             result.append([temp[0], temp[3]])
     return result
+
+def local_setup(system):
+    if system == 'win32':
+        label = []
+        size = []
+        drive = []
+        for line in subprocess.getoutput("wmic logicaldisk get caption").splitlines():
+            if line.rstrip() != 'Caption' and line.rstrip() != '':
+                label.append(line.rstrip())
+        for line in subprocess.getoutput("wmic logicaldisk get size").splitlines():
+            if line.rstrip() != 'Size' and line.rstrip() != '':
+                size.append(line)
+        for idx, line in enumerate(size):
+            drive += [[label[idx],line]]
+        return drive
+
+    else:
+        pass
+
 # ---------------------------------------------------------------------
 
 
