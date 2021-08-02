@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jul 30 10:54:18 2021
@@ -7,6 +8,7 @@ Created on Fri Jul 30 10:54:18 2021
 
 import subprocess
 import os
+import paramiko
 
 SPACE = 5
 REQUIREMENTS = ["Model Family",
@@ -29,10 +31,52 @@ BLUE = "\033[36;40m"
 RED = "\033[31;40m"
 END_ESCAPE = "\033[0;0m"
 
-def smartParser(drive):
-    output = subprocess.getoutput("smartctl " + drive + ": -a")
-    attributes = output.splitlines()
-    
+IP = '192.168.2.3'
+USER = 'piall'
+PASSWD = 'asd'
+
+def main():
+    try:
+        ssh = SshSession(IP,USER,PASSWD)
+        ssh.initialize()
+        drive = input("Inserire etichetta disco da analizzare (/dev/sd*): ")
+        data, MAX = smartParser(drive, ssh)
+        dataOutput(data, MAX)
+        print("\n########################################################\n")
+        smartAnalizer(data)
+    except KeyboardInterrupt:
+        print("Ok ciao")
+    # input("Premere INVIO per uscire ...")
+
+
+class SshSession:
+    def __init__(self, ip, user, passwd):
+        self.ip = ip
+        self.user = user
+        self.passwd = passwd
+        self.session = paramiko.SSHClient()
+
+    def initialize(self):
+        self.session.load_system_host_keys()
+        self.session.connect(self.ip, username=self.user, password=self.passwd)
+
+    def kill(self):
+        self.session.close()
+
+    def execute(self, command):
+        stdin, stdout, stderr = self.session.exec_command(command)
+        output = []
+        for line in stdout:
+            output.append(line.rstrip('\n'))
+        return output
+
+
+def smartParser(drive: str, ssh):
+    output = ssh.execute('sudo smartctl -a ' + drive)
+    attributes = []
+    for line in output:
+        attributes.append(line)
+
     results = []
     fase = ""
     MAX = 0
@@ -63,7 +107,10 @@ def dataOutput(data, MAX):
         temp += ":"
         while len(temp) < MAX + SPACE:
             temp += " "
-        print(temp + row[1])    
+        if len(row) < 3:
+            print(temp + row[1])
+        else:
+            print(temp + row[2])
 
 
 def normalizer(rawValue):
@@ -104,9 +151,6 @@ def smartAnalizer(data):
             
 # ---------------------------------------------------------------------
 
-drive = input("Inserire etichetta disco da analizzare (C,D,...): ")
-data, MAX = smartParser(drive)
-dataOutput(data, MAX)
-print("\n########################################################\n")
-smartAnalizer(data)
-#input("Premere INVIO per uscire ...")
+
+if __name__ == "__main__":
+    main()
