@@ -27,7 +27,7 @@
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>10</y>
+      <y>0</y>
       <width>690</width>
       <height>391</height>
      </rect>
@@ -110,6 +110,191 @@
      <attribute name="title">
       <string>Settings</string>
      </attribute>
+     <widget class="QFrame" name="frame_2">
+      <property name="geometry">
+       <rect>
+        <x>170</x>
+        <y>10</y>
+        <width>251</width>
+        <height>221</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <widget class="QLabel" name="label">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>10</y>
+         <width>81</width>
+         <height>18</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Remote Ip:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_2">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>80</y>
+         <width>91</width>
+         <height>18</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Remote User:</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_3">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>150</y>
+         <width>121</width>
+         <height>18</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Remote Password:</string>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="sshIp">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>211</width>
+         <height>32</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="sshUser">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>100</y>
+         <width>210</width>
+         <height>32</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QLineEdit" name="sshPasswd">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>170</y>
+         <width>210</width>
+         <height>32</height>
+        </rect>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="radioGroupBox">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>10</y>
+        <width>151</width>
+        <height>91</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Mode</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+      <widget class="QRadioButton" name="sshRadioBtn">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>60</y>
+         <width>105</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>SSH</string>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="localRadioBtn">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>105</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Local</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QFrame" name="frame">
+      <property name="geometry">
+       <rect>
+        <x>430</x>
+        <y>10</y>
+        <width>151</width>
+        <height>221</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <widget class="QPushButton" name="refreshButton">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>110</width>
+         <height>34</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Refresh</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="restoreButton">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>100</y>
+         <width>110</width>
+         <height>34</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Restore</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="defaultButton">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>170</y>
+         <width>110</width>
+         <height>34</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Defaults</string>
+       </property>
+      </widget>
+     </widget>
     </widget>
    </widget>
   </widget>

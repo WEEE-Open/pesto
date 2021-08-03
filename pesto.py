@@ -5,12 +5,12 @@ Created on Fri Jul 30 10:54:18 2021
 
 @author: il_palmi
 """
-
+import socket
 import subprocess
 import paramiko
 import sys
 import os
-from PyQt5 import QtWidgets, uic, QtGui
+from PyQt5 import QtWidgets, uic, QtGui, QtCore
 
 SPACE = 5
 REQUIREMENTS = ["Model Family",
@@ -37,6 +37,12 @@ IP = '192.168.2.3'
 USER = 'piall'
 PASSWD = 'asd'
 
+CURRENT_PLATFORM = sys.platform
+
+UI_PATH = "/assets/interface.ui"
+ARROW_PATH = "/assets/arrow.png"
+
+
 def main():
     try:
         app = QtWidgets.QApplication(sys.argv)
@@ -51,7 +57,21 @@ def main():
 class Ui(QtWidgets.QMainWindow):
     def __init__(self):
         super(Ui, self).__init__()
-        uic.loadUi(os.path.dirname(os.path.realpath(__file__)) + '/assets/interface.ui', self)
+        if CURRENT_PLATFORM == 'win32':
+            uic.loadUi(os.path.dirname(os.path.realpath(__file__)) + win_path(UI_PATH), self)
+        else:
+            uic.loadUi(os.path.dirname(os.path.realpath(__file__)) + UI_PATH, self)
+
+        # get latest configuration
+        self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
+        self.remoteMode = self.settings.value("conf/remoteMode")
+        if self.remoteMode == 'False':
+            self.remoteMode = False
+        else:
+            self.remoteMode = True
+        self.sshIp = self.settings.value("conf/sshIp")
+        self.sshUser = self.settings.value("conf/sshUser")
+        self.sshPasswd = self.settings.value("conf/sshPasswd")
 
         # table view
         self.table = self.findChild(QtWidgets.QTableWidget, 'tableWidget')
@@ -64,7 +84,10 @@ class Ui(QtWidgets.QMainWindow):
 
         # exec button
         self.execButton = self.findChild(QtWidgets.QPushButton, 'execButton')
-        self.execButton.setIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__)) + '/assets/arrow.png'))
+        if CURRENT_PLATFORM == 'win32':
+            self.execButton.setIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__)) + win_path(ARROW_PATH)))
+        else:
+            self.execButton.setIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__)) + ARROW_PATH))
         self.execButton.clicked.connect(self.exec_program)
 
         # text field
@@ -73,21 +96,61 @@ class Ui(QtWidgets.QMainWindow):
         self.textField.setCurrentFont(QtGui.QFont("Monospace"))
         self.textField.setFontPointSize(10)
 
+        # radio buttons group box
+        self.radioGroupBox = self.findChild(QtWidgets.QGroupBox, 'radioGroupBox')
+
+        # local radio button
+        self.localRadioBtn = self.findChild(QtWidgets.QRadioButton, 'localRadioBtn')
+        if not self.remoteMode:
+            self.localRadioBtn.setChecked(True)
+        self.localRadioBtn.clicked.connect(self.set_remote_mode)
+
+        # ssh radio button
+        self.sshRadioBtn = self.findChild(QtWidgets.QRadioButton, 'sshRadioBtn')
+        if self.remoteMode:
+            self.sshRadioBtn.setChecked(True)
+        self.sshRadioBtn.clicked.connect(self.set_remote_mode)
+
+        # sshIp input
+        self.sshIpInput = self.findChild(QtWidgets.QLineEdit, 'sshIp')
+        self.sshIpInput.setText(self.sshIp)
+
+        # sshUser input
+        self.sshUserInput = self.findChild(QtWidgets.QLineEdit, 'sshUser')
+        self.sshUserInput.setText(self.sshUser)
+
+        # sshUser input
+        self.sshPasswdInput = self.findChild(QtWidgets.QLineEdit, 'sshPasswd')
+        self.sshPasswdInput.setText(self.sshPasswd)
+
+        # refresh button
+        self.refreshButton = self.findChild(QtWidgets.QPushButton, "refreshButton")
+        self.refreshButton.clicked.connect(self.refresh)
+
+        # restore button
+        self.restoreButton = self.findChild(QtWidgets.QPushButton, "restoreButton")
+        self.restoreButton.clicked.connect(self.restore)
+
         self.setup()
         self.show()
 
     def setup(self):
         # ssh session initialization
-        settings = open(os.path.dirname(os.path.realpath(__file__)) + r"\settings.conf","r")
-        for line in settings.readlines():
-            if 'remoteMode' in line:
-                if line.split("=")[1].rstrip("\n") == '0':
-                    drives = local_setup(sys.platform)
-                else:
-                    ssh = SshSession(IP, USER, PASSWD)
-                    ssh.initialize()
-                    drives = get_disks(ssh)  # get lsblk results
-                    ssh.kill()
+        if self.remoteMode:
+            ssh = SshSession(self.sshIp, self.sshUser, self.sshPasswd)
+            if not ssh.initialize():
+                self.remoteMode = False
+                self.localRadioBtn.setChecked(True)
+                return
+            drives = get_disks(ssh)  # get lsblk results
+            ssh.kill()
+        else:
+            drives = local_setup(sys.platform)
+
+        if drives is None:
+            self.table.clear()
+            self.table.setRowCount(0)
+            return
 
         for row, d in enumerate(drives):
             self.table.setRowCount(row+1)
@@ -123,6 +186,31 @@ class Ui(QtWidgets.QMainWindow):
             else:
                 self.textField.append(line)
 
+    def set_remote_mode(self):
+        if self.localRadioBtn.isChecked():
+            self.remoteMode = False
+        elif self.sshRadioBtn.isChecked():
+            self.remoteMode = True
+        self.refresh()
+
+    def refresh(self):
+        self.sshIp = self.sshIpInput.text()
+        self.sshUser = self.sshUserInput.text()
+        self.sshPasswd = self.sshPasswdInput.text()
+        self.setup()
+
+    def restore(self):
+        self.sshIpInput.setText(self.sshIp)
+        self.sshUserInput.setText(self.sshUser)
+        self.sshPasswdInput.setText(self.sshPasswd)
+
+    def closeEvent(self, a0: QtGui.QCloseEvent):
+        self.settings.setValue("conf/remoteMode", str(self.remoteMode))
+        self.settings.setValue("conf/sshIp", self.sshIpInput.text())
+        self.settings.setValue("conf/sshUser", self.sshUserInput.text())
+        self.settings.setValue("conf/sshPasswd", self.sshPasswdInput.text())
+        print(self.settings.value("conf/remoteMode"))
+
 class SshSession:
     def __init__(self, ip, user, passwd):
         self.ip = ip
@@ -132,7 +220,33 @@ class SshSession:
 
     def initialize(self):
         self.session.load_system_host_keys()
-        self.session.connect(self.ip, username=self.user, password=self.passwd)
+        try:
+            self.session.connect(self.ip, username=self.user, password=self.passwd)
+            return True
+        except paramiko.ssh_exception.AuthenticationException:
+            message = "Authentication failed.\nCheck user and password."
+            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, ".Error!", message)
+            dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            dialog.exec_()
+            return False
+        except socket.gaierror:
+            message = "Cannot find ip address.\nCheck if you have inserted a wrong ip."
+            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Error!", message)
+            dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            dialog.exec_()
+            return False
+        except paramiko.ssh_exception.NoValidConnectionsError:
+            message = "Cannot find ip address.\nCheck if you have inserted a wrong ip."
+            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Error!", message)
+            dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            dialog.exec_()
+            return False
+        except:
+            message = sys.exc_info()
+            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Error!", message)
+            dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            dialog.exec_()
+            return False
 
     def kill(self):
         self.session.close()
@@ -253,8 +367,14 @@ def local_setup(system):
     else:
         pass
 
-# ---------------------------------------------------------------------
-
+def win_path(linuxPath):
+    winPath = r""
+    for char in linuxPath:
+        if char == '/':
+            winPath += '\\'
+        else:
+            winPath += char
+    return winPath
 
 if __name__ == "__main__":
     main()
