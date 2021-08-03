@@ -86,8 +86,10 @@ class Ui(QtWidgets.QMainWindow):
         self.execButton = self.findChild(QtWidgets.QPushButton, 'execButton')
         if CURRENT_PLATFORM == 'win32':
             self.execButton.setIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__)) + win_path(ARROW_PATH)))
+            self.gif = QtGui.QMovie(os.path.dirname(os.path.realpath(__file__)) + win_path("/assets/asd.gif"))
         else:
             self.execButton.setIcon(QtGui.QIcon(os.path.dirname(os.path.realpath(__file__)) + ARROW_PATH))
+            self.gif = QtGui.QMovie(os.path.dirname(os.path.realpath(__file__)) + "/assets/asd.gif")
         self.execButton.clicked.connect(self.exec_program)
 
         # text field
@@ -130,6 +132,15 @@ class Ui(QtWidgets.QMainWindow):
         # restore button
         self.restoreButton = self.findChild(QtWidgets.QPushButton, "restoreButton")
         self.restoreButton.clicked.connect(self.restore)
+
+        # default values button
+        self.defaultButton = self.findChild(QtWidgets.QPushButton, "defaultButton")
+        self.defaultButton.clicked.connect(self.default)
+
+        # asd tab
+        self.asdLabel = self.findChild(QtWidgets.QLabel, "asdLabel")
+        self.asdLabel.setMovie(self.gif)
+        self.gif.start()
 
         self.setup()
         self.show()
@@ -204,6 +215,11 @@ class Ui(QtWidgets.QMainWindow):
         self.sshUserInput.setText(self.sshUser)
         self.sshPasswdInput.setText(self.sshPasswd)
 
+    def default(self):
+        self.sshIpInput.clear()
+        self.sshUserInput.clear()
+        self.sshPasswdInput.clear()
+
     def closeEvent(self, a0: QtGui.QCloseEvent):
         self.settings.setValue("conf/remoteMode", str(self.remoteMode))
         self.settings.setValue("conf/sshIp", self.sshIpInput.text())
@@ -242,7 +258,7 @@ class SshSession:
             dialog.exec_()
             return False
         except:
-            message = sys.exc_info()
+            message = str(sys.exc_info())
             dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Error!", message)
             dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
             dialog.exec_()
