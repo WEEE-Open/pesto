@@ -52,7 +52,7 @@
     </property>
     <widget class="QWidget" name="main_tab">
      <attribute name="title">
-      <string>SMART</string>
+      <string>Main</string>
      </attribute>
      <widget class="QWidget" name="horizontalLayoutWidget">
       <property name="geometry">
@@ -98,9 +98,14 @@
            <property name="horizontalScrollBarPolicy">
             <enum>Qt::ScrollBarAlwaysOff</enum>
            </property>
+           <property name="columnCount">
+            <number>2</number>
+           </property>
            <attribute name="verticalHeaderVisible">
             <bool>false</bool>
            </attribute>
+           <column/>
+           <column/>
           </widget>
          </item>
          <item>
@@ -152,6 +157,13 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QPushButton" name="pushButton">
+               <property name="text">
+                <string>Cannola</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
           </layout>
@@ -159,13 +171,51 @@
         </layout>
        </item>
        <item>
-        <widget class="QTextEdit" name="textEdit">
-         <property name="frameShadow">
-          <enum>QFrame::Plain</enum>
+        <widget class="QTableWidget" name="queueTable">
+         <property name="autoFillBackground">
+          <bool>false</bool>
          </property>
+         <property name="columnCount">
+          <number>5</number>
+         </property>
+         <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
+          <bool>false</bool>
+         </attribute>
+         <attribute name="horizontalHeaderStretchLastSection">
+          <bool>false</bool>
+         </attribute>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <attribute name="verticalHeaderStretchLastSection">
+          <bool>false</bool>
+         </attribute>
+         <column/>
+         <column/>
+         <column/>
+         <column/>
+         <column/>
         </widget>
        </item>
       </layout>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_2">
+     <attribute name="title">
+      <string>Console</string>
+     </attribute>
+     <widget class="QTextEdit" name="textEdit">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>681</width>
+        <height>359</height>
+       </rect>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Plain</enum>
+      </property>
      </widget>
     </widget>
     <widget class="QWidget" name="settings_tab">
@@ -311,24 +361,11 @@
       <property name="title">
        <string>Utility Buttons</string>
       </property>
-      <widget class="QPushButton" name="refreshButton">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>40</y>
-         <width>110</width>
-         <height>34</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Refresh</string>
-       </property>
-      </widget>
       <widget class="QPushButton" name="restoreButton">
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>110</y>
+         <y>40</y>
          <width>110</width>
          <height>34</height>
         </rect>
@@ -341,13 +378,91 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>180</y>
+         <y>110</y>
          <width>110</width>
          <height>34</height>
         </rect>
        </property>
        <property name="text">
         <string>Defaults</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="saveButton">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>180</y>
+         <width>110</width>
+         <height>34</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Save</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="ipBox">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>110</y>
+        <width>151</width>
+        <height>251</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Recent Ip</string>
+      </property>
+      <widget class="QListWidget" name="ipList">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>20</y>
+         <width>131</width>
+         <height>220</height>
+        </rect>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_3">
+      <property name="geometry">
+       <rect>
+        <x>170</x>
+        <y>250</y>
+        <width>511</width>
+        <height>111</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>System image for CANNOLO</string>
+      </property>
+      <widget class="QLineEdit" name="directory">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>471</width>
+         <height>31</height>
+        </rect>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="clearButtonEnabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="findDirButton">
+       <property name="geometry">
+        <rect>
+         <x>400</x>
+         <y>72</y>
+         <width>91</width>
+         <height>31</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Find</string>
        </property>
       </widget>
      </widget>
