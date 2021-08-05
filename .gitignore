@@ -5,6 +5,3 @@ files_*/
 labeled.csv
 labeled_*.csv
 .~lock.*
-__pycache__/pesto.cpython-39.pyc
-__pycache__/pesto.cpython-39.pyc
-__pycache__/utilites.cpython-39.pyc
