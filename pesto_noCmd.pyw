@@ -8,11 +8,12 @@ Created on Fri Jul 30 10:54:18 2021
 import subprocess
 import sys
 import ctypes
+import datetime
 from PyQt5 import QtWidgets, uic, QtGui, QtCore
 from PyQt5.QtGui import QIcon, QMovie
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QTableWidgetItem
-from utilites import win_path, check_requirements, SshSession, error_dialog
+from PyQt5.QtCore import Qt, QEvent
+from PyQt5.QtWidgets import QTableWidgetItem, QMenu
+from utilites import win_path, check_requirements, SshSession, error_dialog, warning_dialog, info_dialog, data_output
 
 SPACE = 5
 REQUIREMENTS = ["Model Family",
@@ -105,6 +106,7 @@ class Ui(QtWidgets.QMainWindow):
         self.queueTable.setColumnWidth(2, 50)
         self.queueTable.setColumnWidth(3,50)
         self.queueTable.horizontalHeader().setStretchLastSection(True)
+        self.queueTable.installEventFilter(self)
 
         # reload button
         self.reloadButton = self.findChild(QtWidgets.QPushButton, 'reloadButton')
@@ -117,7 +119,7 @@ class Ui(QtWidgets.QMainWindow):
 
         # smart button
         self.smartButton = self.findChild(QtWidgets.QPushButton, 'smartButton')
-        self.smartButton.clicked.connect(self.exec_program)
+        self.smartButton.clicked.connect(self.smart)
 
         # text field
         self.textField = self.findChild(QtWidgets.QTextEdit, 'textEdit')
@@ -199,6 +201,18 @@ class Ui(QtWidgets.QMainWindow):
             else:
                 self.diskTable.setItem(row, 1, QTableWidgetItem(d[1]))
 
+    def eventFilter(self, source: 'QObject', event: 'QEvent'):
+        selectedRow = self.queueTable.currentRow()
+        if event.type() == QEvent.ContextMenu and source is self.queueTable and selectedRow != -1:
+            menu = QMenu()
+            menu.addAction("Stop", self.stop_dialog)
+            menu.addAction("Remove", self.remove_dialog)
+            menu.addAction("Log")
+            menu.addAction("Info", self.info_dialog)
+            menu.exec_(event.globalPos())
+            return True
+        return super().eventFilter(source, event)
+
     def erase_dialog(self):
         if self.diskTable.currentItem() is None:
             return
@@ -209,22 +223,52 @@ class Ui(QtWidgets.QMainWindow):
         message = "Do you want to restore all settings to default?\nThis action is irrevocable."
         yes_no_dialog(message=message, yes_function=self.default, no_function=None)
 
+    def stop_dialog(self):
+        id = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
+        message = 'Do you want to stop the process?\nID: ' + id
+        if warning_dialog(message) == QtWidgets.QMessageBox.Yes:
+            icon = self.queueTable.cellWidget(self.queueTable.currentRow(), 3)
+            icon.setPixmap(QtGui.QPixmap(PATH["ERROR"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
+
+    def remove_dialog(self):
+        id = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
+        message = 'With this action you will also stop the process (ID: '+ id + ")\n"
+        message += 'Do you want to proceed?'
+        if warning_dialog(message) == QtWidgets.QMessageBox.Yes:
+            self.queueTable.removeRow(self.queueTable.currentRow())
+
+    def info_dialog(self):
+        process = self.queueTable.cellWidget(self.queueTable.currentRow(), 1).text()
+        message = ''
+        if process == "Smart check":
+            message += "Process type: " + process + "\n"
+            message += "Get SMART data from the selected drive\n"
+            message += "and print the output to the console."
+        elif process == "Erase":
+            message += "Process type: " + process + "\n"
+            message += "Wipe off all data in the selected drive."
+        info_dialog(message)
+
     def erase(self):
         selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0).text()
         self.textField.clear()
         self.textField.append("Sto piallando il disco " + selected_drive)
         self.update_queue(drive=selected_drive, mode="erase")
 
-    def exec_program(self):
-        if self.diskTable.currentItem() is None:
+    def smart(self):
+        selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0).text()
+        self.update_queue(drive=selected_drive, mode="smart")
+        if selected_drive is None:
             return
+        # clear console
         self.textField.clear()
+        # setup ssh session if remote mode is ON
         if self.remoteMode:
             ssh = SshSession(self.sshIp, self.sshUser, self.sshPasswd)
             ssh.initialize()
         else:
             ssh = None
-        selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0).text()
+        # get data and maximum length of entry for better output
         data, maximum = smart_parser(selected_drive, ssh)
         text = data_output(data, maximum)
         text = smart_analyzer(data, text)
@@ -232,11 +276,15 @@ class Ui(QtWidgets.QMainWindow):
             if "SMART DATA CHECK" in line:
                 if "OLD" in line:
                     self.textField.setTextColor(QtGui.QColor("blue"))
-                    self.textField.append(line)
+                    self.textField.append("\n" + line)
                     self.textField.setTextColor(QtGui.QColor("black"))
                 elif "FAIL" in line:
                     self.textField.setTextColor(QtGui.QColor("red"))
-                    self.textField.append(line)
+                    self.textField.append("\n" + line)
+                    self.textField.setTextColor(QtGui.QColor("black"))
+                elif "OK" in line:
+                    self.textField.setTextColor(QtGui.QColor("green"))
+                    self.textField.append("\n" + line)
                     self.textField.setTextColor(QtGui.QColor("black"))
             else:
                 self.textField.append(line)
@@ -246,6 +294,7 @@ class Ui(QtWidgets.QMainWindow):
             self.remoteMode = False
         elif self.sshRadioBtn.isChecked():
             self.remoteMode = True
+        self.refresh()
 
     def refresh(self):
         self.sshIp = self.sshIpInput.text()
@@ -269,26 +318,34 @@ class Ui(QtWidgets.QMainWindow):
         self.queueTable.setRowCount(self.queueTable.rowCount() + 1)
         for idx, entry in enumerate(QUEUE_TABLE):
             label = QtWidgets.QLabel()
-            if entry == "ID":                   # ID
-                label.setText("69-420")
-            if entry == "Process":              # PROCESS
+            if entry == "ID":  # ID
+                t = datetime.datetime.now()
+                t = t.strftime("%d%m%y-%H%M%S")
+                label.setText(t)
+            if entry == "Process":  # PROCESS
                 if mode == 'erase':
                     label.setText("Erase")
                 elif mode == 'smart':
                     label.setText("Smart check")
                 elif mode == 'cannolo':
                     label.setText("Cannolo")
-            if entry == "Disk":                 # DISK
+            if entry == "Disk":  # DISK
                 label.setText(drive)
-            if entry == "Status":               # STATUS
-                label.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
-            if entry == "Progress":             # PROGRESS
+            if entry == "Status":  # STATUS
+                if self.queueTable.rowCount() != 1:
+                    label.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
+                else:
+                    label.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
+            if entry == "Progress":  # PROGRESS
                 label = QtWidgets.QProgressBar()
                 label.setValue(50)
 
             label.setAlignment(Qt.AlignCenter)
             self.queueTable.setCellWidget(self.queueTable.rowCount() - 1, idx, label)
 
+    def save_ip(self):
+        ip = self.sshIpInput.text()
+        self.ipList.addItem(ip)
 
     def closeEvent(self, a0: QtGui.QCloseEvent):
         self.settings.setValue("conf/remoteMode", str(self.remoteMode))
@@ -330,20 +387,6 @@ def smart_parser(drive: str, ssh):
                     maximum = len(splitted[1])
     
     return results, maximum
-
-
-def data_output(data, maximum):
-    output = []
-    for row in data:
-        temp = row[0]
-        temp += ":"
-        while len(temp) < maximum + SPACE:
-            temp += " "
-        if len(row) < 3:
-            output.append(temp + row[1])
-        else:
-            output.append(temp + row[2])
-    return output
 
 
 def smart_analyzer(data, text):
