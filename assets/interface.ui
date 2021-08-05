@@ -113,7 +113,7 @@
      <widget class="QFrame" name="frame_2">
       <property name="geometry">
        <rect>
-        <x>170</x>
+        <x>300</x>
         <y>10</y>
         <width>251</width>
         <height>221</height>
@@ -200,7 +200,7 @@
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>151</width>
+        <width>130</width>
         <height>91</height>
        </rect>
       </property>
@@ -243,10 +243,10 @@
      <widget class="QFrame" name="frame">
       <property name="geometry">
        <rect>
-        <x>430</x>
+        <x>560</x>
         <y>10</y>
-        <width>151</width>
-        <height>221</height>
+        <width>110</width>
+        <height>231</height>
        </rect>
       </property>
       <property name="frameShape">
@@ -259,8 +259,8 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>30</y>
-         <width>110</width>
+         <y>40</y>
+         <width>70</width>
          <height>34</height>
         </rect>
        </property>
@@ -272,8 +272,8 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>100</y>
-         <width>110</width>
+         <y>110</y>
+         <width>70</width>
          <height>34</height>
         </rect>
        </property>
@@ -285,13 +285,130 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>170</y>
-         <width>110</width>
+         <y>180</y>
+         <width>70</width>
          <height>34</height>
         </rect>
        </property>
        <property name="text">
-        <string>Defaults</string>
+        <string>Save</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="ipBox">
+      <property name="geometry">
+       <rect>
+        <x>150</x>
+        <y>10</y>
+        <width>140</width>
+        <height>230</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Recent IPs</string>
+      </property>
+      <widget class="QListWidget" name="ipList">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>20</y>
+         <width>120</width>
+         <height>200</height>
+        </rect>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_3">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>250</y>
+        <width>671</width>
+        <height>111</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>System image for CANNOLO</string>
+      </property>
+      <widget class="QLineEdit" name="directory">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>631</width>
+         <height>31</height>
+        </rect>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="clearButtonEnabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="findDirButton">
+       <property name="geometry">
+        <rect>
+         <x>580</x>
+         <y>72</y>
+         <width>71</width>
+         <height>31</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Find</string>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QGroupBox" name="groupBox_4">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>110</y>
+        <width>130</width>
+        <height>131</height>
+       </rect>
+      </property>
+      <property name="title">
+       <string>Theme</string>
+      </property>
+      <widget class="QRadioButton" name="radioButton">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>30</y>
+         <width>82</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Default</string>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="radioButton_2">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>60</y>
+         <width>82</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Dark</string>
+       </property>
+      </widget>
+      <widget class="QRadioButton" name="radioButton_3">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>90</y>
+         <width>82</width>
+         <height>17</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Vaporwave</string>
        </property>
       </widget>
      </widget>
