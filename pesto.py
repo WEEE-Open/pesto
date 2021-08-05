@@ -77,7 +77,6 @@ class Ui(QtWidgets.QMainWindow):
         self.sshUser = self.settings.value("conf/sshUser")
         self.sshPasswd = self.settings.value("conf/sshPasswd")
 
-        self.table.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem("Dischi"))
         # disks table
         self.diskTable = self.findChild(QtWidgets.QTableWidget, 'tableWidget')
         self.diskTable.setHorizontalHeaderItem(0, QTableWidgetItem("Drive"))
