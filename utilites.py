@@ -54,9 +54,14 @@ class SshSession:
         return output
 
 
-def error_dialog(message):
+def critical_dialog(message, type):
     dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error!", message)
-    dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+    if type == "ok":
+        dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+    elif type == "yes_no":
+        dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
+        dialog.addButton(QtWidgets.QMessageBox.No)
+        dialog.setDefaultButton(QtWidgets.QMessageBox.No)
     dialog.exec_()
 
 
@@ -74,9 +79,9 @@ def warning_dialog(message):
     return dialog.exec_()
 
 
-def win_path(linux_path):
+def win_path(path):
     new_path = r""
-    for char in linux_path:
+    for char in path:
         if char == '/':
             new_path += '\\'
         else:
@@ -85,8 +90,13 @@ def win_path(linux_path):
     return new_path
 
 
+def linux_path(path):
+    new_path = os.path.dirname(os.path.realpath(__file__)) + path
+    return new_path
+
+
 def check_requirements(requirements_path):
-    subprocess.call("pip install -r " + requirements_path)
+    subprocess.Popen(["pip", "install", "-r", requirements_path])
 
 
 def data_output(data, maximum):

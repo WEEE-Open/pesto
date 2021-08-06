@@ -13,9 +13,10 @@ from PyQt5 import QtWidgets, uic, QtGui, QtCore
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtWidgets import QTableWidgetItem, QMenu
-from utilites import win_path, check_requirements, SshSession, error_dialog, warning_dialog, info_dialog, data_output
+from utilites import *
 
 SPACE = 5
+
 REQUIREMENTS = ["Model Family",
                 "Device Model",
                 "Serial Number",
@@ -57,6 +58,9 @@ if CURRENT_PLATFORM == "win32":
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("myappid")
     for path in PATH:
         PATH[path] = win_path(PATH[path])
+else:
+    for path in PATH:
+        PATH[path] = linux_path(PATH[path])
 
 
 def main():
@@ -80,14 +84,14 @@ class Ui(QtWidgets.QMainWindow):
 
         # get latest configuration
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
-        self.remoteMode = self.settings.value("conf/remoteMode")
+        asd = self.remoteMode = self.settings.value("remoteMode")
         if self.remoteMode == 'False':
             self.remoteMode = False
         else:
             self.remoteMode = True
-        self.sshIp = self.settings.value("conf/sshIp")
-        self.sshUser = self.settings.value("conf/sshUser")
-        self.sshPasswd = self.settings.value("conf/sshPasswd")
+        self.sshIp = self.settings.value("sshIp")
+        self.sshUser = self.settings.value("sshUser")
+        self.sshPasswd = self.settings.value("sshPasswd")
 
         # disks table
         self.diskTable = self.findChild(QtWidgets.QTableWidget, 'tableWidget')
@@ -104,7 +108,7 @@ class Ui(QtWidgets.QMainWindow):
             self.queueTable.setHorizontalHeaderItem(idx, QTableWidgetItem(label))
         self.queueTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.queueTable.setColumnWidth(2, 50)
-        self.queueTable.setColumnWidth(3,50)
+        self.queueTable.setColumnWidth(3, 50)
         self.queueTable.horizontalHeader().setStretchLastSection(True)
         self.queueTable.installEventFilter(self)
 
@@ -130,9 +134,6 @@ class Ui(QtWidgets.QMainWindow):
         self.textField.document().setDefaultFont(font)
         self.textField.setCurrentFont(font)
         self.textField.setFontPointSize(10)
-
-        # radio and ulna buttons group box
-        self.radioGroupBox = self.findChild(QtWidgets.QGroupBox, 'radioGroupBox')
 
         # local radio button
         self.localRadioBtn = self.findChild(QtWidgets.QRadioButton, 'localRadioBtn')
@@ -164,7 +165,41 @@ class Ui(QtWidgets.QMainWindow):
 
         # default values button
         self.defaultButton = self.findChild(QtWidgets.QPushButton, "defaultButton")
-        self.defaultButton.clicked.connect(self.default_dialog)
+        self.defaultButton.clicked.connect(self.default_config)
+
+        # remove config button
+        self.defaultButton = self.findChild(QtWidgets.QPushButton, "removeButton")
+        self.defaultButton.clicked.connect(self.remove_config)
+
+        # save config button
+        self.saveButton = self.findChild(QtWidgets.QPushButton, "saveButton")
+        self.saveButton.clicked.connect(self.save_config)
+
+        # configuration list
+        self.ipList = self.findChild(QtWidgets.QListWidget, "ipList")
+        for key in self.settings.childKeys():
+            if "saved" in key:
+                values = self.settings.value(key)
+                self.ipList.addItem(values[0])
+        self.ipList.clicked.connect(self.load_config)
+
+        # find button
+        self.findButton = self.findChild(QtWidgets.QPushButton, "findButton")
+        self.findButton.clicked.connect(self.find_directory)
+
+        # directory text
+        self.directoryText = self.findChild(QtWidgets.QLineEdit, "directoryText")
+        for key in self.settings.childKeys():
+            if "cannoloDir" in key:
+                self.directoryText.setText(str(self.settings.value(key)))
+
+        # cannolo label
+        self.cannoloLabel = self.findChild(QtWidgets.QLabel, "cannoloLabel")
+        self.cannoloLabel.setStyleSheet('color: blue')
+        if self.remoteMode:
+            self.cannoloLabel.setText("When in SSH mode, the user must insert manually the cannolo image directory.")
+        else:
+            self.cannoloLabel.setText("")
 
         # asd tab
         self.asdLabel = self.findChild(QtWidgets.QLabel, "asdLabel")
@@ -292,9 +327,14 @@ class Ui(QtWidgets.QMainWindow):
     def set_remote_mode(self):
         if self.localRadioBtn.isChecked():
             self.remoteMode = False
+            self.findButton.setEnabled(True)
+            self.directoryText.setReadOnly(True)
+            self.cannoloLabel.setText("")
         elif self.sshRadioBtn.isChecked():
             self.remoteMode = True
-        self.refresh()
+            self.findButton.setEnabled(False)
+            self.directoryText.setReadOnly(False)
+            self.cannoloLabel.setText("When in SSH mode, the user must insert manually the cannolo image directory.")
 
     def refresh(self):
         self.sshIp = self.sshIpInput.text()
@@ -343,21 +383,66 @@ class Ui(QtWidgets.QMainWindow):
             label.setAlignment(Qt.AlignCenter)
             self.queueTable.setCellWidget(self.queueTable.rowCount() - 1, idx, label)
 
-    def save_ip(self):
+    def save_config(self):
         ip = self.sshIpInput.text()
-        self.ipList.addItem(ip)
+        user = self.sshUserInput.text()
+        passwd = self.sshPasswdInput.text()
+        if self.ipList.findItems(ip, Qt.MatchExactly):
+            message = "Do you want to overwrite the old configuration?"
+            if warning_dialog(message) == QtWidgets.QMessageBox.Yes:
+                self.settings.setValue("saved-" + ip, [ip, user, passwd])
+        else:
+            self.ipList.addItem(ip)
+            self.settings.setValue("saved-" + ip, [ip, user, passwd])
+
+    def remove_config(self):
+        ip = self.ipList.currentItem().text()
+        message = "Do you want to remove the selected configuration?"
+        if warning_dialog(message) == QtWidgets.QMessageBox.Yes:
+            for key in self.settings.childKeys():
+                if ip in key:
+                    self.ipList.takeItem(self.ipList.row(self.ipList.currentItem()))
+                    self.settings.remove(key)
+
+    def load_config(self):
+        ip = self.ipList.currentItem().text()
+        for key in self.settings.childKeys():
+            if ip in key:
+                values = self.settings.value(key)
+                user = values[1]
+                passwd = values[2]
+                self.sshIpInput.setText(ip)
+                self.sshUserInput.setText(user)
+                self.sshPasswdInput.setText(passwd)
+
+    def default_config(self):
+        message = "Do you want to restore all settings to default?\nThis action is unrevocable."
+        if critical_dialog(message, "yes_no") == QtWidgets.QMessageBox.Yes:
+            self.settings.clear()
+            self.ipList.clear()
+            self.sshIpInput.clear()
+            self.sshUserInput.clear()
+            self.sshPasswdInput.clear()
+
+    def find_directory(self):
+        dialog = QtWidgets.QFileDialog()
+        dir = dialog.getExistingDirectory(self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly)
+        self.directoryText.setText(dir)
 
     def closeEvent(self, a0: QtGui.QCloseEvent):
-        self.settings.setValue("conf/remoteMode", str(self.remoteMode))
-        self.settings.setValue("conf/sshIp", self.sshIpInput.text())
-        self.settings.setValue("conf/sshUser", self.sshUserInput.text())
-        self.settings.setValue("conf/sshPasswd", self.sshPasswdInput.text())
-        print(self.settings.value("conf/remoteMode"))
+        self.settings.setValue("remoteMode", str(self.remoteMode))
+        self.settings.setValue("sshIp", self.sshIpInput.text())
+        self.settings.setValue("sshUser", self.sshUserInput.text())
+        self.settings.setValue("sshPasswd", self.sshPasswdInput.text())
+        self.settings.setValue("cannoloDir", self.directoryText.text())
 
 
 def smart_parser(drive: str, ssh):
     if ssh is None:
-        output = subprocess.getoutput("smartctl -a " + drive)
+        if CURRENT_PLATFORM == 'win32':
+            output = subprocess.getoutput("smartctl -a " + drive)
+        else:
+            output = subprocess.getoutput("sudo smartctl -a /dev/" + drive)
         output = output.split("\n")
     else:
         output = ssh.execute('sudo smartctl -a /dev/' + drive)
@@ -449,9 +534,15 @@ def local_setup(system):
         for idx, line in enumerate(size):
             drive += [[label[idx], line]]
         return drive
-
     else:
-        pass
+        output = subprocess.getoutput('lsblk -d').splitlines()
+        result = []
+        for line in output:
+            if line[0] == 's':
+                temp = " ".join(line.split())
+                temp = temp.split(" ")
+                result.append([temp[0], temp[3]])
+        return result
 
 
 def yes_no_dialog(message, yes_function, no_function):
