@@ -4,55 +4,8 @@ import paramiko
 import socket
 import sys
 from PyQt5 import QtWidgets
-
-
-class SshSession:
-    def __init__(self, ip, user, passwd):
-        self.ip = ip
-        self.user = user
-        self.passwd = passwd
-        self.session = paramiko.SSHClient()
-
-    def initialize(self):
-        self.session.load_system_host_keys()
-        try:
-            self.session.connect(self.ip, username=self.user, password=self.passwd)
-            return True
-        except paramiko.ssh_exception.AuthenticationException:
-            message = "Authentication failed.\nCheck user and password."
-            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, ".Error!", message)
-            dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            dialog.exec_()
-            return False
-        except socket.gaierror:
-            message = "Cannot find ip address.\nCheck if you have inserted a wrong ip."
-            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Error!", message)
-            dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            dialog.exec_()
-            return False
-        except paramiko.ssh_exception.NoValidConnectionsError:
-            message = "Cannot find ip address.\nCheck if you have inserted a wrong ip."
-            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Error!", message)
-            dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            dialog.exec_()
-            return False
-        except:
-            message = str(sys.exc_info())
-            dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Error!", message)
-            dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
-            dialog.exec_()
-            return False
-
-    def kill(self):
-        self.session.close()
-
-    def execute(self, command):
-        stdin, stdout, stderr = self.session.exec_command(command)
-        output = []
-        for line in stdout:
-            output.append(line.rstrip('\n'))
-        return output
-
+import socket
+import ast
 
 def critical_dialog(message, type):
     dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error!", message)
@@ -62,7 +15,7 @@ def critical_dialog(message, type):
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
-    dialog.exec_()
+    return dialog.exec_()
 
 
 def info_dialog(message):
@@ -71,12 +24,17 @@ def info_dialog(message):
     dialog.exec_()
 
 
-def warning_dialog(message):
-    dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
-    dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
-    dialog.addButton(QtWidgets.QMessageBox.No)
-    dialog.setDefaultButton(QtWidgets.QMessageBox.No)
-    return dialog.exec_()
+def warning_dialog(message: str, type: str):
+    if type == "yes_no":
+        dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
+        dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
+        dialog.addButton(QtWidgets.QMessageBox.No)
+        dialog.setDefaultButton(QtWidgets.QMessageBox.No)
+        return dialog.exec_()
+    elif type == "ok":
+        dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
+        dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        return dialog.exec_()
 
 
 def win_path(path):
@@ -112,3 +70,70 @@ def data_output(data, maximum):
         else:
             output.append(temp + row[2])
     return output
+
+
+def get_local_smart(platform: str, drive: str):
+    attr = []
+    if platform == 'win32':
+        data = subprocess.getoutput("smartctl -a " + drive)
+    else:
+        data = subprocess.getoutput("sudo smartctl -a /dev/" + drive)
+    data = data.split("\n")
+    for line in data:
+        attr.append(line)
+    return attr
+
+
+def smart_parser(drive: str, remoteMode: bool, platform: str, requirements: list):
+    results = []
+    fase = ""
+    maximum = 0
+
+    if remoteMode is False:
+        data = get_local_smart(platform, drive)
+    else:
+        data = get_remote_smart(drive)
+
+    for attr in data:
+        if attr == "=== START OF INFORMATION SECTION ===":
+            fase = "INFO"
+        elif attr == "=== START OF READ SMART DATA SECTION ===":
+            fase = "SMART"
+        if any(req for req in requirements if req in attr):
+            if fase == "INFO":
+                asd = attr.split(":")
+                results.append([asd[0], asd[1].lstrip()])
+                if len(attr.split(":")[0]) > maximum:
+                    maximum = len(attr.split(":")[0])
+            elif fase == "SMART":
+                splitted = attr.split()
+                results.append([splitted[1], splitted[8], splitted[9]])
+                if len(splitted[1]) > maximum:
+                    maximum = len(splitted[1])
+    return results, maximum
+
+
+def get_remote_smart(drive: str):
+    attr = []
+    cmd = "smartctl -a " + drive
+    data = UDP_client(cmd).splitlines()
+    for line in data:
+        attr.append(line)
+    return attr
+
+
+def UDP_client(command: str, ip: str, port: int):
+    MSG_FROM_CLIENT = command
+    BYTES_TO_SEND = str.encode(MSG_FROM_CLIENT)
+    SERVER_ADDRESS_PORT = (ip, port)
+    BUFFER_SIZE = 1024
+
+    # Create a client UDP socket
+    UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+
+    # Send to server using client UDP socket
+    UDPClientSocket.sendto(BYTES_TO_SEND, SERVER_ADDRESS_PORT)
+
+    msgFromServer = UDPClientSocket.recvfrom(BUFFER_SIZE*3)
+    msg = msgFromServer[0].decode('utf-8')
+    return msg
