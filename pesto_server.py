@@ -31,81 +31,48 @@ class CommandRunner(threading.Thread):
         while self._go:
             try:
                 commands_list_event.wait(self._sleep)
-                if not self._go:
-                    break
                 if commands_list_event.isSet():
                     with commands_list_lock:
-                        try:
-                            command = commands_list.popleft()
-                            # TODO: launch slow commands in yet another thread, so this one is not blocked
-                            self.exec_command(command[0], command[1], command[2])
-                        except IndexError:
-                            pass
-
-                    with commands_list_lock:
-                        if len(commands_list) <= 0:
-                            commands_list_event.clear()
+                        if self.has_more_commands_or_unset_event():
+                            try:
+                                command = commands_list.popleft()
+                                # TODO: launch slow commands in yet another thread, so this one is not blocked
+                                self.exec_command(command[0], command[1], command[2])
+                            except IndexError:
+                                pass
             except:
                 print("BIG ERROR")
                 with commands_list_lock:
-                    if len(commands_list) <= 0:
-                        commands_list_event.clear()
+                    self.has_more_commands_or_unset_event()
+
+    @staticmethod
+    def has_more_commands_or_unset_event() -> bool:
+        if len(commands_list) <= 0:
+            commands_list_event.clear()
+            return False
+        return True
 
     def exec_command(self, cmd: str, args: str, the_id: int):
         print(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
-        # This part doesn't work
+        param = None
         if cmd == 'smartctl':
-            param = self.get_smarctl(args)
-            self.send_msg(the_id, f"smartctl {param}")
+            param = get_smarctl(args)
         elif cmd == 'get_disks':
-            param = self.get_disks()
-            self.send_msg(the_id, f"get_disks {param}")
+            param = get_disks()
         elif cmd == 'get_disks_win':
             param = get_disks_win()
-            self.send_msg(the_id, f"get_disks_win {param}")
         elif cmd == 'ping':
-            self.send_msg(the_id, f"pong")
+            cmd = "pong"
         else:
-            param = json.dumps({"message": "Unrecognized command", "command": cmd}, separators=(',', ':'), indent=None)
-            self.send_msg(the_id, f"error {param}")
+            param = {"message": "Unrecognized command", "command": cmd}
+            # Do not move this line above the other, cmd has to be overwritten here
+            cmd = "error"
 
-    def get_disks(self):
-        # Name is required, otherwise the tree is flattened
-        output = subprocess.getoutput("lsblk -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT -J")
-        jsonized = json.loads(output)
-        if "blockdevices" in jsonized:
-            result = jsonized["blockdevices"]
+        if param is None:
+            self.send_msg(the_id, cmd)
         else:
-            result = []
-        for el in result:
-            mounts = self.find_mounts(el)
-            if "children" in el:
-                del el["children"]
-            if "name" in el:
-                del el["name"]
-            el["mountpoint"] = mounts
-
-        return json.dumps(result, separators=(',', ':'), indent=None)
-
-    @staticmethod
-    def get_smarctl(args):
-        exitcode, output = subprocess.getstatusoutput("sudo smartctl -a " + args)
-        jsonize = {
-            "disk": args,
-            "exitcode": exitcode,
-            "output": output,
-        }
-        return json.dumps(jsonize, separators=(',', ':'), indent=None)
-
-    def find_mounts(self, el: dict):
-        mounts = []
-        if el["mountpoint"] is not None:
-            mounts.append(el["mountpoint"])
-        if "children" in el:
-            children = el["children"]
-            for child in children:
-                mounts += self.find_mounts(child)
-        return mounts
+            jparam = json.dumps(param, separators=(',', ':'), indent=None)
+            self.send_msg(the_id, f"{cmd} {jparam}")
 
     def send_msg(self, client_id: int, msg: str):
         with clients_lock:
@@ -122,10 +89,11 @@ class CommandRunner(threading.Thread):
         self.join(self._sleep * 2)
 
 
-
 class TurboHandler(LineOnlyReceiver):
     def __init__(self):
         self._id = -1
+        self.delimiter = b'\n'
+        self._delimiter_found = False
 
     def connectionMade(self):
         self._id = self.factory.conn_id
@@ -133,7 +101,6 @@ class TurboHandler(LineOnlyReceiver):
         with commands_list_lock:
             with clients_lock:
                 clients[self._id] = self
-        self.send_msg(f"[{str(self._id)}] Client connected")
         print(f"[{str(self._id)}] Client connected")
 
     def connectionLost(self, reason=protocol.connectionDone):
@@ -143,7 +110,19 @@ class TurboHandler(LineOnlyReceiver):
                 del clients[self._id]
 
     def lineReceived(self, line):
-        line = line.decode('utf-8').strip()
+        line = line.decode('utf-8')
+
+        # \n is stripped by twisted, but with \r\n the \r is still there
+        if not self._delimiter_found:
+            if len(line) > 0 and line[-1] == '\r':
+                self.delimiter = b'\r\n'
+                print(f"[{str(self._id)}] Client has delimiter \\r\\n")
+            else:
+                print(f"[{str(self._id)}] Client has delimiter \\n")
+            self._delimiter_found = True
+
+        # Strip \r on first message (if \r\n) and any trailing whitespace
+        line = line.strip()
         if line.startswith('exit'):
             self.transport.loseConnection()
         else:
@@ -155,28 +134,10 @@ class TurboHandler(LineOnlyReceiver):
                 commands_list_event.set()
 
     def send_msg(self, response: str):
-        self.sendLine(response.encode('utf-8'))
-
-    def dataReceived(self, data):
-        dr = (self._buffer + data).decode('utf-8')
-        if dr[-2:-1] != '\r' and self.delimiter != '\n'.encode('utf-8'):
-            print(r"Delimiter set to '\n'")
-            self.delimiter = '\n'.encode('utf-8')
-        lines = (self._buffer + data).split(self.delimiter)
-        self._buffer = lines.pop(-1)
-        for line in lines:
-            if self.transport.disconnecting:
-                # this is necessary because the transport may be told to lose
-                # the connection by a line within a larger packet, and it is
-                # important to disregard all the lines in that packet following
-                # the one that told it to close.
-                return
-            if len(line) > self.MAX_LENGTH:
-                return self.lineLengthExceeded(line)
-            else:
-                self.lineReceived(line)
-        if len(self._buffer) > self.MAX_LENGTH:
-            return self.lineLengthExceeded(self._buffer)
+        if self._delimiter_found:
+            self.sendLine(response.encode('utf-8'))
+        else:
+            print(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
 
 
 def main():
@@ -210,8 +171,8 @@ def main():
 def load_settings():
     # Load in order each file if exists, variables are not overwritten
     load_dotenv('.env')
-    load_dotenv('~/.conf/WeeeOpen/turbofresa.env')
-    load_dotenv('/etc/turbofresa.env')
+    load_dotenv('~/.conf/WeeeOpen/turbofresa.conf')
+    load_dotenv('/etc/turbofresa.conf')
     # Defaults
     config = StringIO("IP=127.0.0.1\nPORT=1030")
     load_dotenv(stream=config)
@@ -229,7 +190,46 @@ def get_disks_win():
             size.append(line)
     for idx, line in enumerate(size):
         drive += [[label[idx], line]]
-    return json.dumps(drive, separators=(',', ':'), indent=None)
+    return drive
+
+
+def get_smarctl(args):
+    exitcode, output = subprocess.getstatusoutput("sudo smartctl -a " + args)
+    return {
+        "disk": args,
+        "exitcode": exitcode,
+        "output": output,
+    }
+
+
+def find_mounts(el: dict):
+    mounts = []
+    if el["mountpoint"] is not None:
+        mounts.append(el["mountpoint"])
+    if "children" in el:
+        children = el["children"]
+        for child in children:
+            mounts += find_mounts(child)
+    return mounts
+
+
+def get_disks():
+    # Name is required, otherwise the tree is flattened
+    output = subprocess.getoutput("lsblk -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT -J")
+    jsonized = json.loads(output)
+    if "blockdevices" in jsonized:
+        result = jsonized["blockdevices"]
+    else:
+        result = []
+    for el in result:
+        mounts = find_mounts(el)
+        if "children" in el:
+            del el["children"]
+        if "name" in el:
+            del el["name"]
+        el["mountpoint"] = mounts
+
+    return result
 
 
 if __name__ == '__main__':
