@@ -6,3 +6,4 @@ labeled.csv
 labeled_*.csv
 .~lock.*
 venv/
+.env

@@ -8,6 +8,9 @@ from twisted.internet import reactor, protocol
 from twisted.protocols.basic import LineOnlyReceiver
 import threading
 import collections
+import logging
+
+NAME = "turbofresa"
 
 clients = dict()
 clients_lock = threading.Lock()
@@ -40,8 +43,8 @@ class CommandRunner(threading.Thread):
                                 self.exec_command(command[0], command[1], command[2])
                             except IndexError:
                                 pass
-            except:
-                print("BIG ERROR")
+            except BaseException as e:
+                logging.getLogger(NAME).error("BIG ERROR", exc_info=e)
                 with commands_list_lock:
                     self.has_more_commands_or_unset_event()
 
@@ -53,7 +56,8 @@ class CommandRunner(threading.Thread):
         return True
 
     def exec_command(self, cmd: str, args: str, the_id: int):
-        print(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
+        logging.getLogger(NAME)\
+            .debug(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
         param = None
         if cmd == 'smartctl':
             param = get_smarctl(args)
@@ -78,7 +82,8 @@ class CommandRunner(threading.Thread):
         with clients_lock:
             thread = clients.get(client_id)
             if thread is None:
-                print(f"[{client_id}] Connection already closed while trying to send a message")
+                logging.getLogger(NAME)\
+                    .info(f"[{client_id}] Connection already closed while trying to send a message")
             else:
                 thread: TurboHandler
                 self._reactor.callFromThread(TurboHandler.send_msg, thread, msg)
@@ -101,24 +106,28 @@ class TurboHandler(LineOnlyReceiver):
         with commands_list_lock:
             with clients_lock:
                 clients[self._id] = self
-        print(f"[{str(self._id)}] Client connected")
+        logging.getLogger(NAME).debug(f"[{str(self._id)}] Client connected")
 
     def connectionLost(self, reason=protocol.connectionDone):
-        print(f"[{str(self._id)}] Client disconnected")
+        logging.getLogger(NAME).debug(f"[{str(self._id)}] Client disconnected")
         with commands_list_lock:
             with clients_lock:
                 del clients[self._id]
 
     def lineReceived(self, line):
-        line = line.decode('utf-8')
+        try:
+            line = line.decode('utf-8')
+        except UnicodeDecodeError as e:
+            logging.getLogger(NAME).warning(f"[{str(self._id)}] Oh no, UnicodeDecodeError!", exc_info=e)
+            return
 
         # \n is stripped by twisted, but with \r\n the \r is still there
         if not self._delimiter_found:
             if len(line) > 0 and line[-1] == '\r':
                 self.delimiter = b'\r\n'
-                print(f"[{str(self._id)}] Client has delimiter \\r\\n")
+                logging.getLogger(NAME).debug(f"[{str(self._id)}] Client has delimiter \\r\\n")
             else:
-                print(f"[{str(self._id)}] Client has delimiter \\n")
+                logging.getLogger(NAME).debug(f"[{str(self._id)}] Client has delimiter \\n")
             self._delimiter_found = True
 
         # Strip \r on first message (if \r\n) and any trailing whitespace
@@ -137,7 +146,8 @@ class TurboHandler(LineOnlyReceiver):
         if self._delimiter_found:
             self.sendLine(response.encode('utf-8'))
         else:
-            print(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
+            logging.getLogger(NAME)\
+                .warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
 
 
 def main():
@@ -152,7 +162,7 @@ def main():
         factory.protocol = TurboHandler
         factory.conn_id = 0
 
-        print(f"Listening on {ip} port {port}")
+        logging.getLogger(NAME).info(f"Listening on {ip} port {port}")
         # noinspection PyUnresolvedReferences
         reactor.listenTCP(int(port), factory, interface=ip)
 
@@ -171,11 +181,13 @@ def main():
 def load_settings():
     # Load in order each file if exists, variables are not overwritten
     load_dotenv('.env')
-    load_dotenv('~/.conf/WeeeOpen/turbofresa.conf')
-    load_dotenv('/etc/turbofresa.conf')
+    load_dotenv(f'~/.conf/WEEE-Open/{NAME}.conf')
+    load_dotenv(f'/etc/{NAME}.conf')
     # Defaults
-    config = StringIO("IP=127.0.0.1\nPORT=1030")
+    config = StringIO("IP=127.0.0.1\nPORT=1030\nLOGLEVEL=INFO")
     load_dotenv(stream=config)
+
+    logging.basicConfig(format='%(message)s', level=getattr(logging, os.getenv("LOGLEVEL").upper()))
 
 
 def get_disks_win():
