@@ -122,6 +122,7 @@ class CommandRunner(threading.Thread):
         self.join(self._sleep * 2)
 
 
+
 class TurboHandler(LineOnlyReceiver):
     def __init__(self):
         self._id = -1
@@ -132,6 +133,7 @@ class TurboHandler(LineOnlyReceiver):
         with commands_list_lock:
             with clients_lock:
                 clients[self._id] = self
+        self.send_msg(f"[{str(self._id)}] Client connected")
         print(f"[{str(self._id)}] Client connected")
 
     def connectionLost(self, reason=protocol.connectionDone):
@@ -154,6 +156,27 @@ class TurboHandler(LineOnlyReceiver):
 
     def send_msg(self, response: str):
         self.sendLine(response.encode('utf-8'))
+
+    def dataReceived(self, data):
+        dr = (self._buffer + data).decode('utf-8')
+        if dr[-2:-1] != '\r' and self.delimiter != '\n'.encode('utf-8'):
+            print(r"Delimiter set to '\n'")
+            self.delimiter = '\n'.encode('utf-8')
+        lines = (self._buffer + data).split(self.delimiter)
+        self._buffer = lines.pop(-1)
+        for line in lines:
+            if self.transport.disconnecting:
+                # this is necessary because the transport may be told to lose
+                # the connection by a line within a larger packet, and it is
+                # important to disregard all the lines in that packet following
+                # the one that told it to close.
+                return
+            if len(line) > self.MAX_LENGTH:
+                return self.lineLengthExceeded(line)
+            else:
+                self.lineReceived(line)
+        if len(self._buffer) > self.MAX_LENGTH:
+            return self.lineLengthExceeded(self._buffer)
 
 
 def main():
