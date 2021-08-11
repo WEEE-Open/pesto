@@ -2,7 +2,8 @@
 # P.E.S.T.O.
 Parser Estremamente Smart Tremendamente Ottimizzato
 
-Hard disk SMART data checker, cleaner and system image loader.
+Hard disk SMART data checker, cleaner and system image loader.  
+Successor of [Turbofresa](https://github.com/WEEE-Open/turbofresa) and [redeemer](https://github.com/WEEE-Open/redeemer).
 
 ![image](https://user-images.githubusercontent.com/39865402/128496857-68cf7025-24fe-4621-abca-ae62219e13ac.png)
 ![image](https://user-images.githubusercontent.com/39865402/128496754-393a145d-3e66-487b-8418-d654a85efd15.png)
