@@ -25,7 +25,72 @@ commands_list_event = threading.Event()
 commands_list_lock = threading.Lock()
 
 TARALLO = None
+disks_lock = threading.RLock()
 disks = {}
+
+
+class Disk:
+    def __init__(self, lsblk, tarallo: Optional[Tarallo.Tarallo]):
+        self._lsblk = lsblk
+        if "path" not in self._lsblk:
+            raise RuntimeError("lsblk did not provide path for this disk: " + self._lsblk)
+        self._path = str(self._lsblk["path"])
+        self._code = None
+        self._item = None
+
+        self._tarallo = tarallo
+        self._get_code(False)
+        self._get_item()
+
+    def update_if_needed(self):
+        if not self._code:
+            self._get_code(True)
+        self._get_item()
+
+    def serialize_disk(self):
+        result = self._lsblk
+        result["code"] = self._code
+        return result
+
+    def update_status(self, status: str):
+        if self._tarallo and self._code:
+            self._tarallo.update_item_features(self._code, {"smart-data": status})
+
+    def _get_code(self, stop_on_error: bool = True):
+        if not self._tarallo:
+            self._code = None
+            return
+        if "serial" not in self._lsblk:
+            self._code = None
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(f"Disk {self._path} has no serial number")
+
+        sn = self._lsblk["serial"]
+        sn: str
+        if sn.startswith('WD-'):
+            sn = sn[3:]
+
+        codes = self._tarallo.get_codes_by_feature("sn", sn)
+        if len(codes) <= 0:
+            self._code = None
+            logging.debug(f"Disk {sn} not found in tarallo")
+        elif len(codes) == 1:
+            self._code = codes[0]
+            logging.debug(f"Disk {sn} found as {self._code}")
+        else:
+            self._code = None
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(f"Duplicate codes for {self._path}: {' '.join(codes)}, S/N is {sn}")
+
+    def _get_item(self):
+        if self._tarallo and self._code:
+            self._item = self._tarallo.get_item(self._code, 0)
+        else:
+            self._item = None
+
+
+class ErrorThatCanBeManuallyFixed(BaseException):
+    pass
 
 
 class CommandRunner(threading.Thread):
@@ -66,7 +131,7 @@ class CommandRunner(threading.Thread):
             .debug(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
         param = None
         if cmd == 'smartctl':
-            param = get_smarctl(args)
+            param = self.get_smartctl(args, the_id)
         elif cmd == 'get_disks':
             param = self.get_disks_to_send(the_id)
         elif cmd == 'get_disks_win':
@@ -78,6 +143,47 @@ class CommandRunner(threading.Thread):
             # Do not move this line above the other, cmd has to be overwritten here
             cmd = "error"
         self.send_msg(the_id, cmd, param)
+
+    def get_smartctl(self, dev: str, the_id: int):
+        pipe = subprocess\
+            .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        output = pipe.stdout.read().decode('utf-8')
+        stderr = pipe.stderr.read().decode('utf-8')
+        exitcode = pipe.wait()
+
+        updated = False
+        if exitcode == 0:
+            status = get_smartctl_status(output)
+            with disks_lock:
+                if dev in disks:
+                    self.update_disk_if_needed(the_id, disks[dev])
+                    # noinspection PyBroadException
+                    try:
+                        disks[dev].update_status(status)
+                        updated = True
+                    except BaseException as e:
+                        logging.warning(f"[{the_id}] Cannot update status of {dev} on tarallo", exc_info=e)
+        else:
+            status = None
+        return {
+            "disk": dev,
+            "status": status,
+            "updated": updated,
+            "exitcode": exitcode,
+            "output": output,
+            "stderr": stderr,
+        }
+
+    def update_disk_if_needed(self, the_id: int, disk: Disk):
+        # TODO: a more granular lock is possible, here. But is it really needed?
+        with disks_lock:
+            # noinspection PyBroadException
+            try:
+                disk.update_if_needed()
+            except ErrorThatCanBeManuallyFixed as e:
+                self.send_msg(the_id, "error_that_can_be_manually_fixed", {"message": str(e), "disk": disk})
+            except BaseException:
+                pass
 
     @staticmethod
     def _encode_param(param):
@@ -101,26 +207,20 @@ class CommandRunner(threading.Thread):
 
     def get_disks_to_send(self, the_id: int):
         result = []
-        for disk in disks:
-            if disks[disk] is None:
-                lsblk = get_disks(disk)
-                if len(lsblk) > 0:
-                    lsblk = lsblk[0]
-                # noinspection PyBroadException
-                try:
-                    disks[disk] = Disk(lsblk, TARALLO)
-                except BaseException as e:
-                    logging.warning(f"Error with disk {disk} still remains", exc_info=e)
-            if disks[disk] is not None:
-                disks[disk]: Disk
-                # noinspection PyBroadException
-                try:
-                    disks[disk].update_if_needed()
-                except ErrorThatCanBeManuallyFixed as e:
-                    self.send_msg(the_id, "error_that_can_be_manually_fixed", {"message": str(e), "disk": disk})
-                except BaseException:
-                    pass
-                result.append(disks[disk].serialize_disk())
+        with disks_lock:
+            for disk in disks:
+                if disks[disk] is None:
+                    lsblk = get_disks(disk)
+                    if len(lsblk) > 0:
+                        lsblk = lsblk[0]
+                    # noinspection PyBroadException
+                    try:
+                        disks[disk] = Disk(lsblk, TARALLO)
+                    except BaseException as e:
+                        logging.warning(f"Error with disk {disk} still remains", exc_info=e)
+                if disks[disk] is not None:
+                    self.update_disk_if_needed(the_id, disks[disk])
+                    result.append(disks[disk].serialize_disk())
         return result
 
 
@@ -180,66 +280,6 @@ class TurboHandler(LineOnlyReceiver):
                 .warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
 
 
-class Disk:
-    def __init__(self, lsblk, tarallo: Optional[Tarallo.Tarallo]):
-        self._lsblk = lsblk
-        if "path" not in self._lsblk:
-            raise RuntimeError("lsblk did not provide path for this disk: " + self._lsblk)
-        self._path = str(self._lsblk["path"])
-        self._code = None
-        self._item = None
-
-        self._tarallo = tarallo
-        self._get_code(False)
-        self._get_item()
-
-    def update_if_needed(self):
-        if not self._code:
-            self._get_code(True)
-        self._get_item()
-
-    def serialize_disk(self):
-        result = self._lsblk
-        result["code"] = self._code
-        return result
-
-    def _get_code(self, stop_on_error: bool = True):
-        if self._tarallo is None:
-            self._code = None
-            return
-        if "serial" not in self._lsblk:
-            self._code = None
-            if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(f"Disk {self._path} has no serial number")
-
-        sn = self._lsblk["serial"]
-        sn: str
-        if sn.startswith('WD-'):
-            sn = sn[3:]
-
-        codes = self._tarallo.get_codes_by_feature("sn", sn)
-        if len(codes) <= 0:
-            self._code = None
-            logging.debug(f"Disk {sn} not found in tarallo")
-        elif len(codes) == 1:
-            self._code = codes[0]
-            logging.debug(f"Disk {sn} found as {self._code}")
-        else:
-            self._code = None
-            if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(f"Duplicate codes for {self._path}: {' '.join(codes)}, S/N is {sn}")
-
-    def _get_item(self):
-        if self._tarallo and self._code:
-            self._item = self._tarallo.get_item(self._code, 0)
-        else:
-            self._item = None
-
-
-class ErrorThatCanBeManuallyFixed(BaseException):
-    pass
-
-
 def scan_for_disks():
     logging.debug("Scanning for disks")
     disks_lsblk = get_disks()
@@ -250,7 +290,8 @@ def scan_for_disks():
         path = disk["path"]
         # noinspection PyBroadException
         try:
-            disks[path] = Disk(disk, TARALLO)
+            with disks_lock:
+                disks[path] = Disk(disk, TARALLO)
         except BaseException as e:
             logging.warning("Exception while scanning disk, skipping", exc_info=e)
 
@@ -318,13 +359,9 @@ def get_disks_win():
     return drive
 
 
-def get_smarctl(args):
-    exitcode, output = subprocess.getstatusoutput("sudo smartctl -a " + args)
-    return {
-        "disk": args,
-        "exitcode": exitcode,
-        "output": output,
-    }
+def get_smartctl_status(output):
+    # TODO: implement (move code from client here)
+    return 'old'
 
 
 def find_mounts(el: dict):
