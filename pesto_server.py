@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import json
 import subprocess
+from typing import Optional
+
+from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO
 import os
@@ -20,6 +23,9 @@ clients_lock = threading.Lock()
 commands_list = collections.deque()
 commands_list_event = threading.Event()
 commands_list_lock = threading.Lock()
+
+TARALLO = None
+disks = {}
 
 
 class CommandRunner(threading.Thread):
@@ -62,7 +68,7 @@ class CommandRunner(threading.Thread):
         if cmd == 'smartctl':
             param = get_smarctl(args)
         elif cmd == 'get_disks':
-            param = get_disks()
+            param = self.get_disks_to_send(the_id)
         elif cmd == 'get_disks_win':
             param = get_disks_win()
         elif cmd == 'ping':
@@ -71,27 +77,51 @@ class CommandRunner(threading.Thread):
             param = {"message": "Unrecognized command", "command": cmd}
             # Do not move this line above the other, cmd has to be overwritten here
             cmd = "error"
+        self.send_msg(the_id, cmd, param)
 
-        if param is None:
-            self.send_msg(the_id, cmd)
-        else:
-            jparam = json.dumps(param, separators=(',', ':'), indent=None)
-            self.send_msg(the_id, f"{cmd} {jparam}")
+    @staticmethod
+    def _encode_param(param):
+        return json.dumps(param, separators=(',', ':'), indent=None)
 
-    def send_msg(self, client_id: int, msg: str):
+    def send_msg(self, client_id: int, cmd: str, param=None):
         with clients_lock:
             thread = clients.get(client_id)
             if thread is None:
                 logging.getLogger(NAME)\
-                    .info(f"[{client_id}] Connection already closed while trying to send a message")
+                    .info(f"[{client_id}] Connection already closed while trying to send {cmd}")
             else:
                 thread: TurboHandler
-                self._reactor.callFromThread(TurboHandler.send_msg, thread, msg)
+                j_param = self._encode_param(param)
+                self._reactor.callFromThread(TurboHandler.send_msg, thread, f"{cmd} {j_param}")
 
     def stop_asap(self):
         self._go = False
         commands_list_event.set()
         self.join(self._sleep * 2)
+
+    def get_disks_to_send(self, the_id: int):
+        result = []
+        for disk in disks:
+            if disks[disk] is None:
+                lsblk = get_disks(disk)
+                if len(lsblk) > 0:
+                    lsblk = lsblk[0]
+                # noinspection PyBroadException
+                try:
+                    disks[disk] = Disk(lsblk, TARALLO)
+                except BaseException as e:
+                    logging.warning(f"Error with disk {disk} still remains", exc_info=e)
+            if disks[disk] is not None:
+                disks[disk]: Disk
+                # noinspection PyBroadException
+                try:
+                    disks[disk].update_if_needed()
+                except ErrorThatCanBeManuallyFixed as e:
+                    self.send_msg(the_id, "error_that_can_be_manually_fixed", {"message": str(e), "disk": disk})
+                except BaseException:
+                    pass
+                result.append(disks[disk].serialize_disk())
+        return result
 
 
 class TurboHandler(LineOnlyReceiver):
@@ -150,8 +180,84 @@ class TurboHandler(LineOnlyReceiver):
                 .warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
 
 
+class Disk:
+    def __init__(self, lsblk, tarallo: Optional[Tarallo.Tarallo]):
+        self._lsblk = lsblk
+        if "path" not in self._lsblk:
+            raise RuntimeError("lsblk did not provide path for this disk: " + self._lsblk)
+        self._path = str(self._lsblk["path"])
+        self._code = None
+        self._item = None
+
+        self._tarallo = tarallo
+        self._get_code(False)
+        self._get_item()
+
+    def update_if_needed(self):
+        if not self._code:
+            self._get_code(True)
+        self._get_item()
+
+    def serialize_disk(self):
+        result = self._lsblk
+        result["code"] = self._code
+        return result
+
+    def _get_code(self, stop_on_error: bool = True):
+        if self._tarallo is None:
+            self._code = None
+            return
+        if "serial" not in self._lsblk:
+            self._code = None
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(f"Disk {self._path} has no serial number")
+
+        sn = self._lsblk["serial"]
+        sn: str
+        if sn.startswith('WD-'):
+            sn = sn[3:]
+
+        codes = self._tarallo.get_codes_by_feature("sn", sn)
+        if len(codes) <= 0:
+            self._code = None
+            logging.debug(f"Disk {sn} not found in tarallo")
+        elif len(codes) == 1:
+            self._code = codes[0]
+            logging.debug(f"Disk {sn} found as {self._code}")
+        else:
+            self._code = None
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(f"Duplicate codes for {self._path}: {' '.join(codes)}, S/N is {sn}")
+
+    def _get_item(self):
+        if self._tarallo and self._code:
+            self._item = self._tarallo.get_item(self._code, 0)
+        else:
+            self._item = None
+
+
+class ErrorThatCanBeManuallyFixed(BaseException):
+    pass
+
+
+def scan_for_disks():
+    logging.debug("Scanning for disks")
+    disks_lsblk = get_disks()
+    for disk in disks_lsblk:
+        if "path" not in disk:
+            logging.warning("Disk has no path, ignoring: " + disk)
+            continue
+        path = disk["path"]
+        # noinspection PyBroadException
+        try:
+            disks[path] = Disk(disk, TARALLO)
+        except BaseException as e:
+            logging.warning("Exception while scanning disk, skipping", exc_info=e)
+
+
 def main():
     load_settings()
+    scan_for_disks()
     ip = os.getenv("IP")
     port = os.getenv("PORT")
 
@@ -189,6 +295,13 @@ def load_settings():
 
     logging.basicConfig(format='%(message)s', level=getattr(logging, os.getenv("LOGLEVEL").upper()))
 
+    url = os.getenv('TARALLO_URL') or logging.warning('TARALLO_URL is not set, tarallo will be unavailable')
+    token = os.getenv('TARALLO_TOKEN') or logging.warning('TARALLO_TOKEN is not set, tarallo will be unavailable')
+
+    if url and token:
+        global TARALLO
+        TARALLO = Tarallo.Tarallo(url, token)
+
 
 def get_disks_win():
     label = []
@@ -225,9 +338,10 @@ def find_mounts(el: dict):
     return mounts
 
 
-def get_disks():
+def get_disks(path: Optional[str] = None) -> list:
     # Name is required, otherwise the tree is flattened
-    output = subprocess.getoutput("lsblk -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT -J")
+    output = subprocess\
+        .getoutput(f"lsblk -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT -J {path if path else ''}")
     jsonized = json.loads(output)
     if "blockdevices" in jsonized:
         result = jsonized["blockdevices"]
