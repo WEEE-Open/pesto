@@ -10,7 +10,6 @@ import os
 from twisted.internet import reactor, protocol
 from twisted.protocols.basic import LineOnlyReceiver
 import threading
-import collections
 import logging
 
 NAME = "turbofresa"
@@ -18,11 +17,8 @@ NAME = "turbofresa"
 clients = dict()
 clients_lock = threading.Lock()
 
-# TODO: proper queue, where dischi are first piallati then smartclati then whatever
-# TODO: save commands list for those long running commands, to display it
-commands_list = collections.deque()
-commands_list_event = threading.Event()
-commands_list_lock = threading.Lock()
+running_commands = set()
+running_commands_lock = threading.Lock()
 
 TARALLO = None
 disks_lock = threading.RLock()
@@ -94,41 +90,31 @@ class ErrorThatCanBeManuallyFixed(BaseException):
 
 
 class CommandRunner(threading.Thread):
-    def __init__(self, reac: reactor):
+    def __init__(self, cmd: str, args: str, the_id: int):
         threading.Thread.__init__(self)
-        self.thread_name = "CommandRunner"
-        self._go = True
-        self._sleep = 5.0
-        self._reactor = reac
+        self._cmd = cmd
+        self._args = args
+        self._the_id = the_id
+        self._go = False
+        with running_commands_lock:
+            running_commands.add(self)
 
     def run(self):
-        while self._go:
-            try:
-                commands_list_event.wait(self._sleep)
-                if commands_list_event.isSet():
-                    with commands_list_lock:
-                        if self.has_more_commands_or_unset_event():
-                            try:
-                                command = commands_list.popleft()
-                                # TODO: launch slow commands in yet another thread, so this one is not blocked
-                                self.exec_command(command[0], command[1], command[2])
-                            except IndexError:
-                                pass
-            except BaseException as e:
-                logging.getLogger(NAME).error("BIG ERROR", exc_info=e)
-                with commands_list_lock:
-                    self.has_more_commands_or_unset_event()
+        try:
+            self.exec_command(self._cmd, self._args, self._the_id)
+        except BaseException as e:
+            logging.getLogger(NAME).error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
+        with running_commands_lock:
+            running_commands.remove(self)
 
-    @staticmethod
-    def has_more_commands_or_unset_event() -> bool:
-        if len(commands_list) <= 0:
-            commands_list_event.clear()
-            return False
-        return True
+    def stop_asap(self):
+        # This is completely pointless unless the command checks self._go
+        # (none of them does, for now)
+        self._go = False
 
     def exec_command(self, cmd: str, args: str, the_id: int):
         logging.getLogger(NAME)\
-            .debug(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
+            .debug(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")  # in {self.getName()}
         param = None
         if cmd == 'smartctl':
             param = self.get_smartctl(args, the_id)
@@ -196,14 +182,15 @@ class CommandRunner(threading.Thread):
                 logging.getLogger(NAME)\
                     .info(f"[{client_id}] Connection already closed while trying to send {cmd}")
             else:
-                thread: TurboHandler
-                j_param = self._encode_param(param)
-                self._reactor.callFromThread(TurboHandler.send_msg, thread, f"{cmd} {j_param}")
-
-    def stop_asap(self):
-        self._go = False
-        commands_list_event.set()
-        self.join(self._sleep * 2)
+                thread: TurboProtocol
+                if param is None:
+                    response_string = cmd
+                else:
+                    j_param = self._encode_param(param)
+                    response_string = f"{cmd} {j_param}"
+                # It's there but pycharm doesn't believe it
+                # noinspection PyUnresolvedReferences
+                reactor.callFromThread(TurboProtocol.send_msg, thread, response_string)
 
     def get_disks_to_send(self, the_id: int):
         result = []
@@ -224,7 +211,7 @@ class CommandRunner(threading.Thread):
         return result
 
 
-class TurboHandler(LineOnlyReceiver):
+class TurboProtocol(LineOnlyReceiver):
     def __init__(self):
         self._id = -1
         self.delimiter = b'\n'
@@ -233,14 +220,14 @@ class TurboHandler(LineOnlyReceiver):
     def connectionMade(self):
         self._id = self.factory.conn_id
         self.factory.conn_id += 1
-        with commands_list_lock:
+        with running_commands_lock:
             with clients_lock:
                 clients[self._id] = self
         logging.getLogger(NAME).debug(f"[{str(self._id)}] Client connected")
 
     def connectionLost(self, reason=protocol.connectionDone):
         logging.getLogger(NAME).debug(f"[{str(self._id)}] Client disconnected")
-        with commands_list_lock:
+        with running_commands_lock:
             with clients_lock:
                 del clients[self._id]
 
@@ -268,9 +255,10 @@ class TurboHandler(LineOnlyReceiver):
             parts = line.split(' ', 1)
             cmd = parts[0].lower()
             args = parts[1] if len(parts) > 1 else ''
-            with commands_list_lock:
-                commands_list.append((cmd, args, self._id))
-                commands_list_event.set()
+            cr = CommandRunner(cmd, args, self._id)
+            with running_commands_lock:
+                running_commands.add(cr)
+            cr.start()
 
     def send_msg(self, response: str):
         if self._delimiter_found:
@@ -302,27 +290,27 @@ def main():
     ip = os.getenv("IP")
     port = os.getenv("PORT")
 
-    ch = None
-
     try:
         factory = protocol.ServerFactory()
-        factory.protocol = TurboHandler
+        factory.protocol = TurboProtocol
         factory.conn_id = 0
 
         logging.getLogger(NAME).info(f"Listening on {ip} port {port}")
         # noinspection PyUnresolvedReferences
         reactor.listenTCP(int(port), factory, interface=ip)
 
-        ch = CommandRunner(reactor)
-        ch.start()
-
         # noinspection PyUnresolvedReferences
         reactor.run()
     except KeyboardInterrupt:
         print("KeyboardInterrupt, terminating")
     finally:
-        if ch is not None:
-            ch.stop_asap()
+        # TODO: reactor has already stopped here, but threads may send messages... what happens? A big crash, right?
+        while len(running_commands) > 0:
+            with running_commands_lock:
+                thread_to_stop = next(iter(running_commands))
+            thread_to_stop: CommandRunner
+            thread_to_stop.stop_asap()
+            thread_to_stop.join()
 
 
 def load_settings():
