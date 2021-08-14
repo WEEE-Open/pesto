@@ -11,18 +11,9 @@ from twisted.internet import reactor, protocol
 from twisted.protocols.basic import LineOnlyReceiver
 import threading
 import logging
+from datetime import datetime
 
 NAME = "turbofresa"
-
-clients = dict()
-clients_lock = threading.Lock()
-
-running_commands = set()
-running_commands_lock = threading.Lock()
-
-TARALLO = None
-disks_lock = threading.RLock()
-disks = {}
 
 
 class Disk:
@@ -33,12 +24,16 @@ class Disk:
         self._path = str(self._lsblk["path"])
         self._code = None
         self._item = None
+        self.queue_lock = threading.Lock()
 
         self._tarallo = tarallo
         self._get_code(False)
         self._get_item()
 
-    def update_if_needed(self):
+    def get_path(self):
+        return self._path
+
+    def update_from_tarallo_if_needed(self):
         if not self._code:
             self._get_code(True)
         self._get_item()
@@ -99,6 +94,9 @@ class CommandRunner(threading.Thread):
         with running_commands_lock:
             running_commands.add(self)
 
+    def get_cmd(self):
+        return self._cmd
+
     def run(self):
         try:
             self.exec_command(self._cmd, self._args, self._the_id)
@@ -116,41 +114,89 @@ class CommandRunner(threading.Thread):
         logging.getLogger(NAME)\
             .debug(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")  # in {self.getName()}
         param = None
+        respond = True
         if cmd == 'smartctl':
-            param = self.get_smartctl(args, the_id)
+            param = self.get_smartctl(args, False, the_id)
+            if not param:
+                return
+        elif cmd == 'queued_smartctl':
+            param = self.get_smartctl(args, True, the_id)
+            if not param:
+                return
         elif cmd == 'get_disks':
             param = self.get_disks_to_send(the_id)
         elif cmd == 'get_disks_win':
             param = get_disks_win()
         elif cmd == 'ping':
             cmd = "pong"
+        elif cmd == 'get_queue':
+            self.get_queue(cmd, the_id)
+            respond = False
         else:
             param = {"message": "Unrecognized command", "command": cmd}
             # Do not move this line above the other, cmd has to be overwritten here
             cmd = "error"
-        self.send_msg(the_id, cmd, param)
+        if respond:
+            self.send_msg(the_id, cmd, param)
 
-    def get_smartctl(self, dev: str, the_id: int):
-        pipe = subprocess\
-            .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        output = pipe.stdout.read().decode('utf-8')
-        stderr = pipe.stderr.read().decode('utf-8')
-        exitcode = pipe.wait()
+    def get_queue(self, actual_cmd, the_id):
+        param = []
+        with queued_commands_lock:
+            for queued_command in queued_commands:
+                queued_command.lock()
+                param.append(queued_command.serialize_me())
+            self.send_msg(the_id, actual_cmd, param)
+            for queued_command in queued_commands:
+                queued_command.unlock()
 
-        updated = False
-        if exitcode == 0:
-            status = get_smartctl_status(output)
-            with disks_lock:
-                if dev in disks:
-                    self.update_disk_if_needed(the_id, disks[dev])
-                    # noinspection PyBroadException
-                    try:
-                        disks[dev].update_status(status)
-                        updated = True
-                    except BaseException as e:
-                        logging.warning(f"[{the_id}] Cannot update status of {dev} on tarallo", exc_info=e)
-        else:
+    def get_smartctl(self, dev: str, queued: bool, the_id: int):
+        with disks_lock:
+            if dev not in disks:
+                self.send_msg(the_id, 'error', {"message": f"{dev} is not a disk"})
+                return None
+        if queued:
+            q = QueuedCommand(disks[dev], self)
+            disks[dev].queue_lock.acquire()
+        try:
+            if queued:
+                # "if queued" q is defined...
+                # noinspection PyUnboundLocalVariable
+                q.notify_start("Running")
+
+            pipe = subprocess\
+                .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            output = pipe.stdout.read().decode('utf-8')
+            stderr = pipe.stderr.read().decode('utf-8')
+            exitcode = pipe.wait()
+
+            updated = False
+            # What if "not queued", dear pycharm?
+            # noinspection PyUnusedLocal
             status = None
+
+            if queued:
+                if exitcode == 0:
+                    status = get_smartctl_status(output)
+                    # "if queued" q is defined...
+                    # noinspection PyUnboundLocalVariable
+                    q.notify_percentage(50.0, "Updating tarallo if needed")
+                    with disks_lock:
+                        self.update_disk_if_needed(the_id, disks[dev])
+                        # noinspection PyBroadException
+                        try:
+                            disks[dev].update_status(status)
+                            updated = True
+                        except BaseException as e:
+                            q.notify_error("Error while uploading")
+                            logging.warning(f"[{the_id}] Cannot update status of {dev} on tarallo", exc_info=e)
+                else:
+                    # "if queued" q is defined...
+                    # noinspection PyUnboundLocalVariable
+                    q.notify_error("smartctl failed")
+        finally:
+            if queued:
+                q.notify_finish()
+                disks[dev].queue_lock.release()
         return {
             "disk": dev,
             "status": status,
@@ -162,10 +208,11 @@ class CommandRunner(threading.Thread):
 
     def update_disk_if_needed(self, the_id: int, disk: Disk):
         # TODO: a more granular lock is possible, here. But is it really needed?
+        # Do not use the queue lock, though
         with disks_lock:
             # noinspection PyBroadException
             try:
-                disk.update_if_needed()
+                disk.update_from_tarallo_if_needed()
             except ErrorThatCanBeManuallyFixed as e:
                 self.send_msg(the_id, "error_that_can_be_manually_fixed", {"message": str(e), "disk": disk})
             except BaseException:
@@ -176,13 +223,14 @@ class CommandRunner(threading.Thread):
         return json.dumps(param, separators=(',', ':'), indent=None)
 
     def send_msg(self, client_id: int, cmd: str, param=None):
-        with clients_lock:
-            thread = clients.get(client_id)
-            if thread is None:
-                logging.getLogger(NAME)\
-                    .info(f"[{client_id}] Connection already closed while trying to send {cmd}")
-            else:
-                thread: TurboProtocol
+        thread = clients.get(client_id)
+        if thread is None:
+            logging.getLogger(NAME)\
+                .info(f"[{client_id}] Connection already closed while trying to send {cmd}")
+        else:
+            thread: TurboProtocol
+            # noinspection PyBroadException
+            try:
                 if param is None:
                     response_string = cmd
                 else:
@@ -191,6 +239,9 @@ class CommandRunner(threading.Thread):
                 # It's there but pycharm doesn't believe it
                 # noinspection PyUnresolvedReferences
                 reactor.callFromThread(TurboProtocol.send_msg, thread, response_string)
+            except BaseException:
+                logging.getLogger(NAME)\
+                    .warning(f"[{client_id}] Something blew up while trying to send {cmd} (connection already closed?)")
 
     def get_disks_to_send(self, the_id: int):
         result = []
@@ -211,6 +262,87 @@ class CommandRunner(threading.Thread):
         return result
 
 
+class QueuedCommand:
+    def __init__(self, disk: Disk, command_runner: CommandRunner):
+        self.disk = disk
+        self.command_runner = command_runner
+        self._percentage = 0.0
+        self._started = False
+        self._finished = False
+        self._error = False
+        self._stopped = False
+        self._lock = threading.Lock()
+        self._text = "Queued"
+        date = datetime.today().strftime('%Y%m%d%H%M')
+        with queued_commands_lock:
+            self._id = f"{date}-{str(len(queued_commands))}"
+            queued_commands.append(self)
+        with self._lock:
+            self.send_all()
+
+    def lock(self):
+        self._lock.acquire()
+
+    def unlock(self):
+        self._lock.release()
+
+    def notify_start(self, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._started = True
+            self._percentage = 0.0
+            self.send_all()
+
+    def notify_finish(self, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._finished = True
+            self._percentage = 100.0
+            self.send_all()
+
+    def notify_error(self, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._error = True
+            self.send_all()
+
+    def notify_stopped(self, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._stopped = True
+            self.send_all()
+
+    def notify_percentage(self, percent: float, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._percentage = percent
+            self.send_all()
+
+    def send_all(self):
+        param = self.serialize_me()
+        for client in clients:
+            # send_msg calls reactor.callFromThread and reactor is single threaded, so no risk here
+            # send_all is always called with a lock, so all status updates are sent in the expected order
+            self.command_runner.send_msg(client, "queue_status", param)
+
+    def serialize_me(self) -> dict:
+        return {
+            "id": self._id,
+            "command": self.command_runner.get_cmd(),
+            "target": self.disk.get_path(),
+            "percentage": self._percentage,
+            "started": self._started,
+            "finished": self._finished,
+            "error": self._error,
+            "stopped": self._stopped,
+        }
+
+
 class TurboProtocol(LineOnlyReceiver):
     def __init__(self):
         self._id = -1
@@ -220,16 +352,14 @@ class TurboProtocol(LineOnlyReceiver):
     def connectionMade(self):
         self._id = self.factory.conn_id
         self.factory.conn_id += 1
-        with running_commands_lock:
-            with clients_lock:
-                clients[self._id] = self
+        with clients_lock:
+            clients[self._id] = self
         logging.getLogger(NAME).debug(f"[{str(self._id)}] Client connected")
 
     def connectionLost(self, reason=protocol.connectionDone):
         logging.getLogger(NAME).debug(f"[{str(self._id)}] Client disconnected")
-        with running_commands_lock:
-            with clients_lock:
-                del clients[self._id]
+        with clients_lock:
+            del clients[self._id]
 
     def lineReceived(self, line):
         try:
@@ -347,7 +477,7 @@ def get_disks_win():
     return drive
 
 
-def get_smartctl_status(output):
+def get_smartctl_status(smartctl_output: str) -> str:
     # TODO: implement (move code from client here)
     return 'old'
 
@@ -381,6 +511,21 @@ def get_disks(path: Optional[str] = None) -> list:
         el["mountpoint"] = mounts
 
     return result
+
+
+TARALLO = None
+
+clients: dict[int, TurboProtocol] = {}
+clients_lock = threading.Lock()
+
+disks: dict[str, Disk] = {}
+disks_lock = threading.RLock()
+
+running_commands: set[CommandRunner] = set()
+running_commands_lock = threading.Lock()
+
+queued_commands: list[QueuedCommand] = []
+queued_commands_lock = threading.Lock()
 
 
 if __name__ == '__main__':
