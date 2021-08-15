@@ -1,7 +1,6 @@
 import re
 import subprocess
 import os
-import paramiko
 import socket
 import sys
 from PyQt5 import QtWidgets
@@ -243,5 +242,105 @@ def parse_smartctl_output(smartctl) -> dict:
     return found
 
 
-def smartctl_get_status(found: dict) -> str:
-    return "old"
+def smartctl_get_status(smart: dict) -> str:
+    """
+    Get disk status from smartctl output.
+    This algorithm has been mined: it's based on a decision tree with "accuracy" criterion since seems to produce
+    slightly better results than the others. And the tree is somewhat shallow, which makes the algorithm more
+    human-readable. There's no much theory other than that, so there's no real theory here.
+
+    The data is about 200 smartctl outputs for every kind of hard disk, manually labeled with pestello (and mortaio)
+    according to how I would classify them or how they are acting: if an HDD is making horrible noises and cannot
+    perform a single read without throwing I/O errors, it's failed, no matter what the smart data says.
+
+    Initially I tried to mix SSDs in, but their attributes are way different and they are also way easier to
+    classify, so this algorithm works on mechanical HDDs only.
+
+    This is the raw tree as output by RapidMiner:
+    Current_Pending_Sector > 0.500
+    |   Load_Cycle_Count = ?: FAIL {FAIL=9, SUS=0, OK=1, OLD=0}
+    |   Load_Cycle_Count > 522030: SUS {FAIL=0, SUS=3, OK=0, OLD=0}
+    |   Load_Cycle_Count ≤ 522030: FAIL {FAIL=24, SUS=0, OK=1, OLD=0}
+    Current_Pending_Sector ≤ 0.500
+    |   Reallocated_Sector_Ct = ?: OK {FAIL=1, SUS=0, OK=4, OLD=0}
+    |   Reallocated_Sector_Ct > 0.500
+    |   |   Reallocated_Sector_Ct > 3: FAIL {FAIL=8, SUS=1, OK=0, OLD=0}
+    |   |   Reallocated_Sector_Ct ≤ 3: SUS {FAIL=0, SUS=4, OK=0, OLD=0}
+    |   Reallocated_Sector_Ct ≤ 0.500
+    |   |   Power_On_Hours = ?
+    |   |   |   Run_Out_Cancel = ?: OK {FAIL=0, SUS=1, OK=3, OLD=1}
+    |   |   |   Run_Out_Cancel > 27: SUS {FAIL=0, SUS=2, OK=0, OLD=0}
+    |   |   |   Run_Out_Cancel ≤ 27: OK {FAIL=1, SUS=0, OK=6, OLD=1}
+    |   |   Power_On_Hours > 37177.500
+    |   |   |   Spin_Up_Time > 1024.500
+    |   |   |   |   Power_Cycle_Count > 937.500: SUS {FAIL=0, SUS=1, OK=0, OLD=1}
+    |   |   |   |   Power_Cycle_Count ≤ 937.500: OK {FAIL=0, SUS=0, OK=3, OLD=0}
+    |   |   |   Spin_Up_Time ≤ 1024.500: OLD {FAIL=0, SUS=0, OK=2, OLD=12}
+    |   |   Power_On_Hours ≤ 37177.500
+    |   |   |   Start_Stop_Count = ?: OK {FAIL=0, SUS=0, OK=3, OLD=0}
+    |   |   |   Start_Stop_Count > 13877: OLD {FAIL=1, SUS=0, OK=0, OLD=2}
+    |   |   |   Start_Stop_Count ≤ 13877: OK {FAIL=2, SUS=9, OK=89, OLD=4}
+
+    but some manual adjustments were made, just to be safe.
+    Most HDDs are working so the data is somewhat biased, but there are some very obvious red flags like smartctl
+    reporting failing attributes (except temperature, which doesn't matter and nobody cares) or having both
+    reallocated AND pending sectors, where nobody would keep using that HDD, no matter what the tree decides.
+
+    :param smart: Smartctl data
+    :return: HDD status (label)
+    """
+    # Oddly the decision tree didn't pick up this one, but it's a pretty obvious sign the disk is failed
+    if smart.get("Notsmart_Failing_Now", 0) > 0:
+        return "fail"
+
+    if int(smart.get("Current_Pending_Sector", 0)) > 0:
+        # This part added manually just to be safe
+        if int(smart.get("Reallocated_Sector_Ct", 0)) > 3:
+            return "fail"
+
+        # I wonder if this part is overfitted... who cares, anyway.
+        cycles = smart.get("Load_Cycle_Count")
+        if cycles:
+            if int(cycles) > 522030:
+                return "sus"
+            else:
+                return "fail"
+        else:
+            return "fail"
+    else:
+        reallocated = int(smart.get("Reallocated_Sector_Ct", 0))
+        if reallocated > 0:
+            if reallocated > 3:
+                return "fail"
+            else:
+                return "sus"
+        else:
+            hours = smart.get("Power_On_Hours")
+            if hours:
+                # 4.2 years as a server (24/7), 15.2 years in an office pc (8 hours a day, 304 days a year)
+                if int(hours) > 37177:
+                    if int(smart.get("Spin_Up_Time", 0)) > 1024:
+                        # Checking this attribute tells us if it's more likely to be a server HDD or an office HDD
+                        if int(smart.get("Power_Cycle_Count", 0)) > 937:
+                            # The tree says 1 old and 1 sus here, but there's too little data to throw around "sus"
+                            # like this... it needs more investigation, though: if the disk is slow at starting up
+                            # it may tell something about its components starting to fail.
+                            return "old"
+                        else:
+                            return "ok"
+                    else:
+                        return "old"
+                else:
+                    # This whole area is not very good, but there are too many "ok" disks and too few not-ok ones
+                    # to mine something better
+                    if int(smart.get("Start_Stop_Count", 0)) > 13877:
+                        return "old"
+                    else:
+                        return "ok"
+            else:
+                if int(smart.get("Run_Out_Cancel", 0)) > 27:
+                    # Fun fact: I never looked at this attribute while classifying HDDs,
+                    # but it is indeed a good indication that something is suspicious.
+                    return "sus"
+                else:
+                    return "ok"

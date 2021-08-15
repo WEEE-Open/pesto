@@ -13,6 +13,8 @@ import threading
 import logging
 from datetime import datetime
 
+from utilites import smartctl_get_status, parse_smartctl_output
+
 NAME = "turbofresa"
 
 
@@ -177,18 +179,19 @@ class CommandRunner(threading.Thread):
             if queued:
                 if exitcode == 0:
                     status = get_smartctl_status(output)
-                    # "if queued" q is defined...
-                    # noinspection PyUnboundLocalVariable
-                    q.notify_percentage(50.0, "Updating tarallo if needed")
-                    with disks_lock:
-                        self.update_disk_if_needed(the_id, disks[dev])
-                        # noinspection PyBroadException
-                        try:
-                            disks[dev].update_status(status)
-                            updated = True
-                        except BaseException as e:
-                            q.notify_error("Error while uploading")
-                            logging.warning(f"[{the_id}] Cannot update status of {dev} on tarallo", exc_info=e)
+                    if not status:
+                        q.notify_error("Error while parsing smartctl status")
+                    else:
+                        q.notify_percentage(50.0, "Updating tarallo if needed")
+                        with disks_lock:
+                            self.update_disk_if_needed(the_id, disks[dev])
+                            # noinspection PyBroadException
+                            try:
+                                disks[dev].update_status(status)
+                                updated = True
+                            except BaseException as e:
+                                q.notify_error("Error during upload")
+                                logging.warning(f"[{the_id}] Cannot update status of {dev} on tarallo", exc_info=e)
                 else:
                     # "if queued" q is defined...
                     # noinspection PyUnboundLocalVariable
@@ -477,9 +480,13 @@ def get_disks_win():
     return drive
 
 
-def get_smartctl_status(smartctl_output: str) -> str:
-    # TODO: implement (move code from client here)
-    return 'old'
+def get_smartctl_status(smartctl_output: str) -> Optional[str]:
+    # noinspection PyBroadException
+    try:
+        return smartctl_get_status(parse_smartctl_output(smartctl_output))
+    except BaseException as e:
+        logging.error("Failed to parse smartctl output", exc_info=e)
+        return None
 
 
 def find_mounts(el: dict):
