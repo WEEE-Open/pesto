@@ -1,3 +1,4 @@
+import re
 import subprocess
 import os
 import paramiko
@@ -137,3 +138,110 @@ def UDP_client(command: str, ip: str, port: int):
     msgFromServer = UDPClientSocket.recvfrom(BUFFER_SIZE*3)
     msg = msgFromServer[0].decode('utf-8')
     return msg
+
+
+def parse_smartctl_output(smartctl) -> dict:
+    found = {}
+    errors = 0
+    failing_now = 0
+
+    info_section = False
+    data_section = False
+    errors_section = False
+    for line in smartctl:
+        line: str
+        if "=== START OF INFORMATION SECTION ===" in line:
+            info_section = True
+            data_section = False
+            errors_section = False
+            continue
+        if "=== START OF READ SMART DATA SECTION ===" in line:
+            info_section = False
+            data_section = True
+            errors_section = False
+            continue
+        if "SMART Error Log Version" in line:
+            info_section = False
+            data_section = False
+            errors_section = True
+            continue
+        if info_section:
+            if 'Model Family: ' in line:
+                val = line.split(':', 2)[1].strip()
+                found["Notsmart_Brand"] = val.split(' ', 1)[0]
+                found["Notsmart_Model_Family"] = val.strip()
+                # Title case for UPPERCASE BRANDS (except IBM)
+                if found["Notsmart_Brand"].isupper() and len(found["Notsmart_Brand"]) > 3:
+                    found["Notsmart_Brand"] = found["Notsmart_Brand"].title()
+            elif 'Serial Number:' in line:
+                val = line.split('Serial Number:', 2)[1]
+                found["Notsmart_Serial_Number"] = val.strip()
+
+                # The WorkarounD:
+                if found["Notsmart_Serial_Number"].startswith('WD-'):
+                    found["Notsmart_Serial_Number"] = found["Notsmart_Serial_Number"][3:]
+
+                if len(found["Notsmart_Serial_Number"]) <= 0:
+                    del found["Notsmart_Serial_Number"]
+            elif 'Rotation Rate:' in line:
+                val = line.split(':', 2)[1].strip()
+                if val.endswith("rpm"):
+                    val = val[:-3].strip()
+                found["Notsmart_Rotation_Rate"] = val
+            continue
+        if data_section:
+            parts_test = line.strip().split(' ')
+            try:
+                param_value = int(parts_test[0].strip())
+            except ValueError:
+                continue
+            if len(parts_test) >= 3 and 0 <= param_value <= 256:
+                attr = parts_test[1].strip()
+
+                if len(attr) <= 0:
+                    continue
+                if attr == "structures":
+                    continue
+                # Skip bad parsing (matching *******, "Not tested:", 0 and other strings)
+                if len(re.sub('[a-zA-Z_]+', '', attr)) > 0:
+                    continue
+
+                if "FAILING_NOW" in line:
+                    failing_now += 1
+
+                val = line.rsplit("(")[0].split(" ")[-1].strip()
+                if len(val) <= 0:
+                    continue
+
+                if 'h' in val and 'm' in val:
+                    val = val.split("h")[0]
+                    # noinspection PyBroadException
+                    try:
+                        minutes = int(val.split("h")[1].split("m")[0])
+                        if minutes > 30:
+                            val = str(int(val) + 1)
+                    except BaseException:
+                        pass
+                elif 'Temperature' in attr:
+                    continue
+                elif '/' in val:
+                    val.split('/')
+                    if len(val[0].rstrip()) > 0:
+                        val = val[0]
+                    elif len(val[1].rstrip()) > 0:
+                        val = val[1]
+                    else:
+                        continue
+                found[attr] = val.rstrip()
+            continue
+        if errors_section:
+            if 'Error: UNC' in line:
+                errors += 1
+        if errors > 0:
+            found["Notsmart_Errors_UNC"] = errors
+        found["Notsmart_Failing_Now"] = failing_now
+    return found
+
+
+def smartctl_get_status(found: dict) -> str:
+    return "old"

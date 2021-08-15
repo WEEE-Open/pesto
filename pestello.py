@@ -5,13 +5,16 @@ import csv
 import argparse
 import os
 import traceback
-import re
+
+from utilites import parse_smartctl_output, smartctl_get_status
 
 RED = "\033[31;40m"
+RED_REVERSE = "\033[41;30m"
+GREEN_REVERSE = "\033[42;30m"
 END_ESCAPE = "\033[0;0m"
 
 
-def get_files(paths, quiet: bool):
+def get_files(paths, quiet: bool, predict: bool):
     filenames = []
     results = []
     serials = set()
@@ -23,8 +26,8 @@ def get_files(paths, quiet: bool):
         with open('labeled_out.csv', 'r') as csvfile:
             reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
             for row in reader:
-                if 'Serial_Number' in row and 'Status' in row:
-                    already_labeled[row['Serial_Number']] = row
+                if 'Notsmart_Serial_Number' in row and 'Status' in row:
+                    already_labeled[row['Notsmart_Serial_Number']] = row
     except FileNotFoundError:
         print("No labeled_out.csv found")
 
@@ -43,7 +46,7 @@ def get_files(paths, quiet: bool):
 
     for filename in filenames:
         try:
-            parse_file(filename, results, serials, counter, already_labeled, quiet)
+            parse_file(filename, results, serials, counter, already_labeled, quiet, predict)
             counter += 1
         except (KeyboardInterrupt, EOFError):
             break
@@ -80,103 +83,40 @@ def get_files(paths, quiet: bool):
         exit(1)
 
 
-def parse_file(filename: str, results: list, serials: set, counter: int, already_labeled: dict, quiet: bool):
+def parse_file(filename: str, results: list, serials: set, counter: int, already_labeled: dict, quiet: bool, predict: bool):
     print(f"File {counter} - {filename}")
 
-    found = dict()
-    errors = 0
-
-    found_at_least_one = False
     with open(filename, 'r') as f:
-        info_section = False
-        data_section = False
-        errors_section = False
-        for line in f:
-            line: str
-            if "=== START OF INFORMATION SECTION ===" in line:
-                info_section = True
-                data_section = False
-                errors_section = False
-                continue
-            if "=== START OF READ SMART DATA SECTION ===" in line:
-                info_section = False
-                data_section = True
-                errors_section = False
-                continue
-            if "SMART Error Log Version" in line:
-                info_section = False
-                data_section = False
-                errors_section = True
-                continue
-            if info_section:
-                if 'Model Family: ' in line:
-                    val = line.split(':', 2)[1].strip()
-                    found["Brand"] = val.split(' ', 1)[0]
-                    found["Model_Family"] = val.strip()
-                    # Title case for UPPERCASE BRANDS (except IBM)
-                    if found["Brand"].isupper() and len(found["Brand"]) > 3:
-                        found["Brand"] = found["Brand"].title()
-                if 'Serial Number:' in line:
-                    val = line.split('Serial Number:', 2)[1]
-                    found["Serial_Number"] = val.strip()
-                    if len(found["Serial_Number"]) <= 0:
-                        del found["Serial_Number"]
-                continue
-            if data_section:
-                parts_test = line.strip().split(' ')
-                try:
-                    param_value = int(parts_test[0].strip())
-                except ValueError:
-                    continue
-                if len(parts_test) >= 3 and 0 <= param_value <= 256:
-                    found_at_least_one = True
-                    attr = parts_test[1].strip()
+        found = parse_smartctl_output(f)
+        found_at_least_one = False
+        for k in found:
+            if not k.startswith('Notsmart_'):
+                found_at_least_one = True
+                break
 
-                    if len(attr) <= 0:
-                        continue
-                    if attr == "structures":
-                        continue
-                    # Skip bad parsing (matching *******, "Not tested:", 0 and other strings)
-                    if len(re.sub('[a-zA-Z_]+', '', attr)) > 0:
-                        continue
+    prediction = None
+    if predict:
+        prediction = smartctl_get_status(found)
 
-                    val = line.split("(")[0].split(" ")[-1].strip()
-                    if len(val) <= 0:
-                        continue
+    if "Notsmart_Errors_UNC" in found:
+        found["Notsmart_Errors_UNC"] = str(found["Notsmart_Errors_UNC"])
 
-                    if 'h' in val and 'm' in val:
-                        val = val.split("h")[0]
-                    elif 'Temperature' in attr:
-                        continue
-                    elif '/' in val:
-                        val.split('/')
-                        if len(val[0].rstrip()) > 0:
-                            val = val[0]
-                        elif len(val[1].rstrip()) > 0:
-                            val = val[1]
-                        else:
-                            continue
-                    found[attr] = val.rstrip()
-                continue
-            if errors_section:
-                if 'Error: UNC' in line:
-                    errors += 1
+    if "Notsmart_Failing_Now" in found:
+        found["Notsmart_Failing_Now"] = str(found["Notsmart_Failing_Now"])
 
-    found["Errors_UNC"] = str(errors)
-
-    if "Serial_Number" not in found:
-        found["Serial_Number"] = filename
-    if found["Serial_Number"] in serials:
-        print(f"Skipping duplicate {found['Serial_Number']}\n")
+    if "Notsmart_Serial_Number" not in found:
+        found["Notsmart_Serial_Number"] = filename
+    if found["Notsmart_Serial_Number"] in serials:
+        print(f"Skipping duplicate {found['Notsmart_Serial_Number']}\n")
         return
     else:
-        serials.add(found["Serial_Number"])
+        serials.add(found["Notsmart_Serial_Number"])
 
     if not found_at_least_one:
-        print(f"Skipping empty disk")
+        print(f"Skipping empty disk\n")
         return
 
-    if not quiet or not found['Serial_Number'] in already_labeled:
+    if not quiet or not found['Notsmart_Serial_Number'] in already_labeled:
         for k in found:
             details = ""
             if k == "Total_LBAs_Written":
@@ -190,7 +130,7 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
                         details += f" (or, if minutes, {server/60:.2f} server years, {office/60:.2f} office years)"
                 except:
                     pass
-            if k != "Serial_Number" and found[k].isnumeric() and int(found[k]) != 0:
+            if found[k].isnumeric() and int(found[k]) != 0 and k not in ("Notsmart_Serial_Number", "Notsmart_Rotation_Rate"):
                 color1 = RED
                 color2 = END_ESCAPE
             else:
@@ -200,13 +140,13 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
     answered = False
     question = "Is it OK, SUS, OLD, FAIL or discard? [K,S,O,F,X] "
 
-    if found['Serial_Number'] in already_labeled:
-        old_labeled_row = already_labeled[found['Serial_Number']]
+    if found['Notsmart_Serial_Number'] in already_labeled:
+        old_labeled_row = already_labeled[found['Notsmart_Serial_Number']]
         print(f"{question}{old_labeled_row['Status']} (already labeled)")
         found['Status'] = old_labeled_row['Status']
         results.append(found)
         answered = True
-        del already_labeled[found['Serial_Number']]
+        del already_labeled[found['Notsmart_Serial_Number']]
 
     while not answered:
         r = input(question)
@@ -229,6 +169,16 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
             answered = True
         elif r == 'x':
             answered = True
+    if predict:
+        prediction_formatted = "Unknown"
+        if prediction is not None:
+            prediction_formatted = prediction.upper()
+
+        if prediction_formatted == found['Status']:
+            comment = f"{GREEN_REVERSE}right :){END_ESCAPE}"
+        else:
+            comment = f"{RED_REVERSE}WRONG PREDICTION!{END_ESCAPE}"
+        print(f"Predicted: {prediction_formatted} - {comment}")
     print()
 
 
@@ -236,6 +186,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Classify SMART data manually. Now.')
     parser.add_argument('files', nargs='+', type=str, help="Path to smartctl saved files")
     parser.add_argument('-q', '--quiet', action='store_true', help="Be quiet about already labeled data")
+    parser.add_argument('-t', '--test', action='store_true', help="How am I mining?")
     args = parser.parse_args()
 
-    get_files(args.files, args.quiet)
+    get_files(args.files, args.quiet, args.test)
