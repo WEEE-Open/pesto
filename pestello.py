@@ -126,15 +126,17 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
             if k == "Total_LBAs_Written":
                 details = f" ({int(found[k])*512/1024/1024/1024:.2f} GiB)"
             elif k == "Power_On_Hours":
+                # noinspection PyBroadException
                 try:
                     server = int(found[k]) / 24 / 365
                     office = int(found[k]) / 8 / 304
                     details = f" ({server:.2f} server years, {office:.2f} office years)"
                     if server >= 20:
                         details += f" (or, if minutes, {server/60:.2f} server years, {office/60:.2f} office years)"
-                except:
+                except BaseException:
                     pass
-            if found[k].isnumeric() and int(found[k]) != 0 and k not in ("Notsmart_Serial_Number", "Notsmart_Rotation_Rate"):
+            ignored = ("Notsmart_Serial_Number", "Notsmart_Rotation_Rate")
+            if found[k].isnumeric() and int(found[k]) != 0 and k not in ignored:
                 color1 = RED
                 color2 = END_ESCAPE
             else:
