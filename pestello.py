@@ -98,6 +98,10 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
     if predict:
         prediction = smartctl_get_status(found)
 
+    if "Notsmart_Rotation_Rate" in found:
+        if found["Notsmart_Rotation_Rate"] == "Solid State Device":
+            del found["Notsmart_Rotation_Rate"]
+
     if "Notsmart_Errors_UNC" in found:
         found["Notsmart_Errors_UNC"] = str(found["Notsmart_Errors_UNC"])
 
