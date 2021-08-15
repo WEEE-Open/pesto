@@ -2,8 +2,10 @@ __pycache__/
 .idea/
 files/
 files_*/
+skip_files_*/
 labeled.csv
 labeled_*.csv
 .~lock.*
 venv/
 .env
+crashreport.txt

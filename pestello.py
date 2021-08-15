@@ -21,6 +21,7 @@ def get_files(paths, quiet: bool, predict: bool):
     errors = False
     counter = 1
     already_labeled = {}
+    predictions = {"right": 0, "wrong": 0, "failed": 0}
 
     try:
         with open('labeled_out.csv', 'r') as csvfile:
@@ -46,7 +47,7 @@ def get_files(paths, quiet: bool, predict: bool):
 
     for filename in filenames:
         try:
-            parse_file(filename, results, serials, counter, already_labeled, quiet, predict)
+            parse_file(filename, results, serials, counter, already_labeled, quiet, predict, predictions)
             counter += 1
         except (KeyboardInterrupt, EOFError):
             break
@@ -79,11 +80,15 @@ def get_files(paths, quiet: bool, predict: bool):
         for result in results:
             writer.writerow(result)
 
+    print(f"Predictions: {predictions['right']} good, {predictions['wrong']} bad, {predictions['failed']} errors")
+    acc = float(predictions['right'])/(float(predictions['right'])+float(predictions['wrong']))*100
+    print(f"Accuracy: {acc:.2f} %")
+
     if errors:
         exit(1)
 
 
-def parse_file(filename: str, results: list, serials: set, counter: int, already_labeled: dict, quiet: bool, predict: bool):
+def parse_file(filename: str, results: list, serials: set, counter: int, already_labeled: dict, quiet: bool, predict: bool, predictions: dict):
     print(f"File {counter} - {filename}")
 
     with open(filename, 'r') as f:
@@ -96,7 +101,12 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
 
     prediction = None
     if predict:
-        prediction = smartctl_get_status(found)
+        # noinspection PyBroadException
+        try:
+            prediction = smartctl_get_status(found)
+        except BaseException as e:
+            print("Prediction error! " + str(e))
+            prediction = None
 
     if "Notsmart_Rotation_Rate" in found:
         if found["Notsmart_Rotation_Rate"] == "Solid State Device":
@@ -177,13 +187,17 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
             answered = True
     if predict:
         prediction_formatted = "Unknown"
-        if prediction is not None:
+        if prediction is None:
+            predictions["failed"] += 1
+        else:
             prediction_formatted = prediction.upper()
 
         if prediction_formatted == found['Status']:
             comment = f"{GREEN_REVERSE}right :){END_ESCAPE}"
+            predictions["right"] += 1
         else:
             comment = f"{RED_REVERSE}WRONG PREDICTION!{END_ESCAPE}"
+            predictions["wrong"] += 1
         print(f"Predicted: {prediction_formatted} - {comment}")
     print()
 
