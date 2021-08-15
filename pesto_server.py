@@ -16,6 +16,8 @@ from datetime import datetime
 from utilites import smartctl_get_status, parse_smartctl_output
 
 NAME = "turbofresa"
+# Use env vars, do not change the value here
+TEST_MODE = False
 
 
 class Disk:
@@ -101,7 +103,7 @@ class CommandRunner(threading.Thread):
 
     def run(self):
         try:
-            self.exec_command(self._cmd, self._args, self._the_id)
+            self.exec_command(self._cmd, self._args)
         except BaseException as e:
             logging.getLogger(NAME).error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
         with running_commands_lock:
@@ -112,57 +114,84 @@ class CommandRunner(threading.Thread):
         # (none of them does, for now)
         self._go = False
 
-    def exec_command(self, cmd: str, args: str, the_id: int):
+    def exec_command(self, cmd: str, args: str):
         logging.getLogger(NAME)\
-            .debug(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")  # in {self.getName()}
+            .debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
+        # in {self.getName()}
         param = None
-        respond = True
         if cmd == 'smartctl':
-            param = self.get_smartctl(args, False, the_id)
+            param = self.get_smartctl(args, None)
             if not param:
                 return
         elif cmd == 'queued_smartctl':
-            param = self.get_smartctl(args, True, the_id)
+            dev = self.dev_from_args(args)
+            if not dev:
+                return
+            q = QueuedCommand(dev, self)
+            param = self.get_smartctl(args, q)
             if not param:
                 return
+        elif cmd == 'queued_badblocks':
+            dev = self.dev_from_args(args)
+            if not dev:
+                return
+            q = QueuedCommand(dev, self)
+            self.badblocks(args, q)
         elif cmd == 'get_disks':
-            param = self.get_disks_to_send(the_id)
+            param = self.get_disks_to_send()
         elif cmd == 'get_disks_win':
             param = get_disks_win()
         elif cmd == 'ping':
             cmd = "pong"
         elif cmd == 'get_queue':
-            self.get_queue(cmd, the_id)
-            respond = False
+            self.get_queue(cmd)
+            return
         else:
             param = {"message": "Unrecognized command", "command": cmd}
             # Do not move this line above the other, cmd has to be overwritten here
             cmd = "error"
-        if respond:
-            self.send_msg(the_id, cmd, param)
+        self.send_msg(cmd, param)
 
-    def get_queue(self, actual_cmd, the_id):
+    def get_queue(self, actual_cmd):
         param = []
         with queued_commands_lock:
             for queued_command in queued_commands:
                 queued_command.lock()
                 param.append(queued_command.serialize_me())
-            self.send_msg(the_id, actual_cmd, param)
+            self.send_msg(actual_cmd, param)
             for queued_command in queued_commands:
                 queued_command.unlock()
 
-    def get_smartctl(self, dev: str, queued: bool, the_id: int):
+    def dev_from_args(self, args: str):
         with disks_lock:
-            if dev not in disks:
-                self.send_msg(the_id, 'error', {"message": f"{dev} is not a disk"})
-                return None
-        if queued:
-            q = QueuedCommand(disks[dev], self)
+            if args in disks:
+                return disks[args]
+        self.send_msg('error', {"message": f"{args} is not a disk"})
+        return None
+
+    # noinspection PyMethodMayBeStatic
+    def badblocks(self, dev: str, q):
+        q: Optional[QueuedCommand]
+        with disks[dev].queue_lock:
+            q.notify_start("Running")
+            if not TEST_MODE:
+                # TODO: code from turbofresa goes here
+                q.notify_percentage(10, "0 bad blocks")
+                q.notify_percentage(20, "0 bad blocks")
+                q.notify_percentage(30, "2 bad blocks")
+                q.notify_percentage(42, "2 bad blocks")
+                q.notify_percentage(60, "2 bad blocks")
+                q.notify_percentage(80, "2 bad blocks")
+                q.notify_percentage(99, "3 bad blocks")
+                pass
+            q.notify_finish("3 bad blocks")
+
+    def get_smartctl(self, dev: str, q):
+        q: Optional[QueuedCommand]
+        if q:
             disks[dev].queue_lock.acquire()
         try:
-            if queued:
-                # "if queued" q is defined...
-                # noinspection PyUnboundLocalVariable
+            if q:
                 q.notify_start("Running")
 
             pipe = subprocess\
@@ -172,11 +201,9 @@ class CommandRunner(threading.Thread):
             exitcode = pipe.wait()
 
             updated = False
-            # What if "not queued", dear pycharm?
-            # noinspection PyUnusedLocal
             status = None
 
-            if queued:
+            if q:
                 if exitcode == 0:
                     status = get_smartctl_status(output)
                     if not status:
@@ -184,20 +211,20 @@ class CommandRunner(threading.Thread):
                     else:
                         q.notify_percentage(50.0, "Updating tarallo if needed")
                         with disks_lock:
-                            self.update_disk_if_needed(the_id, disks[dev])
+                            self.update_disk_if_needed(disks[dev])
                             # noinspection PyBroadException
                             try:
                                 disks[dev].update_status(status)
                                 updated = True
                             except BaseException as e:
                                 q.notify_error("Error during upload")
-                                logging.warning(f"[{the_id}] Cannot update status of {dev} on tarallo", exc_info=e)
+                                logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
                 else:
                     # "if queued" q is defined...
                     # noinspection PyUnboundLocalVariable
                     q.notify_error("smartctl failed")
         finally:
-            if queued:
+            if q:
                 q.notify_finish()
                 disks[dev].queue_lock.release()
         return {
@@ -209,7 +236,7 @@ class CommandRunner(threading.Thread):
             "stderr": stderr,
         }
 
-    def update_disk_if_needed(self, the_id: int, disk: Disk):
+    def update_disk_if_needed(self, disk: Disk):
         # TODO: a more granular lock is possible, here. But is it really needed?
         # Do not use the queue lock, though
         with disks_lock:
@@ -217,7 +244,7 @@ class CommandRunner(threading.Thread):
             try:
                 disk.update_from_tarallo_if_needed()
             except ErrorThatCanBeManuallyFixed as e:
-                self.send_msg(the_id, "error_that_can_be_manually_fixed", {"message": str(e), "disk": disk})
+                self.send_msg("error_that_can_be_manually_fixed", {"message": str(e), "disk": disk})
             except BaseException:
                 pass
 
@@ -225,11 +252,12 @@ class CommandRunner(threading.Thread):
     def _encode_param(param):
         return json.dumps(param, separators=(',', ':'), indent=None)
 
-    def send_msg(self, client_id: int, cmd: str, param=None):
-        thread = clients.get(client_id)
+    def send_msg(self, cmd: str, param=None, the_id: Optional[int] = None):
+        the_id = the_id or self._the_id
+        thread = clients.get(the_id)
         if thread is None:
             logging.getLogger(NAME)\
-                .info(f"[{client_id}] Connection already closed while trying to send {cmd}")
+                .info(f"[{the_id}] Connection already closed while trying to send {cmd}")
         else:
             thread: TurboProtocol
             # noinspection PyBroadException
@@ -244,9 +272,9 @@ class CommandRunner(threading.Thread):
                 reactor.callFromThread(TurboProtocol.send_msg, thread, response_string)
             except BaseException:
                 logging.getLogger(NAME)\
-                    .warning(f"[{client_id}] Something blew up while trying to send {cmd} (connection already closed?)")
+                    .warning(f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)")
 
-    def get_disks_to_send(self, the_id: int):
+    def get_disks_to_send(self):
         result = []
         with disks_lock:
             for disk in disks:
@@ -260,7 +288,7 @@ class CommandRunner(threading.Thread):
                     except BaseException as e:
                         logging.warning(f"Error with disk {disk} still remains", exc_info=e)
                 if disks[disk] is not None:
-                    self.update_disk_if_needed(the_id, disks[disk])
+                    self.update_disk_if_needed(disks[disk])
                     result.append(disks[disk].serialize_disk())
         return result
 
@@ -331,12 +359,13 @@ class QueuedCommand:
         for client in clients:
             # send_msg calls reactor.callFromThread and reactor is single threaded, so no risk here
             # send_all is always called with a lock, so all status updates are sent in the expected order
-            self.command_runner.send_msg(client, "queue_status", param)
+            self.command_runner.send_msg("queue_status", param, client)
 
     def serialize_me(self) -> dict:
         return {
             "id": self._id,
             "command": self.command_runner.get_cmd(),
+            "text": self._text,
             "target": self.disk.get_path(),
             "percentage": self._percentage,
             "started": self._started,
@@ -422,13 +451,20 @@ def main():
     scan_for_disks()
     ip = os.getenv("IP")
     port = os.getenv("PORT")
+    global TEST_MODE
+    TEST_MODE = bool(os.getenv("TEST_MODE", False))
+
+    if TEST_MODE:
+        logging.warning("Test mode is enabled, no destructive actions will be performed")
+    else:
+        logging.debug("TEST MODE IS DISABLED! Do you really want to risk your hard drive?")
 
     try:
         factory = protocol.ServerFactory()
         factory.protocol = TurboProtocol
         factory.conn_id = 0
 
-        logging.getLogger(NAME).info(f"Listening on {ip} port {port}")
+        logging.info(f"Listening on {ip} port {port}")
         # noinspection PyUnresolvedReferences
         reactor.listenTCP(int(port), factory, interface=ip)
 
