@@ -2,241 +2,603 @@
 import json
 import subprocess
 import sys
-
+from typing import Optional
+import wmi
+from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO
 import os
 from twisted.internet import reactor, protocol
 from twisted.protocols.basic import LineOnlyReceiver
 import threading
-import collections
+import logging
+from datetime import datetime
+import pythoncom
+from utilites import smartctl_get_status, parse_smartctl_output
+import ast
 
-clients = dict()
-clients_lock = threading.Lock()
 
-# TODO: proper queue, where dischi are first piallati then smartclati then whatever
-# TODO: save commands list for those long running commands, to display it
-commands_list = collections.deque()
-commands_list_event = threading.Event()
-commands_list_lock = threading.Lock()
+NAME = "turbofresa"
+# Use env vars, do not change the value here
+TEST_MODE = False
+CURRENT_OS = sys.platform
 
-current_os = sys.platform
+
+class Disk:
+    def __init__(self, lsblk, tarallo: Optional[Tarallo.Tarallo]):
+        self._lsblk = lsblk
+        if "path" not in self._lsblk:
+            raise RuntimeError("lsblk did not provide path for this disk: " + self._lsblk)
+        self._path = str(self._lsblk["path"])
+        self._code = None
+        self._item = None
+        self.queue_lock = threading.Lock()
+
+        self._tarallo = tarallo
+        self._get_code(False)
+        self._get_item()
+
+    def get_path(self):
+        return self._path
+
+    def update_from_tarallo_if_needed(self):
+        if not self._code:
+            self._get_code(True)
+        self._get_item()
+
+    def serialize_disk(self):
+        result = self._lsblk
+        result["code"] = self._code
+        return result
+
+    def update_status(self, status: str):
+        if self._tarallo and self._code:
+            self._tarallo.update_item_features(self._code, {"smart-data": status})
+
+    def _get_code(self, stop_on_error: bool = True):
+        if not self._tarallo:
+            self._code = None
+            return
+        if "serial" not in self._lsblk:
+            self._code = None
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(f"Disk {self._path} has no serial number")
+
+        sn = self._lsblk["serial"]
+        sn: str
+        if sn.startswith('WD-'):
+            sn = sn[3:]
+
+        codes = self._tarallo.get_codes_by_feature("sn", sn)
+        if len(codes) <= 0:
+            self._code = None
+            logging.debug(f"Disk {sn} not found in tarallo")
+        elif len(codes) == 1:
+            self._code = codes[0]
+            logging.debug(f"Disk {sn} found as {self._code}")
+        else:
+            self._code = None
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(f"Duplicate codes for {self._path}: {' '.join(codes)}, S/N is {sn}")
+
+    def _get_item(self):
+        if self._tarallo and self._code:
+            self._item = self._tarallo.get_item(self._code, 0)
+        else:
+            self._item = None
+
+
+class ErrorThatCanBeManuallyFixed(BaseException):
+    pass
+
 
 class CommandRunner(threading.Thread):
-    def __init__(self, reac: reactor):
+    def __init__(self, cmd: str, args: str, the_id: int):
         threading.Thread.__init__(self)
-        self.thread_name = "CommandRunner"
-        self._go = True
-        self._sleep = 5.0
-        self._reactor = reac
+        self._cmd = cmd
+        self._args = args
+        self._the_id = the_id
+        self._go = False
+        with running_commands_lock:
+            running_commands.add(self)
+
+    def get_cmd(self):
+        return self._cmd
 
     def run(self):
-        print("Running on " + current_os + " machine")
-        while self._go:
-            try:
-                commands_list_event.wait(self._sleep)
-                if not self._go:
-                    break
-                if commands_list_event.isSet():
-                    with commands_list_lock:
-                        try:
-                            command = commands_list.popleft()
-                            # TODO: launch slow commands in yet another thread, so this one is not blocked
-                            self.exec_command(command[0], command[1], command[2])
-                        except IndexError:
-                            pass
-
-                    with commands_list_lock:
-                        if len(commands_list) <= 0:
-                            commands_list_event.clear()
-            except:
-                print("BIG ERROR")
-                with commands_list_lock:
-                    if len(commands_list) <= 0:
-                        commands_list_event.clear()
-
-    def exec_command(self, cmd: str, args: str, the_id: int):
-        print(f"[{the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
-        # This part doesn't work
-        if cmd == 'smartctl':
-            param = self.get_smarctl(args)
-            self.send_msg(the_id, f"smartctl {param}")
-        elif cmd == 'get_disks':
-            if current_os == 'win32':
-                param = get_disks_win()
-            else:
-                param = self.get_disks()
-            self.send_msg(the_id, f"get_disks {param}")
-        elif cmd == 'get_disks_win':
-            param = get_disks_win()
-            self.send_msg(the_id, f"get_disks_win {param}")
-        elif cmd == 'ping':
-            self.send_msg(the_id, f"pong")
-        else:
-            param = json.dumps({"message": "Unrecognized command", "command": cmd}, separators=(',', ':'), indent=None)
-            self.send_msg(the_id, f"error {param}")
-
-    def get_disks(self):
-        # Name is required, otherwise the tree is flattened
-        output = subprocess.getoutput("lsblk -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT -J")
-        jsonized = json.loads(output)
-        if "blockdevices" in jsonized:
-            result = jsonized["blockdevices"]
-        else:
-            result = []
-        for el in result:
-            mounts = self.find_mounts(el)
-            if "children" in el:
-                del el["children"]
-            if "name" in el:
-                del el["name"]
-            el["mountpoint"] = mounts
-
-        return json.dumps(result, separators=(',', ':'), indent=None)
-
-    @staticmethod
-    def get_smarctl(args):
-        exitcode, output = subprocess.getstatusoutput("sudo smartctl -a " + args)
-        jsonize = {
-            "disk": args,
-            "exitcode": exitcode,
-            "output": output,
-        }
-        return json.dumps(jsonize, separators=(',', ':'), indent=None)
-
-    def find_mounts(self, el: dict):
-        mounts = []
-        if el["mountpoint"] is not None:
-            mounts.append(el["mountpoint"])
-        if "children" in el:
-            children = el["children"]
-            for child in children:
-                mounts += self.find_mounts(child)
-        return mounts
-
-    def send_msg(self, client_id: int, msg: str):
-        with clients_lock:
-            thread = clients.get(client_id)
-            if thread is None:
-                print(f"[{client_id}] Connection already closed while trying to send a message")
-            else:
-                thread: TurboHandler
-                self._reactor.callFromThread(TurboHandler.send_msg, thread, msg)
+        try:
+            self.exec_command(self._cmd, self._args)
+        except BaseException as e:
+            logging.getLogger(NAME).error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
+        with running_commands_lock:
+            running_commands.remove(self)
 
     def stop_asap(self):
+        # This is completely pointless unless the command checks self._go
+        # (none of them does, for now)
         self._go = False
-        commands_list_event.set()
-        self.join(self._sleep * 2)
+
+    def exec_command(self, cmd: str, args: str):
+        logging.getLogger(NAME)\
+            .debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
+        # in {self.getName()}
+        param = None
+        if cmd == 'smartctl':
+            param = self.get_smartctl(args, None)
+            if not param:
+                return
+        elif cmd == 'queued_smartctl':
+            dev = self.dev_from_args(args)
+            if not dev:
+                return
+            q = QueuedCommand(dev, self)
+            param = self.get_smartctl(args, q)
+            if not param:
+                return
+        elif cmd == 'queued_badblocks':
+            dev = self.dev_from_args(args)
+            print(dev)
+            if not dev:
+                return
+            q = QueuedCommand(dev, self)
+            self.badblocks(args, q)
+        elif cmd == 'get_disks':
+            if CURRENT_OS == 'win32':
+                param = get_disks_win()
+            else:
+                param = self.get_disks_to_send()
+        elif cmd == 'ping':
+            cmd = "pong"
+        elif cmd == 'get_queue':
+            self.get_queue(cmd)
+            return
+        else:
+            param = {"message": "Unrecognized command", "command": cmd}
+            # Do not move this line above the other, cmd has to be overwritten here
+            cmd = "error"
+        self.send_msg(cmd, param)
+
+    def get_queue(self, actual_cmd):
+        param = []
+        with queued_commands_lock:
+            for queued_command in queued_commands:
+                queued_command.lock()
+                param.append(queued_command.serialize_me())
+            self.send_msg(actual_cmd, param)
+            for queued_command in queued_commands:
+                queued_command.unlock()
+
+    def dev_from_args(self, args: str):
+        with disks_lock:
+            if args in disks:
+                return disks[args]
+        self.send_msg('error', {"message": f"{args} is not a disk"})
+        return None
+
+    # noinspection PyMethodMayBeStatic
+    def badblocks(self, dev: str, q):
+        q: Optional[QueuedCommand]
+        with disks[dev].queue_lock:
+            q.notify_start("Running")
+            if not TEST_MODE:
+                # TODO: code from turbofresa goes here
+                q.notify_percentage(10, "0 bad blocks")
+                q.notify_percentage(20, "0 bad blocks")
+                q.notify_percentage(30, "2 bad blocks")
+                q.notify_percentage(42, "2 bad blocks")
+                q.notify_percentage(60, "2 bad blocks")
+                q.notify_percentage(80, "2 bad blocks")
+                q.notify_percentage(99, "3 bad blocks")
+                pass
+            q.notify_finish("3 bad blocks")
+
+    def get_smartctl(self, dev: str, q):
+        q: Optional[QueuedCommand]
+        if q:
+            disks[dev].queue_lock.acquire()
+        try:
+            if q:
+                q.notify_start("Running")
+
+            pipe = subprocess\
+                .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            output = pipe.stdout.read().decode('utf-8')
+            stderr = pipe.stderr.read().decode('utf-8')
+            exitcode = pipe.wait()
+
+            updated = False
+            status = None
+
+            if q:
+                if exitcode == 0:
+                    status = get_smartctl_status(output)
+                    if not status:
+                        q.notify_error("Error while parsing smartctl status")
+                    else:
+                        q.notify_percentage(50.0, "Updating tarallo if needed")
+                        with disks_lock:
+                            self.update_disk_if_needed(disks[dev])
+                            # noinspection PyBroadException
+                            try:
+                                disks[dev].update_status(status)
+                                updated = True
+                            except BaseException as e:
+                                q.notify_error("Error during upload")
+                                logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
+                else:
+                    # "if queued" q is defined...
+                    # noinspection PyUnboundLocalVariable
+                    q.notify_error("smartctl failed")
+        finally:
+            if q:
+                q.notify_finish()
+                disks[dev].queue_lock.release()
+        return {
+            "disk": dev,
+            "status": status,
+            "updated": updated,
+            "exitcode": exitcode,
+            "output": output,
+            "stderr": stderr,
+        }
+
+    def update_disk_if_needed(self, disk: Disk):
+        # TODO: a more granular lock is possible, here. But is it really needed?
+        # Do not use the queue lock, though
+        with disks_lock:
+            # noinspection PyBroadException
+            try:
+                disk.update_from_tarallo_if_needed()
+            except ErrorThatCanBeManuallyFixed as e:
+                self.send_msg("error_that_can_be_manually_fixed", {"message": str(e), "disk": disk})
+            except BaseException:
+                pass
+
+    @staticmethod
+    def _encode_param(param):
+        return json.dumps(param, separators=(',', ':'), indent=None)
+
+    def send_msg(self, cmd: str, param=None, the_id: Optional[int] = None):
+        the_id = the_id or self._the_id
+        thread = clients.get(the_id)
+        if thread is None:
+            logging.getLogger(NAME)\
+                .info(f"[{the_id}] Connection already closed while trying to send {cmd}")
+        else:
+            thread: TurboProtocol
+            # noinspection PyBroadException
+            try:
+                if param is None:
+                    response_string = cmd
+                else:
+                    j_param = self._encode_param(param)
+                    response_string = f"{cmd} {j_param}"
+                # It's there but pycharm doesn't believe it
+                # noinspection PyUnresolvedReferences
+                reactor.callFromThread(TurboProtocol.send_msg, thread, response_string)
+            except BaseException:
+                logging.getLogger(NAME)\
+                    .warning(f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)")
+
+    def get_disks_to_send(self):
+        result = []
+        with disks_lock:
+            for disk in disks:
+                if disks[disk] is None:
+                    lsblk = get_disks(disk)
+                    if len(lsblk) > 0:
+                        lsblk = lsblk[0]
+                    # noinspection PyBroadException
+                    try:
+                        disks[disk] = Disk(lsblk, TARALLO)
+                    except BaseException as e:
+                        logging.warning(f"Error with disk {disk} still remains", exc_info=e)
+                if disks[disk] is not None:
+                    self.update_disk_if_needed(disks[disk])
+                    result.append(disks[disk].serialize_disk())
+        return result
 
 
+class QueuedCommand:
+    def __init__(self, disk: Disk, command_runner: CommandRunner):
+        self.disk = disk
+        self.command_runner = command_runner
+        self._percentage = 0.0
+        self._started = False
+        self._finished = False
+        self._error = False
+        self._stopped = False
+        self._lock = threading.Lock()
+        self._text = "Queued"
+        date = datetime.today().strftime('%Y%m%d%H%M')
+        with queued_commands_lock:
+            self._id = f"{date}-{str(len(queued_commands))}"
+            queued_commands.append(self)
+        with self._lock:
+            self.send_all()
 
-class TurboHandler(LineOnlyReceiver):
+    def lock(self):
+        self._lock.acquire()
+
+    def unlock(self):
+        self._lock.release()
+
+    def notify_start(self, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._started = True
+            self._percentage = 0.0
+            self.send_all()
+
+    def notify_finish(self, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._finished = True
+            self._percentage = 100.0
+            self.send_all()
+
+    def notify_error(self, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._error = True
+            self.send_all()
+
+    def notify_stopped(self, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._stopped = True
+            self.send_all()
+
+    def notify_percentage(self, percent: float, text: Optional[str] = None):
+        with self._lock:
+            if text is not None:
+                self._text = text
+            self._percentage = percent
+            self.send_all()
+
+    def send_all(self):
+        param = self.serialize_me()
+        for client in clients:
+            # send_msg calls reactor.callFromThread and reactor is single threaded, so no risk here
+            # send_all is always called with a lock, so all status updates are sent in the expected order
+            self.command_runner.send_msg("queue_status", param, client)
+
+    def serialize_me(self) -> dict:
+        return {
+            "id": self._id,
+            "command": self.command_runner.get_cmd(),
+            "text": self._text,
+            "target": self.disk.get_path(),
+            "percentage": self._percentage,
+            "started": self._started,
+            "finished": self._finished,
+            "error": self._error,
+            "stopped": self._stopped,
+        }
+
+
+class TurboProtocol(LineOnlyReceiver):
     def __init__(self):
         self._id = -1
+        self.delimiter = b'\n'
+        self._delimiter_found = False
 
     def connectionMade(self):
         self._id = self.factory.conn_id
         self.factory.conn_id += 1
-        with commands_list_lock:
-            with clients_lock:
-                clients[self._id] = self
-        self.send_msg(f"[{str(self._id)}] Client connected")
-        print(f"[{str(self._id)}] Client connected")
+        with clients_lock:
+            clients[self._id] = self
+        logging.getLogger(NAME).debug(f"[{str(self._id)}] Client connected")
+        self.send_msg("SERVER_READY")
 
     def connectionLost(self, reason=protocol.connectionDone):
-        print(f"[{str(self._id)}] Client disconnected")
-        with commands_list_lock:
-            with clients_lock:
-                del clients[self._id]
+        logging.getLogger(NAME).debug(f"[{str(self._id)}] Client disconnected")
+        with clients_lock:
+            del clients[self._id]
 
     def lineReceived(self, line):
-        line = line.decode('utf-8').strip()
+        try:
+            line = line.decode('utf-8')
+        except UnicodeDecodeError as e:
+            logging.getLogger(NAME).warning(f"[{str(self._id)}] Oh no, UnicodeDecodeError!", exc_info=e)
+            return
+
+        # \n is stripped by twisted, but with \r\n the \r is still there
+        if not self._delimiter_found:
+            if len(line) > 0 and line[-1] == '\r':
+                self.delimiter = b'\r\n'
+                logging.getLogger(NAME).debug(f"[{str(self._id)}] Client has delimiter \\r\\n")
+            else:
+                logging.getLogger(NAME).debug(f"[{str(self._id)}] Client has delimiter \\n")
+            self._delimiter_found = True
+
+        # Strip \r on first message (if \r\n) and any trailing whitespace
+        line = line.strip()
         if line.startswith('exit'):
             self.transport.loseConnection()
         else:
             parts = line.split(' ', 1)
             cmd = parts[0].lower()
             args = parts[1] if len(parts) > 1 else ''
-            with commands_list_lock:
-                commands_list.append((cmd, args, self._id))
-                commands_list_event.set()
+            cr = CommandRunner(cmd, args, self._id)
+            with running_commands_lock:
+                running_commands.add(cr)
+            cr.start()
 
     def send_msg(self, response: str):
-        self.sendLine(response.encode('utf-8'))
+        if self._delimiter_found:
+            self.sendLine(response.encode('utf-8'))
+        else:
+            logging.getLogger(NAME)\
+                .warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
 
-    def dataReceived(self, data):
-        dr = (self._buffer + data).decode('utf-8')
-        if dr[-2:-1] != '\r' and self.delimiter != '\n'.encode('utf-8'):
-            print(r"Delimiter set to '\n'")
-            self.delimiter = '\n'.encode('utf-8')
-        lines = (self._buffer + data).split(self.delimiter)
-        self._buffer = lines.pop(-1)
-        for line in lines:
-            if self.transport.disconnecting:
-                # this is necessary because the transport may be told to lose
-                # the connection by a line within a larger packet, and it is
-                # important to disregard all the lines in that packet following
-                # the one that told it to close.
-                return
-            if len(line) > self.MAX_LENGTH:
-                return self.lineLengthExceeded(line)
-            else:
-                self.lineReceived(line)
-        if len(self._buffer) > self.MAX_LENGTH:
-            return self.lineLengthExceeded(self._buffer)
+
+def scan_for_disks():
+    logging.debug("Scanning for disks")
+    if CURRENT_OS == 'win32':
+        disks_lsblk = get_disks_win()
+    else:
+        disks_lsblk = get_disks()
+        for disk in disks_lsblk:
+            if "path" not in disk:
+                logging.warning("Disk has no path, ignoring: " + disk)
+                continue
+            path = disk["path"]
+            # noinspection PyBroadException
+            try:
+                with disks_lock:
+                    disks[path] = Disk(disk, TARALLO)
+            except BaseException as e:
+                logging.warning("Exception while scanning disk, skipping", exc_info=e)
 
 
 def main():
     load_settings()
+    scan_for_disks()
     ip = os.getenv("IP")
     port = os.getenv("PORT")
+    global TEST_MODE
+    TEST_MODE = bool(os.getenv("TEST_MODE", False))
 
-    ch = None
+    if TEST_MODE:
+        logging.warning("Test mode is enabled, no destructive actions will be performed")
+    else:
+        logging.debug("TEST MODE IS DISABLED! Do you really want to risk your hard drive?")
 
     try:
         factory = protocol.ServerFactory()
-        factory.protocol = TurboHandler
+        factory.protocol = TurboProtocol
         factory.conn_id = 0
 
-        print(f"Listening on {ip} port {port}")
+        logging.info(f"Listening on {ip} port {port}")
+
         # noinspection PyUnresolvedReferences
         reactor.listenTCP(int(port), factory, interface=ip)
-
-        ch = CommandRunner(reactor)
-        ch.start()
 
         # noinspection PyUnresolvedReferences
         reactor.run()
     except KeyboardInterrupt:
         print("KeyboardInterrupt, terminating")
     finally:
-        if ch is not None:
-            ch.stop_asap()
+        # TODO: reactor has already stopped here, but threads may send messages... what happens? A big crash, right?
+        while len(running_commands) > 0:
+            with running_commands_lock:
+                thread_to_stop = next(iter(running_commands))
+            thread_to_stop: CommandRunner
+            thread_to_stop.stop_asap()
+            thread_to_stop.join()
 
 
 def load_settings():
     # Load in order each file if exists, variables are not overwritten
     load_dotenv('.env')
-    load_dotenv('~/.conf/WeeeOpen/turbofresa.env')
-    load_dotenv('/etc/turbofresa.env')
+    load_dotenv(f'~/.conf/WEEE-Open/{NAME}.conf')
+    load_dotenv(f'/etc/{NAME}.conf')
     # Defaults
-    config = StringIO("IP=127.0.0.1\nPORT=1030")
+    config = StringIO("IP=127.0.0.1\nPORT=1030\nLOGLEVEL=INFO")
     load_dotenv(stream=config)
+
+    logging.basicConfig(format='%(message)s', level=getattr(logging, os.getenv("LOGLEVEL").upper()))
+
+    url = os.getenv('TARALLO_URL') or logging.warning('TARALLO_URL is not set, tarallo will be unavailable')
+    token = os.getenv('TARALLO_TOKEN') or logging.warning('TARALLO_TOKEN is not set, tarallo will be unavailable')
+
+    if url and token:
+        global TARALLO
+        TARALLO = Tarallo.Tarallo(url, token)
 
 
 def get_disks_win():
-    label = []
-    size = []
-    drive = []
-    for line in subprocess.getoutput("wmic logicaldisk get caption").splitlines():
-        if line.rstrip() != 'Caption' and line.rstrip() != '':
-            label.append(line.rstrip())
-    for line in subprocess.getoutput("wmic logicaldisk get size").splitlines():
-        if line.rstrip() != 'Size' and line.rstrip() != '':
-            size.append(line)
-    for idx, line in enumerate(size):
-        drive += [[label[idx], line]]
-    return json.dumps(drive, separators=(',', ':'), indent=None)
+    the_map = {
+        "DiskNumber": "path",
+        "Model": "model",
+        "SerialNumber": "serial",
+        "Size": "size",
+        # "": "hotplug",
+        # "": "rota",
+        # "IsBoot": "boot",
+    }
+
+    pipe = subprocess.Popen(["powershell", "Get-Disk", "|", "ConvertTo-Json"], stdout=subprocess.PIPE)
+    output = pipe.stdout.read().decode('utf-8')
+    output = json.loads(output)
+    pipe.kill()
+    big_result = []
+    for disk in output:
+        disk: dict
+        if disk["OperationalStatus"] == "No Media":
+            continue
+        result = {}
+        for k in the_map:
+            result[the_map[k]] = str(disk[k]).strip()
+
+        if "serial" in result:
+            if result["serial"].startswith("WD-"):
+                result["serial"] = result["serial"][3:]
+        result["mountpoint"] = []
+        if disk["IsBoot"]:
+            result["mountpoint"].append("[BOOT]")
+        big_result.append(result)
+    return big_result
+
+
+def get_smartctl_status(smartctl_output: str) -> Optional[str]:
+    # noinspection PyBroadException
+    try:
+        return smartctl_get_status(parse_smartctl_output(smartctl_output))
+    except BaseException as e:
+        logging.error("Failed to parse smartctl output", exc_info=e)
+        return None
+
+
+def find_mounts(el: dict):
+    mounts = []
+    if el["mountpoint"] is not None:
+        mounts.append(el["mountpoint"])
+    if "children" in el:
+        children = el["children"]
+        for child in children:
+            mounts += find_mounts(child)
+    return mounts
+
+
+def get_disks(path: Optional[str] = None) -> list:
+    # Name is required, otherwise the tree is flattened
+    output = subprocess\
+        .getoutput(f"lsblk -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT -J {path if path else ''}")
+    jsonized = json.loads(output)
+    if "blockdevices" in jsonized:
+        result = jsonized["blockdevices"]
+    else:
+        result = []
+    for el in result:
+        mounts = find_mounts(el)
+        if "children" in el:
+            del el["children"]
+        if "name" in el:
+            del el["name"]
+        el["mountpoint"] = mounts
+
+    return result
+
+
+TARALLO = None
+
+clients: dict[int, TurboProtocol] = {}
+clients_lock = threading.Lock()
+
+disks: dict[str, Disk] = {}
+disks_lock = threading.RLock()
+
+running_commands: set[CommandRunner] = set()
+running_commands_lock = threading.Lock()
+
+queued_commands: list[QueuedCommand] = []
+queued_commands_lock = threading.Lock()
 
 
 if __name__ == '__main__':
