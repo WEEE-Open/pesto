@@ -7,11 +7,15 @@ Created on Fri Jul 30 10:54:18 2021
 """
 import ctypes
 import datetime
-from PyQt5 import QtWidgets, uic, QtGui, QtCore
+from PyQt5 import uic, QtGui, QtCore
 from PyQt5.QtGui import QIcon, QMovie
-from PyQt5.QtCore import Qt, QEvent
+from PyQt5.QtCore import Qt, QEvent, QThread
 from PyQt5.QtWidgets import QTableWidgetItem, QMenu
 from utilites import *
+import socket
+from threading import Thread
+from queue import Queue
+import ast
 
 SPACE = 5
 
@@ -52,7 +56,15 @@ QUEUE_TABLE = ["ID",
                "Progress"
                ]
 
+CLIENT_COMMAND = {"PING": "===PING===",
+                  "GET_DISK": "===GET_DISK===",
+                  "GET_DISK_WIN": "GET_DISK_WIN",
+                  "CONNECT": "===CONNECT==="}
+
 CURRENT_PLATFORM = sys.platform
+
+_sentinel = '===PASS==='
+
 
 if CURRENT_PLATFORM == "win32":
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("myappid")
@@ -63,22 +75,107 @@ else:
         PATH[path] = linux_path(PATH[path])
 
 
-def main():
-    try:
-        check_requirements(PATH["REQUIREMENTS"])
-        app = QtWidgets.QApplication(sys.argv)
-        window = Ui()
-        app.exec_()
+class Client(Thread):
+    """
+    This is the client thread class. When it is instantiated it create TCP socket that can be used to connect
+    the client to the server.
+    In the __init__ function the following are initialized:
+        - queue: a Queue object that allow the client to interact with other threads
+        - socket: the TCP socket
+        - host
+        - port
+    """
+    def __init__(self, queue: Queue, host: str, port: str):
+        Thread.__init__(self)
+        self.queue = queue
+        self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.host = host
+        self.port = int(port)
 
-    except KeyboardInterrupt:
-        print("KeyboardInterrupt")
+    def connect(self):
+        """
+        When called, try to connect to the host:port combination.
+        If the server is not up or is unreachable, it raise the ConnectionRefusedError exception.
+        If the connection is established, then it checks if the server send a confirm message: if the message
+        arrives it will be put in the queue, else a RuntimeError exception will be raised.
+        """
+        try:
+            self.socket.connect((self.host, self.port))
+        except ConnectionRefusedError:
+            print("Connection Refused: Client Unreachable")
+        if self.receive() == []:
+            raise RuntimeError("Socket Connection Broken: Failed to establish connection.")
+        else:
+            return("CONNECTED:" + self.host + ":" + str(self.port))
+
+    def disconnect(self):
+        """
+        When called, close socket
+        """
+        self.socket.close()
+
+    def send(self, msg: str):
+        """
+        When called, send byte msg to server. For now there is not a maximum lenght limit to the msg.
+        The string 'msg' passed to the function will be encoded to a byte string, then the lenght of the message is
+        measured to establish the lenght of the byte sequence that must be sent.
+        If the number of sent bytes is equal to 0, a RuntimeError will be raised.
+        """
+        msg += '\r\n'
+        msg = msg.encode('utf-8')
+        totalsent = 0
+        msglen = len(msg)
+        while totalsent < msglen:
+            sent = self.socket.send(msg[totalsent:])
+            if sent == 0:
+                raise RuntimeError("Socket Connection Broken")
+            totalsent += sent
+
+    def receive(self):
+        """
+        When called, return chuncks of text from server.
+        The maximum number of bytes that can be received in one transmission is set in the BUFFER variable.
+        The function receive a chunk of maximum 512 bytes at time and append the chunk to a list that will be
+        returned at the end of the function.
+        """
+        chunks = []
+        received = ''
+        bytes_recv = 0
+        BUFFER = 512
+        while True:
+            chunk = self.socket.recv(min(BUFFER - bytes_recv, 512))
+            chunks.append(chunk)
+            bytes_recv += len(chunk)
+            if b'\r\n' in chunk:
+                break
+            if chunk == b'':
+                raise  RuntimeError("Socket Connection Broken")
+        for c in chunks:
+            received += c.decode('utf-8')
+        print(received)
+        return received
 
 
+# UI class
 class Ui(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self, queue: Queue):
         super(Ui, self).__init__()
         uic.loadUi(PATH["UI"], self)
+        self.queue = queue
+        self.running = True
 
+        self.find_items()
+        self.show()
+        self.bg_thread = GuiBackgroundThread(self.queue)
+        self.client_thread = GuiClientThread(self.queue)
+        self.bg_thread.start()
+        self.client_thread.start()
+        self.bg_thread.update.connect(self.gui_update)
+        self.client_thread.update.connect(self.client_updates)
+        self.setup()
+
+
+    def find_items(self):
         # set icon
         self.setWindowIcon(QIcon(PATH["ICON"]))
 
@@ -89,11 +186,14 @@ class Ui(QtWidgets.QMainWindow):
             self.remoteMode = False
         else:
             self.remoteMode = True
-        self.remoteIp = self.settings.value("remoteIp")
+        self.host = self.settings.value("remoteIp")
+        self.queue.put("host=" + self.host)
         try:
-            self.remotePort = int(self.settings.value("remotePort"))
+            self.port = int(self.settings.value("remotePort"))
+            self.queue.put("port=" + str(self.port))
         except ValueError:
-            self.remotePort = None
+            self.port = None
+        self.queue.put(_sentinel)
 
         # disks table
         self.diskTable = self.findChild(QtWidgets.QTableWidget, 'tableWidget')
@@ -155,12 +255,12 @@ class Ui(QtWidgets.QMainWindow):
 
         # remoteIp input
         self.remoteIpInput = self.findChild(QtWidgets.QLineEdit, 'remoteIp')
-        self.remoteIpInput.setText(self.remoteIp)
+        self.remoteIpInput.setText(self.host)
 
         # remotePort input
         self.remotePortInput = self.findChild(QtWidgets.QLineEdit, 'remotePort')
-        if self.remotePort != None:
-            self.remotePortInput.setText(str(self.remotePort))
+        if self.port != None:
+            self.remotePortInput.setText(str(self.port))
 
         # restore button
         self.restoreButton = self.findChild(QtWidgets.QPushButton, "restoreButton")
@@ -214,32 +314,32 @@ class Ui(QtWidgets.QMainWindow):
         self.asdLabel.setMovie(self.gif)
         self.gif.start()
 
-        self.setup()
-        self.show()
-
     def setup(self):
         # get remote drives list
-        if self.remoteMode and self.remoteIp != None and self.remotePort != None:
+        if self.remoteMode and self.host != None and self.port != None:
             cmd = "get_disks_win"
-            drives = UDP_client(cmd, ip=self.remoteIp, port=self.remotePort)
-            drives = ast.literal_eval(drives)
-        # gety local drives list
+            drives = None
+            #drives = ast.literal_eval(drives)
+
+        # get local drives list
         else:
-            drives = local_setup(sys.platform)
+            self.host = '127.0.0.1'
+            self.port = 1030
+            self.client_thread.connect(self.host, self.port)
+            drives = self.client_thread.get_disks_win()
+            if drives is None:
+                self.diskTable.clear()
+                self.diskTable.setRowCount(0)
+                return
 
-        if drives is None:
-            self.diskTable.clear()
-            self.diskTable.setRowCount(0)
-            return
-
-        # compile disks table with disks list
-        for row, d in enumerate(drives):
-            self.diskTable.setRowCount(row + 1)
-            self.diskTable.setItem(row, 0, QTableWidgetItem(d[0]))
-            if sys.platform == 'win32':
-                self.diskTable.setItem(row, 1, QTableWidgetItem(str(int(float(d[1]) / 1000000000)) + " GiB"))
-            else:
-                self.diskTable.setItem(row, 1, QTableWidgetItem(d[1]))
+            # compile disks table with disks list
+            for row, d in enumerate(drives):
+                self.diskTable.setRowCount(row + 1)
+                self.diskTable.setItem(row, 0, QTableWidgetItem(d[0]))
+                if sys.platform == 'win32':
+                    self.diskTable.setItem(row, 1, QTableWidgetItem(str(int(float(d[1]) / 1000000000)) + " GiB"))
+                else:
+                    self.diskTable.setItem(row, 1, QTableWidgetItem(d[1]))
 
     def eventFilter(self, source: 'QObject', event: 'QEvent'):
         selectedRow = self.queueTable.currentRow()
@@ -252,10 +352,6 @@ class Ui(QtWidgets.QMainWindow):
             menu.exec_(event.globalPos())
             return True
         return super().eventFilter(source, event)
-
-    def default_dialog(self):
-        message = "Do you want to restore all settings to default?\nThis action is irrevocable."
-        yes_no_dialog(message=message, yes_function=self.default, no_function=None)
 
     def stop_dialog(self):
         id = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
@@ -291,7 +387,7 @@ class Ui(QtWidgets.QMainWindow):
         self.textField.clear()
         if self.remoteMode:
             cmd = 'pialla ' + selected_drive
-            data = UDP_client(cmd, ip=self.remoteIp, port=self.remotePort)
+            data = None
             self.textField.append(data)
             self.update_queue(drive=selected_drive, mode="erase")
         else:
@@ -342,13 +438,12 @@ class Ui(QtWidgets.QMainWindow):
         self.textField.clear()
         if self.remoteMode:
             cmd = 'cannolo ' + selected_drive
-            data = UDP_client(cmd, ip=self.remoteIp, port=self.remotePort)
+            data = None
             self.textField.append(data)
             self.update_queue(drive=selected_drive, mode="cannolo")
         else:
             self.textField.append("Sto cannolando il disco " + selected_drive)
             self.update_queue(drive=selected_drive, mode="cannolo")
-
 
     def set_remote_mode(self):
         if self.localRadioBtn.isChecked():
@@ -363,13 +458,14 @@ class Ui(QtWidgets.QMainWindow):
             self.cannoloLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
 
     def refresh(self):
-        self.remoteIp = self.remoteIpInput.text()
-        self.remotePort = int(self.remotePortInput.text())
+        self.queue.put('===SEND_TEST===')
+        self.host = self.remoteIpInput.text()
+        self.port = int(self.remotePortInput.text())
         self.setup()
 
     def restore(self):
-        self.remoteIpInput.setText(self.remoteIp)
-        self.remotePortInput.setText(str(self.remotePort))
+        self.remoteIpInput.setText(self.host)
+        self.remotePortInput.setText(str(self.port))
 
     def default(self):
         self.localRadioBtn.setChecked(True)
@@ -448,85 +544,129 @@ class Ui(QtWidgets.QMainWindow):
         dir = dialog.getExistingDirectory(self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly)
         self.directoryText.setText(dir)
 
+    def client_updates(self, text, type):
+        if type == 'CONNECTED':
+            self.statusBar().showMessage(f"Connected to {text}")
+
+        elif type == 'PING':
+            self.statusBar().showMessage(text)
+
+        elif type == 'LIST_DISKS':
+            drives = text
+            if drives is None:
+                self.diskTable.clear()
+                self.diskTable.setRowCount(0)
+                return
+
+            # compile disks table with disks list
+            for row, d in enumerate(drives):
+                self.diskTable.setRowCount(row + 1)
+                self.diskTable.setItem(row, 0, QTableWidgetItem(d[0]))
+                if sys.platform == 'win32':
+                    self.diskTable.setItem(row, 1, QTableWidgetItem(str(int(float(d[1]) / 1000000000)) + " GiB"))
+                else:
+                    self.diskTable.setItem(row, 1, QTableWidgetItem(d[1]))
+
+        elif type == 'sessionTerminated':
+            self.statusBar().showMessage("Terminating Program")
+
+    def gui_update(self, text: str, type: str):
+        if type == 'connected':
+            self.statusBar().showMessage(f"Connected to {text}")
+        if type == 'sessionTerminated':
+            self.statusBar().showMessage("Terminating Program")
+            self.closeEvent()
+
     def closeEvent(self, a0: QtGui.QCloseEvent):
         self.settings.setValue("remoteMode", str(self.remoteMode))
         self.settings.setValue("remoteIp", self.remoteIpInput.text())
         self.settings.setValue("remotePort", self.remotePortInput.text())
         self.settings.setValue("cannoloDir", self.directoryText.text())
+        self.queue.put("===SESSION_TERMINATED===")
+        self.queue.put(_sentinel)
 
 
-def smart_analyzer(data, text):
-    check = ''
-    for attribute in data:
-        if attribute[0] == "Power_On_Hours":
-            value = attribute[2]
-            if int(value) > 10000:
-                check = "OLD"
-            else:
-                check = "OK"
-        
-        if len(attribute) == 3:
-            if attribute[1].lstrip() != "-":
-                check = "FAIL"
-        
-        if attribute[0] == "Current Pending Sector Count":
-            value = attribute[2]
-            if int(value) > 0:
-                check = "FAIL"
-        
-        if attribute[0] == "Reallocated_Sector_Ct":
-            value = attribute[2]
-            if int(value) > 0:
-                check = "FAIL"
+class GuiBackgroundThread(QThread):
+    update = QtCore.pyqtSignal(str, name="update")
 
-    if check == 'OK':
-        text.append("SMART DATA CHECK  --->  OK")
-    elif check == "OLD":
-        text.append("SMART DATA CHECK  --->  OLD")
-    elif check == "FAIL":
-        text.append("SMART DATA CHECK  --->  FAIL\nHowever, check if the disc is functional")
-    
-    text.append("\nIl risultato è indicativo, non gettare l'hard disk se il check è FAIL")
-    return text
+    def __init__(self, queue: Queue):
+        super(GuiBackgroundThread, self).__init__()
+        self.queue = queue
+
+    def run(self):
+        try:
+            while True:
+                if not self.queue.empty():
+                    data = self.queue.get()
+                if 'CONNECTED:' in data:
+                    text = data.lsplit("CONNECTED:")
+                    self.update.emit(text)
+        except KeyboardInterrupt:
+            print("Keyboard Interrupt")
 
 
-def local_setup(system):
-    if system == 'win32':
-        label = []
-        size = []
-        drive = []
-        for line in subprocess.getoutput("wmic logicaldisk get caption").splitlines():
-            if line.rstrip() != 'Caption' and line.rstrip() != '':
-                label.append(line.rstrip())
-        for line in subprocess.getoutput("wmic logicaldisk get size").splitlines():
-            if line.rstrip() != 'Size' and line.rstrip() != '':
-                size.append(line)
-        for idx, line in enumerate(size):
-            drive += [[label[idx], line]]
-        return drive
-    else:
-        output = subprocess.getoutput('lsblk -d').splitlines()
-        result = []
-        for line in output:
-            if line[0] == 's':
-                temp = " ".join(line.split())
-                temp = temp.split(" ")
-                result.append([temp[0], temp[3]])
-        return result
+class GuiClientThread(QThread):
+    update = QtCore.pyqtSignal(str, str, name="update")
+
+    def __init__(self, queue: Queue):
+        super(GuiClientThread, self).__init__()
+        self.queue = queue
+        self.client: Client
+        self.client = None
+
+    def run(self):
+        try:
+            while True:
+                data = self.queue.get()
+                if data == '===SEND_TEST===':
+                    client.send("ping")
+                    recv = client.receive()
+                    self.update.emit(recv, 'PING')
+
+                elif CLIENT_COMMAND["CONNECT"] in data:
+                    data = data.lsplit(CLIENT_COMMAND["CONNECT"])
+                    data = data.split(":")
+                    client.disconnect()
+                    client = Client(queue=self.queue, host=data[0], port=data[1])
+                    client.connect()
+                    self.update.emit(f"Connected to {data[0]}:{data[1]}", "CONNECTED")
+
+                elif data == '===SESSION_TERMINATED===':
+                    client.disconnect()
+                    raise KeyboardInterrupt
+
+        except KeyboardInterrupt:
+            print("Keyboard Interrupt: Terminating")
+
+    def connect(self, host: str, port: int):
+        if self.client is not None:
+            self.client.disconnect()
+        self.client = Client(queue=self.queue, host=host, port=str(port))
+        self.client.connect()
+
+    def get_disks(self):
+        self.client.send("get_disks")
+        return self.client.receive()
 
 
-def yes_no_dialog(message, yes_function, no_function):
-    dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Really suuuuuure?", message)
-    dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
-    dialog.addButton(QtWidgets.QMessageBox.No)
-    dialog.setDefaultButton(QtWidgets.QMessageBox.No)
-    pressed = dialog.exec_()
-    if pressed == QtWidgets.QMessageBox.Yes:
-        yes_function()
-    else:
-        if no_function is None:
-            return
-        no_function()
+    def get_disks_win(self):
+        self.client.send("get_disks_win")
+        recv = self.client.receive()
+        drives = recv.lstrip("get_disks_win ")
+        drives = ast.literal_eval(drives)
+        return drives
+
+def main():
+     try:
+        check_requirements(PATH["REQUIREMENTS"])
+        queue = Queue()
+        app = QtWidgets.QApplication(sys.argv)
+        window = Ui(queue)
+        app.exec_()
+
+     except KeyboardInterrupt:
+        print("KeyboardInterrupt")
+
 
 if __name__ == "__main__":
     main()

@@ -113,6 +113,41 @@ def smart_parser(drive: str, remoteMode: bool, platform: str, requirements: list
     return results, maximum
 
 
+def smart_analyzer(data, text):
+    check = ''
+    for attribute in data:
+        if attribute[0] == "Power_On_Hours":
+            value = attribute[2]
+            if int(value) > 10000:
+                check = "OLD"
+            else:
+                check = "OK"
+
+        if len(attribute) == 3:
+            if attribute[1].lstrip() != "-":
+                check = "FAIL"
+
+        if attribute[0] == "Current Pending Sector Count":
+            value = attribute[2]
+            if int(value) > 0:
+                check = "FAIL"
+
+        if attribute[0] == "Reallocated_Sector_Ct":
+            value = attribute[2]
+            if int(value) > 0:
+                check = "FAIL"
+
+    if check == 'OK':
+        text.append("SMART DATA CHECK  --->  OK")
+    elif check == "OLD":
+        text.append("SMART DATA CHECK  --->  OLD")
+    elif check == "FAIL":
+        text.append("SMART DATA CHECK  --->  FAIL\nHowever, check if the disc is functional")
+
+    text.append("\nIl risultato è indicativo, non gettare l'hard disk se il check è FAIL")
+    return text
+
+
 def get_remote_smart(drive: str):
     attr = []
     cmd = "smartctl -a " + drive
@@ -120,20 +155,3 @@ def get_remote_smart(drive: str):
     for line in data:
         attr.append(line)
     return attr
-
-
-def UDP_client(command: str, ip: str, port: int):
-    MSG_FROM_CLIENT = command
-    BYTES_TO_SEND = str.encode(MSG_FROM_CLIENT)
-    SERVER_ADDRESS_PORT = (ip, port)
-    BUFFER_SIZE = 1024
-
-    # Create a client UDP socket
-    UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-
-    # Send to server using client UDP socket
-    UDPClientSocket.sendto(BYTES_TO_SEND, SERVER_ADDRESS_PORT)
-
-    msgFromServer = UDPClientSocket.recvfrom(BUFFER_SIZE*3)
-    msg = msgFromServer[0].decode('utf-8')
-    return msg
