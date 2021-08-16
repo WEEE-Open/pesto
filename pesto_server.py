@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import json
 import subprocess
+import sys
+
 from dotenv import load_dotenv
 from io import StringIO
 import os
@@ -18,6 +20,7 @@ commands_list = collections.deque()
 commands_list_event = threading.Event()
 commands_list_lock = threading.Lock()
 
+current_os = sys.platform
 
 class CommandRunner(threading.Thread):
     def __init__(self, reac: reactor):
@@ -28,6 +31,7 @@ class CommandRunner(threading.Thread):
         self._reactor = reac
 
     def run(self):
+        print("Running on " + current_os + " machine")
         while self._go:
             try:
                 commands_list_event.wait(self._sleep)
@@ -58,7 +62,10 @@ class CommandRunner(threading.Thread):
             param = self.get_smarctl(args)
             self.send_msg(the_id, f"smartctl {param}")
         elif cmd == 'get_disks':
-            param = self.get_disks()
+            if current_os == 'win32':
+                param = get_disks_win()
+            else:
+                param = self.get_disks()
             self.send_msg(the_id, f"get_disks {param}")
         elif cmd == 'get_disks_win':
             param = get_disks_win()
