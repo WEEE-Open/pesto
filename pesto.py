@@ -24,6 +24,9 @@ import ast
 import sys
 from multiprocessing import Process
 import os
+import logging
+
+logging.basicConfig(level=logging.DEBUG, filename="crashreport.log")
 
 SPACE = 5
 
@@ -768,9 +771,7 @@ def main():
         print("KeyboardInterrupt")
 
     except Exception:
-        print(traceback.print_exc(file=sys.stdout))
-        input()
-
+        logging.exception(traceback.print_exc(file=sys.stdout))
 
 if __name__ == "__main__":
     main()
