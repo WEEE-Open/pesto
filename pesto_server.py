@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import json
 import subprocess
-from typing import Optional
+from typing import Optional, Union
 
 from pytarallo import Tarallo
 from dotenv import load_dotenv
@@ -177,13 +177,19 @@ class CommandRunner(threading.Thread):
             if not TEST_MODE:
                 # TODO: code from turbofresa goes here
                 q.notify_percentage(10, "0 bad blocks")
+                threading.Event().wait(2)
                 q.notify_percentage(20, "0 bad blocks")
+                threading.Event().wait(2)
                 q.notify_percentage(30, "2 bad blocks")
+                threading.Event().wait(2)
                 q.notify_percentage(42, "2 bad blocks")
+                threading.Event().wait(2)
                 q.notify_percentage(60, "2 bad blocks")
+                threading.Event().wait(2)
                 q.notify_percentage(80, "2 bad blocks")
+                threading.Event().wait(2)
                 q.notify_percentage(99, "3 bad blocks")
-                pass
+                threading.Event().wait(2)
             q.notify_finish("3 bad blocks")
 
     def get_smartctl(self, dev: str, q):
@@ -191,6 +197,7 @@ class CommandRunner(threading.Thread):
         if q:
             disks[dev].queue_lock.acquire()
         try:
+            # Leave this in the try, just to be safe
             if q:
                 q.notify_start("Running")
 
@@ -296,12 +303,14 @@ class CommandRunner(threading.Thread):
 class QueuedCommand:
     def __init__(self, disk: Disk, command_runner: CommandRunner):
         self.disk = disk
+        self._target = self.disk.get_path()
         self.command_runner = command_runner
         self._percentage = 0.0
         self._started = False
         self._finished = False
         self._error = False
         self._stopped = False
+        self._stale = False
         self._lock = threading.Lock()
         self._text = "Queued"
         date = datetime.today().strftime('%Y%m%d%H%M')
@@ -366,11 +375,12 @@ class QueuedCommand:
             "id": self._id,
             "command": self.command_runner.get_cmd(),
             "text": self._text,
-            "target": self.disk.get_path(),
+            "target": self._target,
             "percentage": self._percentage,
             "started": self._started,
             "finished": self._finished,
             "error": self._error,
+            "stale": self._stale,
             "stopped": self._stopped,
         }
 
