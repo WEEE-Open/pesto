@@ -2,8 +2,8 @@
 import json
 import subprocess
 import sys
+import time
 from typing import Optional
-import wmi
 from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO
@@ -13,7 +13,6 @@ from twisted.protocols.basic import LineOnlyReceiver
 import threading
 import logging
 from datetime import datetime
-import pythoncom
 from utilites import smartctl_get_status, parse_smartctl_output
 import ast
 
@@ -183,12 +182,20 @@ class CommandRunner(threading.Thread):
             if not TEST_MODE:
                 # TODO: code from turbofresa goes here
                 q.notify_percentage(10, "0 bad blocks")
+                time.sleep(1)
                 q.notify_percentage(20, "0 bad blocks")
+                time.sleep(1)
                 q.notify_percentage(30, "2 bad blocks")
+                time.sleep(1)
                 q.notify_percentage(42, "2 bad blocks")
+                time.sleep(1)
                 q.notify_percentage(60, "2 bad blocks")
+                time.sleep(1)
                 q.notify_percentage(80, "2 bad blocks")
+                time.sleep(1)
                 q.notify_percentage(99, "3 bad blocks")
+                time.sleep(1)
+                #q.notify_finish("BADBLOCKS_END")
                 pass
             q.notify_finish("3 bad blocks")
 
@@ -569,7 +576,7 @@ def find_mounts(el: dict):
 def get_disks(path: Optional[str] = None) -> list:
     # Name is required, otherwise the tree is flattened
     output = subprocess\
-        .getoutput(f"lsblk -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT -J {path if path else ''}")
+        .getoutput(f"lsblk -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT,SIZE -J {path if path else ''}")
     jsonized = json.loads(output)
     if "blockdevices" in jsonized:
         result = jsonized["blockdevices"]
