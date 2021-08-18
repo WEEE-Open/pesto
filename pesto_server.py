@@ -2,11 +2,8 @@
 import json
 import subprocess
 import sys
-import time
 import os
-import threading
-import logging
-from typing import Optional, Union
+from typing import Optional
 from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO
@@ -89,6 +86,7 @@ class Disk:
         else:
             self._item = None
 
+
 class ErrorThatCanBeManuallyFixed(BaseException):
     pass
 
@@ -142,6 +140,13 @@ class CommandRunner(threading.Thread):
             q = QueuedCommand(dev, self)
             self.badblocks(args, q)
             return
+        elif cmd == 'queued_cannolo':
+            dev = self.dev_from_args(args)
+            if not dev:
+                return
+            q = QueuedCommand(dev, self)
+            self.cannolo(args, q)
+            return
         elif cmd == 'get_disks':
             if CURRENT_OS == 'win32':
                 param = get_disks_win()
@@ -181,23 +186,50 @@ class CommandRunner(threading.Thread):
         q: Optional[QueuedCommand]
         with disks[dev].queue_lock:
             q.notify_start("Running")
-            if not TEST_MODE:
-                # TODO: code from turbofresa goes here
-                q.notify_percentage(10, "0 bad blocks")
-                threading.Event().wait(2)
-                q.notify_percentage(20, "0 bad blocks")
-                threading.Event().wait(2)
-                q.notify_percentage(30, "2 bad blocks")
-                threading.Event().wait(2)
-                q.notify_percentage(42, "2 bad blocks")
-                threading.Event().wait(2)
-                q.notify_percentage(60, "2 bad blocks")
-                threading.Event().wait(2)
-                q.notify_percentage(80, "2 bad blocks")
-                threading.Event().wait(2)
-                q.notify_percentage(99, "3 bad blocks")
-                threading.Event().wait(2)
-                q.notify_finish("3 bad blocks")
+            # if not TEST_MODE:
+            # TODO: code from turbofresa goes here
+            q.notify_percentage(10, "0 bad blocks")
+            threading.Event().wait(2)
+            q.notify_percentage(20, "0 bad blocks")
+            threading.Event().wait(2)
+            q.notify_percentage(30, "2 bad blocks")
+            threading.Event().wait(2)
+            q.notify_percentage(42, "2 bad blocks")
+            threading.Event().wait(2)
+            q.notify_percentage(60, "2 bad blocks")
+            threading.Event().wait(2)
+            q.notify_percentage(80, "2 bad blocks")
+            threading.Event().wait(2)
+            q.notify_percentage(99, "3 bad blocks")
+            threading.Event().wait(2)
+            q.notify_finish("3 bad blocks")
+
+    # noinspection PyMethodMayBeStatic
+    def cannolo(self, dev: str, q):
+        q: Optional[QueuedCommand]
+        with disks[dev].queue_lock:
+            q.notify_start("Cannoling")
+            # if not TEST_MODE:
+            # TODO: code from turbofresa goes here
+            q.notify_percentage(10)
+            threading.Event().wait(2)
+            q.notify_percentage(20)
+            threading.Event().wait(2)
+            q.notify_percentage(30)
+            threading.Event().wait(2)
+            q.notify_percentage(40)
+            threading.Event().wait(2)
+            q.notify_percentage(50)
+            threading.Event().wait(2)
+            q.notify_percentage(60)
+            threading.Event().wait(2)
+            q.notify_percentage(70)
+            threading.Event().wait(2)
+            q.notify_percentage(80)
+            threading.Event().wait(2)
+            q.notify_percentage(90)
+            threading.Event().wait(2)
+            q.notify_finish("Xubuntu 99.99 LTS installed!")
 
     def get_smartctl(self, dev: str, q):
         q: Optional[QueuedCommand]
