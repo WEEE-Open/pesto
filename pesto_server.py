@@ -3,7 +3,8 @@ import json
 import subprocess
 import sys
 import os
-from typing import Optional
+from collections import deque
+from typing import Optional, Callable, Any
 from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO
@@ -15,7 +16,7 @@ from datetime import datetime
 
 from utilites import smartctl_get_status, parse_smartctl_output
 
-NAME = "turbofresa"
+NAME = "basilico"
 # Use env vars, do not change the value here
 TEST_MODE = False
 CURRENT_OS = sys.platform
@@ -29,11 +30,29 @@ class Disk:
         self._path = str(self._lsblk["path"])
         self._code = None
         self._item = None
-        self.queue_lock = threading.Lock()
+
+        self._queue_lock = threading.Lock()
+        self._commands_queue = deque()
 
         self._tarallo = tarallo
         self._get_code(False)
         self._get_item()
+
+    def enqueue(self, cmd_runner):
+        cmd_runner: CommandRunner
+        with self._queue_lock:
+            self._commands_queue.append(cmd_runner)
+            if len(self._commands_queue) == 1:
+                cmd_runner.start()
+
+    def dequeue(self, cmd_runner):
+        cmd_runner: CommandRunner
+        with self._queue_lock:
+            self._commands_queue.remove(cmd_runner)
+            if len(self._commands_queue) > 0:
+                next_in_line: CommandRunner = self._commands_queue[0]
+                if not next_in_line.is_alive():
+                    next_in_line.start()
 
     def get_path(self):
         return self._path
@@ -97,189 +116,203 @@ class CommandRunner(threading.Thread):
         self._cmd = cmd
         self._args = args
         self._the_id = the_id
-        self._go = False
-        with running_commands_lock:
-            running_commands.add(self)
+        self._go = True
+
+        self._function, disk_for_queue = self.dispatch_command(cmd, args)
+        if not self._function:
+            self.send_msg("error", {"message": "Unrecognized command", "command": cmd})
+            self._function = None
+        self._queued_command = None
+        if disk_for_queue:
+            # No need to lock, disks are never deleted, so if it is found then it is valid
+            disk = disks.get(disk_for_queue, None)
+            if not disk:
+                self.send_msg('error', {"message": f"{args} is not a disk"})
+                self._function = None
+            # Do not start yet, just prepare the data structure
+            self._queued_command = QueuedCommand(disk, self)
+
+            # And enqueue, which will start it when needed
+            with queued_commands_lock:
+                disk.enqueue(self)
+        else:
+            # Start immediately
+            self.start()
 
     def get_cmd(self):
         return self._cmd
 
     def run(self):
         try:
-            self.exec_command(self._cmd, self._args)
-        except BaseException as e:
-            logging.getLogger(NAME).error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
-        with running_commands_lock:
-            running_commands.remove(self)
+            # Stop immediately if nothing was dispatched
+            if not self._function:
+                return
+            # Also stop if program is terminating
+            if not self._go:
+                return
+
+            # Otherwise, lessss goooooo!
+            with running_commands_lock:
+                running_commands.add(self)
+
+            try:
+                self._function(self._cmd, self._args)
+            except BaseException as e:
+                logging.getLogger(NAME).error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
+        finally:
+            # The next thread on the disk can start, if there's a queue
+            if self._queued_command:
+                # TODO: this will notify finish twice. But it could be checked that the update is actually an update.
+                self._queued_command.notify_finish()
+                self._queued_command.disk.dequeue(self)
+            # Not running anymore (in a few nanoseconds, anyway)
+            with running_commands_lock:
+                try:
+                    # If the thread was never started (not self._go and similar), it won't be there
+                    running_commands.remove(self)
+                except KeyError:
+                    pass
 
     def stop_asap(self):
         # This is completely pointless unless the command checks self._go
         # (none of them does, for now)
         self._go = False
 
-    def exec_command(self, cmd: str, args: str):
+    def dispatch_command(self, cmd: str, args: str) -> (Optional[Callable[[str, str], None]], Optional[str]):
+        commands = {
+            "smartctl": self.get_smartctl,
+            "queued_smartctl": self.queued_get_smartctl,
+            "queued_badblocks": self.badblocks,
+            "queued_cannolo": self.cannolo,
+            "get_disks": self.get_disks,
+            "ping": self.ping,
+            "get_queue": self.get_queue,
+        }
         logging.debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
-        # in {self.getName()}
-        param = None
-        if cmd == 'smartctl':
-            param = self.get_smartctl(args, None)
-            if not param:
-                return
-        elif cmd == 'queued_smartctl':
-            dev = self.dev_from_args(args)
-            if not dev:
-                return
-            q = QueuedCommand(dev, self)
-            param = self.get_smartctl(args, q)
-            if not param:
-                return
-        elif cmd == 'queued_badblocks':
-            dev = self.dev_from_args(args)
-            if not dev:
-                return
-            q = QueuedCommand(dev, self)
-            self.badblocks(args, q)
-            return
-        elif cmd == 'queued_cannolo':
-            dev = self.dev_from_args(args)
-            if not dev:
-                return
-            q = QueuedCommand(dev, self)
-            self.cannolo(args, q)
-            return
-        elif cmd == 'get_disks':
-            if CURRENT_OS == 'win32':
-                param = get_disks_win()
-            else:
-                param = self.get_disks_to_send()
-        elif cmd == 'ping':
-            cmd = "pong"
-        elif cmd == 'get_queue':
-            self.get_queue(cmd)
-            return
+        if cmd.startswith('queued_'):
+            disk_for_queue = self.dev_from_args(args)
         else:
-            param = {"message": "Unrecognized command", "command": cmd}
-            # Do not move this line above the other, cmd has to be overwritten here
-            cmd = "error"
-        logging.debug(f"[{self._the_id}] Sending response {cmd}")
-        self.send_msg(cmd, param)
+            disk_for_queue = None
 
-    def get_queue(self, actual_cmd):
+        return commands.get(cmd.lower(), None), disk_for_queue
+
+    # noinspection PyUnusedLocal
+    def get_queue(self, cmd: str, args: str):
         param = []
         with queued_commands_lock:
             for queued_command in queued_commands:
-                queued_command.lock()
+                queued_command.lock_notifications()
                 param.append(queued_command.serialize_me())
-            self.send_msg(actual_cmd, param)
+            self.send_msg(cmd, param)
             for queued_command in queued_commands:
-                queued_command.unlock()
+                queued_command.unlock_notifications()
 
-    def dev_from_args(self, args: str):
-        with disks_lock:
-            if args in disks:
-                return disks[args]
-        self.send_msg('error', {"message": f"{args} is not a disk"})
-        return None
+    @staticmethod
+    def dev_from_args(args: str):
+        # This may be more complicated for some future commands
+        return args
 
-    # noinspection PyMethodMayBeStatic
-    def badblocks(self, dev: str, q):
-        q: Optional[QueuedCommand]
-        with disks[dev].queue_lock:
-            q.notify_start("Running")
-            # if not TEST_MODE:
-            # TODO: code from turbofresa goes here
-            q.notify_percentage(10, "0 bad blocks")
-            threading.Event().wait(2)
-            q.notify_percentage(20, "0 bad blocks")
-            threading.Event().wait(2)
-            q.notify_percentage(30, "2 bad blocks")
-            threading.Event().wait(2)
-            q.notify_percentage(42, "2 bad blocks")
-            threading.Event().wait(2)
-            q.notify_percentage(60, "2 bad blocks")
-            threading.Event().wait(2)
-            q.notify_percentage(80, "2 bad blocks")
-            threading.Event().wait(2)
-            q.notify_percentage(99, "3 bad blocks")
-            threading.Event().wait(2)
-            q.notify_finish("3 bad blocks")
+    # noinspection PyUnusedLocal
+    def badblocks(self, cmd: str, dev: str):
+        self._queued_command.notify_start("Running")
+        # if not TEST_MODE:
+        # TODO: code from turbofresa goes here
+        self._queued_command.notify_percentage(10, "0 bad blocks")
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(20, "0 bad blocks")
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(30, "2 bad blocks")
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(42, "2 bad blocks")
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(60, "2 bad blocks")
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(80, "2 bad blocks")
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(99, "3 bad blocks")
+        threading.Event().wait(2)
+        self._queued_command.notify_finish("3 bad blocks")
 
-    # noinspection PyMethodMayBeStatic
-    def cannolo(self, dev: str, q):
-        q: Optional[QueuedCommand]
-        with disks[dev].queue_lock:
-            q.notify_start("Cannoling")
-            # if not TEST_MODE:
-            # TODO: code from turbofresa goes here
-            q.notify_percentage(10)
-            threading.Event().wait(2)
-            q.notify_percentage(20)
-            threading.Event().wait(2)
-            q.notify_percentage(30)
-            threading.Event().wait(2)
-            q.notify_percentage(40)
-            threading.Event().wait(2)
-            q.notify_percentage(50)
-            threading.Event().wait(2)
-            q.notify_percentage(60)
-            threading.Event().wait(2)
-            q.notify_percentage(70)
-            threading.Event().wait(2)
-            q.notify_percentage(80)
-            threading.Event().wait(2)
-            q.notify_percentage(90)
-            threading.Event().wait(2)
-            q.notify_finish("Xubuntu 99.99 LTS installed!")
+    # noinspection PyUnusedLocal
+    def ping(self, cmd: str, dev: str):
+        self.send_msg("pong", None)
 
-    def get_smartctl(self, dev: str, q):
-        q: Optional[QueuedCommand]
-        if q:
-            disks[dev].queue_lock.acquire()
-        try:
-            if q:
-                q.notify_start("Running")
-            if CURRENT_OS == 'win32':
-                pipe = subprocess \
-                    .Popen(("smartctl", "-a", f"/dev/pd{dev}"), shell=True, stderr=subprocess.PIPE,
-                           stdout=subprocess.PIPE)
-                output = pipe.stdout.read().decode('utf-8')
-                stderr = pipe.stderr.read().decode('utf-16')
-            else:
-                pipe = subprocess \
-                    .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE,
-                           stdout=subprocess.PIPE)
-                output = pipe.stdout.read().decode('utf-8')
-                stderr = pipe.stderr.read().decode('utf-8')
-            exitcode = pipe.wait()
+    # noinspection PyUnusedLocal
+    def cannolo(self, cmd: str, dev: str):
+        self._queued_command.notify_start("Cannoling")
+        # if not TEST_MODE:
+        # TODO: code from turbofresa goes here
+        self._queued_command.notify_percentage(10)
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(20)
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(30)
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(40)
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(50)
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(60)
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(70)
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(80)
+        threading.Event().wait(2)
+        self._queued_command.notify_percentage(90)
+        threading.Event().wait(2)
+        self._queued_command.notify_finish("Xubuntu 99.99 LTS installed!")
 
-            updated = False
-            status = None
+    def get_smartctl(self, cmd: str, args: str):
+        params = self._get_smartctl(args, False)
+        if params:
+            self.send_msg(cmd, params)
 
-            if exitcode == 0 or (CURRENT_OS == 'win32' and exitcode == 4):
-                status = get_smartctl_status(output)
-                if q:
-                    if not status:
-                        q.notify_error("Error while parsing smartctl status")
-                        return
-            else:
-                if q:
-                    q.notify_error("smartctl failed")
+    def queued_get_smartctl(self, cmd: str, args: str):
+        params = self._get_smartctl(args, True)
+        if params:
+            self.send_msg(cmd, params)
+
+    def _get_smartctl(self, dev: str, queued: bool):
+        if queued:
+            self._queued_command.notify_start("Getting smarter")
+        if CURRENT_OS == 'win32':
+            pipe = subprocess \
+                .Popen(("smartctl", "-a", f"/dev/pd{dev}"), shell=True, stderr=subprocess.PIPE,
+                       stdout=subprocess.PIPE)
+            output = pipe.stdout.read().decode('utf-8')
+            stderr = pipe.stderr.read().decode('utf-16')
+        else:
+            pipe = subprocess \
+                .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE,
+                       stdout=subprocess.PIPE)
+            output = pipe.stdout.read().decode('utf-8')
+            stderr = pipe.stderr.read().decode('utf-8')
+        exitcode = pipe.wait()
+
+        updated = False
+        status = None
+
+        if exitcode == 0 or (CURRENT_OS == 'win32' and exitcode == 4):
+            status = get_smartctl_status(output)
+            if queued:
+                if not status:
+                    self._queued_command.notify_error("Error while parsing smartctl status")
                     return
+        else:
+            if queued:
+                self._queued_command.notify_error("smartctl failed")
+                return
 
-            if q and status:
-                q.notify_percentage(50.0, "Updating tarallo if needed")
-                with disks_lock:
-                    self.update_disk_if_needed(disks[dev])
-                    # noinspection PyBroadException
-                    try:
-                        updated = disks[dev].update_status(status)
-                    except BaseException as e:
-                        q.notify_error("Error during upload")
-                        logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
-        finally:
-            if q:
-                q.notify_finish()
-                disks[dev].queue_lock.release()
+        if queued and status:
+            self._queued_command.notify_percentage(50.0, "Updating tarallo if needed")
+            with disks_lock:
+                self.update_disk_if_needed(disks[dev])
+                # noinspection PyBroadException
+                try:
+                    updated = disks[dev].update_status(status)
+                except BaseException as e:
+                    self._queued_command.notify_error("Error during upload")
+                    logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
         return {
             "disk": dev,
             "status": status,
@@ -306,6 +339,7 @@ class CommandRunner(threading.Thread):
         return json.dumps(param, separators=(',', ':'), indent=None)
 
     def send_msg(self, cmd: str, param=None, the_id: Optional[int] = None):
+        logging.debug(f"[{self._the_id}] Sending {cmd}{ ' with args' if param else ''} to client")
         the_id = the_id or self._the_id
         thread = clients.get(the_id)
         if thread is None:
@@ -326,6 +360,13 @@ class CommandRunner(threading.Thread):
             except BaseException:
                 logging.getLogger(NAME)\
                     .warning(f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)")
+
+    def get_disks(self, cmd: str, dev: str):
+        if CURRENT_OS == 'win32':
+            param = get_disks_win()
+        else:
+            param = self.get_disks_to_send()
+        self.send_msg(cmd, param)
 
     def get_disks_to_send(self):
         result = []
@@ -357,61 +398,61 @@ class QueuedCommand:
         self._error = False
         self._stopped = False
         self._stale = False
-        self._lock = threading.Lock()
+        self._notifications_lock = threading.Lock()
         self._text = "Queued"
         date = datetime.today().strftime('%Y%m%d%H%M')
         with queued_commands_lock:
             self._id = f"{date}-{str(len(queued_commands))}"
             queued_commands.append(self)
-        with self._lock:
-            self.send_all()
+        with self._notifications_lock:
+            self.send_to_all_clients()
 
-    def lock(self):
-        self._lock.acquire()
+    def lock_notifications(self):
+        self._notifications_lock.acquire()
 
-    def unlock(self):
-        self._lock.release()
+    def unlock_notifications(self):
+        self._notifications_lock.release()
 
     def notify_start(self, text: Optional[str] = None):
-        with self._lock:
+        with self._notifications_lock:
             if text is not None:
                 self._text = text
             self._started = True
             self._percentage = 0.0
-            self.send_all()
+            self.send_to_all_clients()
 
     def notify_finish(self, text: Optional[str] = None):
-        with self._lock:
+        with self._notifications_lock:
             if text is not None:
                 self._text = text
             self._finished = True
             self._percentage = 100.0
-            self.send_all()
+            self.send_to_all_clients()
 
     def notify_error(self, text: Optional[str] = None):
-        with self._lock:
+        with self._notifications_lock:
             if text is not None:
                 self._text = text
             self._error = True
-            self.send_all()
+            self.send_to_all_clients()
 
     def notify_stopped(self, text: Optional[str] = None):
-        with self._lock:
+        with self._notifications_lock:
             if text is not None:
                 self._text = text
             self._stopped = True
-            self.send_all()
+            self.send_to_all_clients()
 
     def notify_percentage(self, percent: float, text: Optional[str] = None):
-        with self._lock:
+        with self._notifications_lock:
             if text is not None:
                 self._text = text
             self._percentage = percent
-            self.send_all()
+            self.send_to_all_clients()
 
-    def send_all(self):
+    def send_to_all_clients(self):
         param = self.serialize_me()
-        logging.debug(f"[ALL] Sending queue update for {self.command_runner.get_cmd()}")
+        # logging.debug(f"[ALL] Sending queue update for {self.command_runner.get_cmd()}")
         for client in clients:
             # send_msg calls reactor.callFromThread and reactor is single threaded, so no risk here
             # send_all is always called with a lock, so all status updates are sent in the expected order
@@ -474,10 +515,9 @@ class TurboProtocol(LineOnlyReceiver):
             parts = line.split(' ', 1)
             cmd = parts[0].lower()
             args = parts[1] if len(parts) > 1 else ''
-            cr = CommandRunner(cmd, args, self._id)
-            with running_commands_lock:
-                running_commands.add(cr)
-            cr.start()
+
+            # Create the thread. It will enqueue and/or start itself.
+            CommandRunner(cmd, args, self._id)
 
     def send_msg(self, response: str):
         if self._delimiter_found:
