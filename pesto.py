@@ -13,6 +13,7 @@ from PyQt5 import uic
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtWidgets import QMenu
 from threads import *
+from PyQt5.QtCore import QEvent
 
 SPACE = 5
 
@@ -68,6 +69,7 @@ logging.basicConfig(level=logging.DEBUG, filename=PATH["LOGFILE"])
 
 warehouse = []
 
+
 # UI class
 class Ui(QtWidgets.QMainWindow):
     def __init__(self, gui_queue: Queue, client_queue: Queue, server_queue: Queue) -> None:
@@ -100,10 +102,12 @@ class Ui(QtWidgets.QMainWindow):
         self.directoryText = None
         self.asdLabel = None
         self.gif = None
-        self.settings = None
+        self.settings: QtCore.QSettings
         self.host = None
         self.port = None
         self.remoteMode = None
+        self.driveSmartDataTab: QtWidgets.QTabWidget
+
 
         """ Initialization operations """
         self.find_items()
@@ -112,7 +116,12 @@ class Ui(QtWidgets.QMainWindow):
         self.client_thread = Client(self.client_queue, self.gui_queue)
         self.server_thread = LocalServerThread(self.server_queue)
         self.client_thread.start()
-        self.server_thread.start()
+        if CURRENT_PLATFORM != 'win32':
+            self.server_thread.start()
+        elif self.settings.value("win32ServerStartupDialog") is None:
+            message = "Cannot run local server on windows machine."
+            if critical_dialog(message=message, dialog_type='ok_dna'):
+                self.settings.setValue("win32ServerStartupDialog", 1)
         self.gui_thread.start()
         self.gui_thread.update.connect(self.gui_update)         # GUI thread signals
         self.client_thread.update.connect(self.client_updates)  # client thread signals
@@ -132,6 +141,10 @@ class Ui(QtWidgets.QMainWindow):
         self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.diskTable.setColumnWidth(0, 77)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
+
+        # main layout
+        self.mainLayout = self.findChild(QtWidgets.QHBoxLayout, 'mainLayout')
+        self.installEventFilter(self.mainLayout)
 
         # queue table
         self.queueTable = self.findChild(QtWidgets.QTableWidget, 'queueTable')
@@ -238,6 +251,9 @@ class Ui(QtWidgets.QMainWindow):
         self.asdLabel.setMovie(self.gif)
         self.gif.start()
 
+        #smart data tab
+        self.driveSmartDataTab = self.findChild(QtWidgets.QTabWidget, "driveSmartDataTab")
+
     def latest_conf(self):
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
         self.remoteMode = self.settings.value("remoteMode")
@@ -249,9 +265,7 @@ class Ui(QtWidgets.QMainWindow):
             self.remoteMode = True
             try:
                 self.host = self.settings.value("remoteIp")
-                self.queue.put("host=" + str(self.host))
                 self.port = self.settings.value("remotePort")
-                self.queue.put("port=" + str(self.port))
             except ValueError:
                 self.port = None
 
@@ -261,14 +275,14 @@ class Ui(QtWidgets.QMainWindow):
         # check if the host and port field are set
         if self.host is None and self.port is None:
             message = "The host and port combination is not set.\nPlease visit the settings section."
-            warning_dialog(message, 'ok')
+            warning_dialog(message, dialog_type='ok')
 
         # check if server alive
         if self.client_thread.test_channel():
-            print("found background server")
-            self.server_thread.load_server(running=True)
-        else:
-            print("server not running")
+            print("Found background server. Connecting.")
+            self.server_queue.put("SERVER_READY")
+        elif CURRENT_PLATFORM != 'win32':
+            print("Starting local background server")
             self.server_thread.load_server(running=False)
         if not CURRENT_PLATFORM == 'win32':
             while True:
@@ -278,13 +292,17 @@ class Ui(QtWidgets.QMainWindow):
         else:
             self.client_thread.connect(self.host, self.port)
         # get disks list
-        self.client_thread.start_receiver()
+        if self.client_thread.running:
+            self.client_thread.start_receiver()
+            self.client_thread.send("get_disks")
+        else:
+            message = "There is no server running on local/remote machine.\nPlease check the server status"
+            warning_dialog(message, dialog_type='ok')
 
-        self.client_thread.send("get_disks")
-
-    def eventFilter(self, source: 'QObject', event: 'QEvent'):
+    def eventFilter(self, source, event):
         selected_row = self.queueTable.currentRow()
-        if event.type() == QEvent.ContextMenu and source is self.queueTable and selected_row != -1:
+        print(source)
+        if event.type() == 82 and source is self.queueTable and selected_row != -1:
             menu = QMenu()
             menu.addAction("Stop", self.stop_dialog)
             menu.addAction("Remove", self.remove_dialog)
@@ -297,7 +315,7 @@ class Ui(QtWidgets.QMainWindow):
     def stop_dialog(self):
         id = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
         message = 'Do you want to stop the process?\nID: ' + id
-        if warning_dialog(message, type='yes_no') == QtWidgets.QMessageBox.Yes:
+        if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
             icon = self.queueTable.cellWidget(self.queueTable.currentRow(), 3)
             icon.setPixmap(QtGui.QPixmap(PATH["ERROR"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
 
@@ -305,7 +323,7 @@ class Ui(QtWidgets.QMainWindow):
         id = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
         message = 'With this action you will also stop the process (ID: ' + id + ")\n"
         message += 'Do you want to proceed?'
-        if warning_dialog(message, type='yes_no') == QtWidgets.QMessageBox.Yes:
+        if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
             self.queueTable.removeRow(self.queueTable.currentRow())
 
     def info_dialog(self):
@@ -323,40 +341,51 @@ class Ui(QtWidgets.QMainWindow):
     def erase(self):
         try:
             selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-
             if selected_drive is None:
+                message = "There are no selected drives."
+                warning_dialog(message, dialog_type='ok')
                 return
             else:
                 selected_drive = selected_drive.text().lstrip("Disk ")
             message = "Do you want to wipe all disk's data?\nDisk: " + selected_drive
-            if critical_dialog(message, type='yes_no') != QtWidgets.QMessageBox.Yes:
+            if critical_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
                 return
             self.textField.clear()
             self.client_thread.send("queued_badblocks " + selected_drive)
 
-        except Exception:
-            print(traceback.print_exc(Exception))
+        except:
+            print("Error in erase Function")
 
     def smart(self):
         try:
             selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
             if selected_drive is None:
                 message = "There are no selected drives."
-                warning_dialog(message, type='ok')
+                warning_dialog(message, dialog_type='ok')
                 return
+            # TODO: Add new tab for every smart requested. If drive tab exist, use it.
             self.textField.clear()
             drive = selected_drive.text().lstrip("Disk ")
             self.client_thread.send("queued_smartctl " + drive)
 
         except:
-            print(traceback.print_exc(file=sys.stdout))
+            print("Error in smart function.")
 
     def cannolo(self):
-        selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0).text()
-        message = "Do you want to load a fresh system installation in disk " + selected_drive + "?"
-        if warning_dialog(message, type='yes_no') != QtWidgets.QMessageBox.Yes:
-            self.client_thread.test_channel()
-        self.update_queue(drive=selected_drive, mode="cannolo")
+        try:
+            selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+            if selected_drive is None:
+                message = "There are no selected drives."
+                warning_dialog(message, dialog_type='ok')
+                return
+            else:
+                selected_drive = selected_drive.text().lstrip("Disk ")
+            message = "Do you want to load a fresh system installation in disk " + selected_drive + "?"
+            if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
+                self.client_thread.send("queued_cannolo " + selected_drive)
+
+        except:
+            print("Error in cannolo function.")
 
     def set_remote_mode(self):
         if CURRENT_PLATFORM == 'win32':
@@ -391,7 +420,7 @@ class Ui(QtWidgets.QMainWindow):
     def refresh(self):
         self.host = self.hostInput.text()
         self.port = int(self.portInput.text())
-        self.client_thread.send("get_disks")
+        self.setup()
 
     def restore(self):
         self.hostInput.setText(self.host)
@@ -410,7 +439,7 @@ class Ui(QtWidgets.QMainWindow):
                     label = "Erase"
                 elif mode == 'queued_smartctl' or mode == 'smartctl':
                     label = "Smart check"
-                elif mode == 'cannolo':
+                elif mode == 'queued_cannolo':
                     label = "Cannolo"
                 else:
                     label = "Unknown"
@@ -439,7 +468,7 @@ class Ui(QtWidgets.QMainWindow):
         port = self.portInput.text()
         if self.ipList.findItems(ip, Qt.MatchExactly):
             message = "Do you want to overwrite the old configuration?"
-            if warning_dialog(message, type='yes_no') == QtWidgets.QMessageBox.Yes:
+            if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
                 self.settings.setValue("saved-" + ip, [ip, port])
         else:
             self.ipList.addItem(ip)
@@ -448,7 +477,7 @@ class Ui(QtWidgets.QMainWindow):
     def remove_config(self):
         ip = self.ipList.currentItem().text()
         message = "Do you want to remove the selected configuration?"
-        if warning_dialog(message, type='yes_no') == QtWidgets.QMessageBox.Yes:
+        if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
             for key in self.settings.childKeys():
                 if ip in key:
                     self.ipList.takeItem(self.ipList.row(self.ipList.currentItem()))
@@ -465,7 +494,7 @@ class Ui(QtWidgets.QMainWindow):
 
     def default_config(self):
         message = "Do you want to restore all settings to default?\nThis action is unrevocable."
-        if critical_dialog(message, "yes_no") == QtWidgets.QMessageBox.Yes:
+        if critical_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
             self.settings.clear()
             self.ipList.clear()
             self.setup()
@@ -564,7 +593,7 @@ class Ui(QtWidgets.QMainWindow):
         elif cmd == 'pong':
             self.server_ready = True
 
-    def closeEvent(self):
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.settings.setValue("remoteMode", str(self.remoteMode))
         self.settings.setValue("remoteIp", self.hostInput.text())
         self.settings.setValue("remotePort", self.portInput.text())

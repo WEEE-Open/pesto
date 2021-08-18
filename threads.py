@@ -27,6 +27,7 @@ class Client(QThread):
         self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.host = None
         self.port = None
+        self.running = False
         self.receiver: Optional[ReceiverThread]
         self.receiver = None
 
@@ -39,7 +40,9 @@ class Client(QThread):
         """
         # noinspection PyBroadException
         try:
+            self.running = False
             self.socket.connect((host, int(port)))
+            self.running = True
             return True, host, port
         except ConnectionRefusedError:
             print("Connection Refused: Client Unreachable")
@@ -81,42 +84,46 @@ class Client(QThread):
         received = []
         BUFFER = 512
         string = b''
+        try:
+            while True:
+                """ global warehouse is a list that all the unreaded messages from the gui."""
+                global warehouse
+                """ 
+                check if there is a command in the warehouse. If yes, it will be sent to the gui instead of
+                 waiting for a new message from server 
+                 """
+                if len(warehouse) > 0:
+                    if b'\r\n' in warehouse[0]:
+                        received.append(warehouse[0])
+                        del warehouse[0]
+                        break
+                """ get messages from server (512 byte per iteration) """
 
-        while True:
-            """ global warehouse is a list that all the unreaded messages from the gui."""
-            global warehouse
-            """ 
-            check if there is a command in the warehouse. If yes, it will be sent to the gui instead of
-             waiting for a new message from server 
-             """
-            if len(warehouse) > 0:
-                if b'\r\n' in warehouse[0]:
-                    received.append(warehouse[0])
-                    del warehouse[0]
+                chunk = self.socket.recv(BUFFER)
+                chunks = chunk.splitlines(True)
+                if len(warehouse) > 0:
+                    """ join 2 messages if in the last one in warehouse there is not a newline """
+                    if b'\r\n' not in warehouse[-1]:
+                        warehouse[-1] += chunks[0]
+                        del chunks[0]
+                if chunks is None:
+                    pass
+                else:
+                    """ store in warehouse all the messages that are ignored in the iteration """
+                    for c in chunks:
+                        warehouse.append(c)
+                received.append(warehouse[0])
+                """ remove the message sent to the gui in the warehouse """
+                del warehouse[0]
+                if b'\r\n' in received[-1]:
                     break
-            """ get messages from server (512 byte per iteration) """
-            chunk = self.socket.recv(BUFFER)
-            chunks = chunk.splitlines(True)
-            if len(warehouse) > 0:
-                """ join 2 messages if in the last one in warehouse there is not a newline """
-                if b'\r\n' not in warehouse[-1]:
-                    warehouse[-1] += chunks[0]
-                    del chunks[0]
-            if chunks is None:
-                pass
-            else:
-                """ store in warehouse all the messages that are ignored in the iteration """
-                for c in chunks:
-                    warehouse.append(c)
-            received.append(warehouse[0])
-            """ remove the message sent to the gui in the warehouse """
-            del warehouse[0]
-            if b'\r\n' in received[-1]:
-                break
-        """ join all the received chunks to be sent to the gui and decode the byte string """
-        received = b''.join(received).decode('utf-8')
-        print("SERVER: " + received)
-        return received
+            """ join all the received chunks to be sent to the gui and decode the byte string """
+            received = b''.join(received).decode('utf-8')
+            print("SERVER: " + received)
+            return received
+
+        except ConnectionAbortedError:
+            print("Connection Aborted.")
 
     def start_receiver(self):
         self.receiver = ReceiverThread(self.client_queue, self)
@@ -191,12 +198,7 @@ class LocalServerThread(QThread):
 
     def load_server(self, running: bool):
         if not running:
-            if CURRENT_PLATFORM == "win32":
-                message = "Cannot run local server on windows machine."
-                critical_dialog(message=message, type='ok')
-                return
-            else:
-                self.server = subprocess.Popen(["python", PATH["SERVER"]], stderr=subprocess.PIPE,
+            self.server = subprocess.Popen(["python", PATH["SERVER"]], stderr=subprocess.PIPE,
                                                stdout=subprocess.PIPE)
             while True:
                 output = self.server.stderr.readline().decode('utf-8')
