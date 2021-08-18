@@ -4,7 +4,7 @@ import os
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QTableWidgetItem
 import socket
-
+import ctypes
 
 def critical_dialog(message, type):
     dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error!", message)
@@ -286,3 +286,13 @@ def table_setup(table: QtWidgets.QTableWidget, labels: list):
     table.setColumnWidth(3, 50)
     table.horizontalHeader().setStretchLastSection(True)
     table.installEventFilter(table)
+
+
+def initialize_path(CURRENT_PLATFORM: str, PATH: {}):
+    if CURRENT_PLATFORM == "win32":
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("myappid")
+        for path in PATH:
+            PATH[path] = win_path(PATH[path])
+    else:
+        for path in PATH:
+            PATH[path] = linux_path(PATH[path])

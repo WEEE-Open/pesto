@@ -10,23 +10,24 @@ import datetime
 import json
 import subprocess
 import traceback
+import os
+import logging
+import socket
+import ast
+import sys
 from typing import Optional
-
 from PyQt5 import uic, QtGui, QtCore
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtCore import Qt, QEvent, QThread
 from PyQt5.QtWidgets import QTableWidgetItem, QMenu
-from utilites import *
-import socket
 from threading import Thread
 from queue import Queue
-import ast
-import sys
 from multiprocessing import Process
-import os
-import logging
+from utilites import *
+from threads import *
 
-logging.basicConfig(level=logging.DEBUG, filename="crashreport.log")
+
+logging.basicConfig(level=logging.DEBUG, filename="tmp/crashreport.log")
 
 SPACE = 5
 
@@ -77,111 +78,44 @@ CURRENT_PLATFORM = sys.platform
 
 _sentinel = '===PASS==='
 
-
-if CURRENT_PLATFORM == "win32":
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("myappid")
-    for path in PATH:
-        PATH[path] = win_path(PATH[path])
-else:
-    for path in PATH:
-        PATH[path] = linux_path(PATH[path])
-
-
-class Client(Thread):
-    """
-    This is the client thread class. When it is instantiated it create TCP socket that can be used to connect
-    the client to the server.
-    In the __init__ function the following are initialized:
-        - queue: a Queue object that allow the client to interact with other threads
-        - socket: the TCP socket
-        - host
-        - port
-    """
-    def __init__(self, queue: Queue, host: str, port: str):
-        Thread.__init__(self)
-        self.queue = queue
-        self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.host = host
-        self.port = int(port)
-
-    def connect(self):
-        """
-        When called, try to connect to the host:port combination.
-        If the server is not up or is unreachable, it raise the ConnectionRefusedError exception.
-        If the connection is established, then it checks if the server send a confirm message: if the message
-        arrives it will be put in the queue, else a RuntimeError exception will be raised.
-        """
-        # noinspection PyBroadException
-        try:
-            self.socket.connect((self.host, self.port))
-            return True, self.host, self.port
-        except ConnectionRefusedError:
-            print("Connection Refused: Client Unreachable")
-            return False, self.host, self.port
-        except BaseException:
-            print("Socket Error: Socket not connected and address not provided when sending on a datagram socket using a sendto call. Request to send or receive data canceled")
-            return False, self.host, self.port
-
-    def disconnect(self):
-        """
-        When called, close socket
-        """
-        self.socket.close()
-
-    def send(self, msg: str):
-        """
-        When called, send byte msg to server. For now there is not a maximum lenght limit to the msg.
-        The string 'msg' passed to the function will be encoded to a byte string, then the lenght of the message is
-        measured to establish the lenght of the byte sequence that must be sent.
-        If the number of sent bytes is equal to 0, a RuntimeError will be raised.
-        """
-        msg += '\r\n'
-        msg = msg.encode('utf-8')
-        totalsent = 0
-        msglen = len(msg)
-        while totalsent < msglen:
-            sent = self.socket.send(msg[totalsent:])
-            if sent == 0:
-                raise RuntimeError("Socket Connection Broken")
-            totalsent += sent
-
-    def receive(self):
-        """
-        When called, return chuncks of text from server.
-        The maximum number of bytes that can be received in one transmission is set in the BUFFER variable.
-        The function receive a chunk of maximum 512 bytes at time and append the chunk to a list that will be
-        returned at the end of the function.
-        """
-        received = b''
-        bytes_recv = 0
-        BUFFER = 1
-        string = b''
-        tmp = b''
-        while True:
-            chunk = self.socket.recv(BUFFER)
-            received += chunk
-            bytes_recv += len(chunk)
-            tmp += chunk
-            if len(tmp) > 2:
-                tmp = tmp.decode('utf-8')
-                tmp = tmp[1:3]
-                tmp= tmp.encode('utf-8')
-            if tmp == b'\r\n':
-                break
-        received = received.decode('utf-8')
-        print("SERVER: " + received)
-        return received
+initialize_path(CURRENT_PLATFORM, PATH)
 
 
 # UI class
 class Ui(QtWidgets.QMainWindow):
-    def __init__(self, gui_queue: Queue, client_queue: Queue, server_queue: Queue):
+    def __init__(self, gui_queue: Queue, client_queue: Queue, server_queue: Queue) -> None:
         super(Ui, self).__init__()
         uic.loadUi(PATH["UI"], self)
-        self.gui_queue = gui_queue
-        self.client_queue = client_queue
-        self.server_queue = server_queue
+        self.gui_queue = gui_queue          # Command queue for gui
+        self.client_queue = client_queue    # Command queue for client
+        self.server_queue = server_queue    # Command queue for server
         self.running = True
+
+        """ Defining all items in GUI """
+        self.diskTable = None
+        self.queueTable = None
+        self.reloadButton = None
+        self.eraseButton = None
+        self.smartButton = None
+        self.cannoloButton = None
+        self.textField = None
+        self.localRadioBtn = None
+        self.remoteRadioBtn = None
+        self.hostInput = None
+        self.portInput = None
+        self.restoreButton = None
+        self.defaultButton = None
+        self.saveButton = None
+        self.ipList = None
+        self.findButton = None
+        self.cannoloLabel = None
+        self.directoryText = None
+        self.asdLabel = None
+        self.gif = None
+        self.settings = None
+        self.host = None
+        self.port = None
+        self.remoteMode = None
 
         self.find_items()
         self.show()
@@ -262,10 +196,9 @@ class Ui(QtWidgets.QMainWindow):
         self.hostInput = self.findChild(QtWidgets.QLineEdit, 'remoteIp')
         self.hostInput.setText(self.host)
 
-
         # remotePort input
         self.portInput = self.findChild(QtWidgets.QLineEdit, 'remotePort')
-        if self.port != None:
+        if self.port is not None:
             self.portInput.setText(str(self.port))
 
         # restore button
@@ -341,9 +274,9 @@ class Ui(QtWidgets.QMainWindow):
         self.set_remote_mode()
 
         # check if the host and port field are set
-        if self.host == None and self.port == None:
-            message = "The host and port combination is not set.\nPlease vist the settings section."
-            warning_dialog(message,'ok')
+        if self.host is None and self.port is None:
+            message = "The host and port combination is not set.\nPlease visit the settings section."
+            warning_dialog(message, 'ok')
 
         # connect to server
         self.client_thread.connect(self.host, self.port)
@@ -352,8 +285,8 @@ class Ui(QtWidgets.QMainWindow):
         self.client_thread.get_disks()
 
     def eventFilter(self, source: 'QObject', event: 'QEvent'):
-        selectedRow = self.queueTable.currentRow()
-        if event.type() == QEvent.ContextMenu and source is self.queueTable and selectedRow != -1:
+        selected_row = self.queueTable.currentRow()
+        if event.type() == QEvent.ContextMenu and source is self.queueTable and selected_row != -1:
             menu = QMenu()
             menu.addAction("Stop", self.stop_dialog)
             menu.addAction("Remove", self.remove_dialog)
@@ -372,7 +305,7 @@ class Ui(QtWidgets.QMainWindow):
 
     def remove_dialog(self):
         id = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
-        message = 'With this action you will also stop the process (ID: '+ id + ")\n"
+        message = 'With this action you will also stop the process (ID: ' + id + ")\n"
         message += 'Do you want to proceed?'
         if warning_dialog(message, type='yes_no') == QtWidgets.QMessageBox.Yes:
             self.queueTable.removeRow(self.queueTable.currentRow())
@@ -421,8 +354,8 @@ class Ui(QtWidgets.QMainWindow):
         self.textField.clear()
 
         # get data and maximum length of entry for better output
-        #data, maximum = smart_parser(selected_drive, self.remoteMode, platform=CURRENT_PLATFORM,
-         #                            requirements=REQUIREMENTS)
+        # data, maximum = smart_parser(selected_drive, self.remoteMode, platform=CURRENT_PLATFORM,
+        #                            requirements=REQUIREMENTS)
         text = data_output(data, maximum)
         text = smart_analyzer(data, text)
         for line in text:
@@ -447,15 +380,7 @@ class Ui(QtWidgets.QMainWindow):
         message = "Do you want to load a fresh system installation in disk " + selected_drive + "?"
         if warning_dialog(message, type='yes_no') != QtWidgets.QMessageBox.Yes:
             self.client_thread.ping()
-        self.textField.clear()
-        if self.remoteMode:
-            cmd = 'cannolo ' + selected_drive
-            data = None
-            self.textField.append(data)
-            self.update_queue(drive=selected_drive, mode="cannolo")
-        else:
-            self.textField.append("Sto cannolando il disco " + selected_drive)
-            self.update_queue(drive=selected_drive, mode="cannolo")
+        self.update_queue(drive=selected_drive, mode="cannolo")
 
     def set_remote_mode(self):
         if self.localRadioBtn.isChecked():
@@ -494,7 +419,7 @@ class Ui(QtWidgets.QMainWindow):
         self.portInput.setText(str(self.port))
 
     def update_queue(self, drive, mode):
-        #self.queueTable.setRowCount(self.queueTable.rowCount() + 1)
+        # self.queueTable.setRowCount(self.queueTable.rowCount() + 1)
         row = self.queueTable.rowCount()
         self.queueTable.insertRow(row)
         for idx, entry in enumerate(QUEUE_TABLE):
@@ -521,7 +446,6 @@ class Ui(QtWidgets.QMainWindow):
             if entry == "Progress":  # PROGRESS
                 label = QtWidgets.QProgressBar()
                 label.setValue(0)
-
 
             if entry in ["ID", "Process", "Disk"]:
                 label = QTableWidgetItem(label)
@@ -599,21 +523,26 @@ class Ui(QtWidgets.QMainWindow):
             self.statusBar().showMessage("Terminating Program")
 
     def gui_update(self, cmd: str, params: str):
+        """
+        Typical param str is:
+            cmd [{param_1: 'text'}, {param_2: 'text'}, {param_3: 'text'}, ...]
+        Possible cmd are:
+            get_disks --> drives information for disks table
+            queue_status --> Information about badblocks process
+
+        """
         try:
             params = json.loads(params)
         except json.decoder.JSONDecodeError:
             print("Expected JSON, exception ignored.")
-        # cmd = get_disks
-        # params = [{ ... }, { ... }, ...]
 
-        # stringone: get_disks [{schifo:lezzo}{...}]
         if cmd == 'queue_status':
             for row in range(self.queueTable.rowCount()):
                 if self.queueTable.item(row, 2).text() == params["target"]:
-                    progressBar = self.queueTable.cellWidget(row, 4)
-                    progressBar.setValue(int(params["percentage"]))
+                    progress_bar = self.queueTable.cellWidget(row, 4)
+                    progress_bar.setValue(int(params["percentage"]))
                     if int(params["percentage"]) == 100:
-                        message = "Operazione completata"
+                        message = "Operation succeeded"
                         status = self.queueTable.cellWidget(row, 3)
                         status.setPixmap(QtGui.QPixmap(PATH["OK"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
                         info_dialog(message)
@@ -637,7 +566,7 @@ class Ui(QtWidgets.QMainWindow):
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
                 self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
 
-    def closeEvent(self, a0: QtGui.QCloseEvent):
+    def closeEvent(self):
         self.settings.setValue("remoteMode", str(self.remoteMode))
         self.settings.setValue("remoteIp", self.hostInput.text())
         self.settings.setValue("remotePort", self.portInput.text())
@@ -645,120 +574,9 @@ class Ui(QtWidgets.QMainWindow):
         self.server.stop()
 
 
-class GuiBackgroundThread(QThread):
-    update = QtCore.pyqtSignal(str, str, name="update")
-
-    def __init__(self, gui_queue: Queue, client_queue: Queue):
-        super(GuiBackgroundThread, self).__init__()
-        self.gui_queue = gui_queue
-        self.client_queue = client_queue
-        self.running = True
-
-    def run(self):
-        try:
-            while self.running:
-                data = ""
-                if not self.client_queue.empty():
-                    data = self.client_queue.get()
-                    data: str
-                    parts = data.split(' ', 1)
-                    cmd = parts[0]
-                    if len(parts) > 1:
-                        args = parts[1]
-                    else:
-                        args = ''
-                    self.update.emit(cmd, args)
-        except KeyboardInterrupt:
-            print("Keyboard Interrupt")
-
-
-class CctfThread(Thread):
-    def __init__(self, queue: Queue, client: Client):
-        super().__init__()
-        self.running = True
-        self.client_queue = queue
-        self.client = client
-
-    def run(self):
-        while self.running:
-            data = self.client.receive()
-            if data != '':
-                self.client_queue.put(data)
-
-
-class GuiClientThread(QThread):
-    update = QtCore.pyqtSignal(str, str, name="update")
-
-    def __init__(self, client_queue: Queue, gui_queue: Queue):
-        super(GuiClientThread, self).__init__()
-        self.client_queue = client_queue
-        self.gui_queue = gui_queue
-        self.client: Client
-        self.client = None
-        self.running = False
-        self.receiver: Optional[CctfThread]
-        self.receiver = None
-
-    def connect(self, host: str, port: int):
-        if self.client is not None:
-            self.client.disconnect()
-        self.client = Client(queue=self.client_queue, host=host, port=str(port))
-        chk, host, port = self.client.connect()
-        if chk:
-            self.update.emit(f"{host}:{port}", "CONNECTED")
-        else:
-            message = "Cannot connect to the server.\nTry to restart the application."
-            critical_dialog(message, type='ok')
-            return
-        if not self.running:
-            self.receiver = CctfThread(self.client_queue, self.client)
-            self.receiver.start()
-        self.running = True
-
-    def ping(self):
-        self.client.send("ping")
-        return self.client.receive()
-
-    def get_disks(self):
-        self.client.send("get_disks")
-
-    def erase_disk(self, drive: str):
-        self.client.send("queued_badblocks " + drive)
-
-    def disconnect(self):
-
-        self.client.disconnect()
-
-
-class GuiServerThread(QThread):
-    update = QtCore.pyqtSignal(str, str, name="update")
-
-    def __init__(self, server_queue: Queue):
-        super(GuiServerThread, self).__init__()
-        self.server_queue = server_queue
-        self.running = True
-        self.server = None
-
-    def start(self):
-        self.server = subprocess.Popen(["python", PATH["SERVER"], "--local"], stderr=subprocess.PIPE,
-                                       stdout=subprocess.PIPE)
-        while True:
-            output = self.server.stderr.readline().decode('utf-8')
-            if "Listening on" in output:
-                self.server_queue.put("SERVER_READY")
-                break
-
-    def stop(self):
-        if CURRENT_PLATFORM == 'win32':
-            self.server.terminate()
-        else:
-            self.server.terminate()
-
-
 def main():
     try:
         check_requirements(PATH["REQUIREMENTS"])
-        queue = Queue()
         gui_bg_queue = Queue()
         client_queue = Queue()
         server_queue = Queue()
@@ -772,6 +590,7 @@ def main():
 
     except Exception:
         logging.exception(traceback.print_exc(file=sys.stdout))
+
 
 if __name__ == "__main__":
     main()
