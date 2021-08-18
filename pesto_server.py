@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 import json
 import subprocess
+import sys
+import time
+import os
+import threading
+import logging
 from typing import Optional, Union
-
 from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO
-import os
 from twisted.internet import reactor, protocol
 from twisted.protocols.basic import LineOnlyReceiver
 import threading
@@ -18,6 +21,7 @@ from utilites import smartctl_get_status, parse_smartctl_output
 NAME = "turbofresa"
 # Use env vars, do not change the value here
 TEST_MODE = False
+CURRENT_OS = sys.platform
 
 
 class Disk:
@@ -47,9 +51,11 @@ class Disk:
         result["code"] = self._code
         return result
 
-    def update_status(self, status: str):
+    def update_status(self, status: str) -> bool:
         if self._tarallo and self._code:
             self._tarallo.update_item_features(self._code, {"smart-data": status})
+            return True
+        return False
 
     def _get_code(self, stop_on_error: bool = True):
         if not self._tarallo:
@@ -83,7 +89,6 @@ class Disk:
         else:
             self._item = None
 
-
 class ErrorThatCanBeManuallyFixed(BaseException):
     pass
 
@@ -115,8 +120,7 @@ class CommandRunner(threading.Thread):
         self._go = False
 
     def exec_command(self, cmd: str, args: str):
-        logging.getLogger(NAME)\
-            .debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
+        logging.debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
         # in {self.getName()}
         param = None
         if cmd == 'smartctl':
@@ -137,10 +141,12 @@ class CommandRunner(threading.Thread):
                 return
             q = QueuedCommand(dev, self)
             self.badblocks(args, q)
+            return
         elif cmd == 'get_disks':
-            param = self.get_disks_to_send()
-        elif cmd == 'get_disks_win':
-            param = get_disks_win()
+            if CURRENT_OS == 'win32':
+                param = get_disks_win()
+            else:
+                param = self.get_disks_to_send()
         elif cmd == 'ping':
             cmd = "pong"
         elif cmd == 'get_queue':
@@ -150,6 +156,7 @@ class CommandRunner(threading.Thread):
             param = {"message": "Unrecognized command", "command": cmd}
             # Do not move this line above the other, cmd has to be overwritten here
             cmd = "error"
+        logging.debug(f"[{self._the_id}] Sending response {cmd}")
         self.send_msg(cmd, param)
 
     def get_queue(self, actual_cmd):
@@ -190,46 +197,53 @@ class CommandRunner(threading.Thread):
                 threading.Event().wait(2)
                 q.notify_percentage(99, "3 bad blocks")
                 threading.Event().wait(2)
-            q.notify_finish("3 bad blocks")
+                q.notify_finish("3 bad blocks")
 
     def get_smartctl(self, dev: str, q):
         q: Optional[QueuedCommand]
         if q:
             disks[dev].queue_lock.acquire()
         try:
-            # Leave this in the try, just to be safe
             if q:
                 q.notify_start("Running")
-
-            pipe = subprocess\
-                .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            output = pipe.stdout.read().decode('utf-8')
-            stderr = pipe.stderr.read().decode('utf-8')
+            if CURRENT_OS == 'win32':
+                pipe = subprocess \
+                    .Popen(("smartctl", "-a", f"/dev/pd{dev}"), shell=True, stderr=subprocess.PIPE,
+                           stdout=subprocess.PIPE)
+                output = pipe.stdout.read().decode('utf-8')
+                stderr = pipe.stderr.read().decode('utf-16')
+            else:
+                pipe = subprocess \
+                    .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE,
+                           stdout=subprocess.PIPE)
+                output = pipe.stdout.read().decode('utf-8')
+                stderr = pipe.stderr.read().decode('utf-8')
             exitcode = pipe.wait()
 
             updated = False
             status = None
 
-            if q:
-                if exitcode == 0:
-                    status = get_smartctl_status(output)
+            if exitcode == 0 or (CURRENT_OS == 'win32' and exitcode == 4):
+                status = get_smartctl_status(output)
+                if q:
                     if not status:
                         q.notify_error("Error while parsing smartctl status")
-                    else:
-                        q.notify_percentage(50.0, "Updating tarallo if needed")
-                        with disks_lock:
-                            self.update_disk_if_needed(disks[dev])
-                            # noinspection PyBroadException
-                            try:
-                                disks[dev].update_status(status)
-                                updated = True
-                            except BaseException as e:
-                                q.notify_error("Error during upload")
-                                logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
-                else:
-                    # "if queued" q is defined...
-                    # noinspection PyUnboundLocalVariable
+                        return
+            else:
+                if q:
                     q.notify_error("smartctl failed")
+                    return
+
+            if q and status:
+                q.notify_percentage(50.0, "Updating tarallo if needed")
+                with disks_lock:
+                    self.update_disk_if_needed(disks[dev])
+                    # noinspection PyBroadException
+                    try:
+                        updated = disks[dev].update_status(status)
+                    except BaseException as e:
+                        q.notify_error("Error during upload")
+                        logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
         finally:
             if q:
                 q.notify_finish()
@@ -365,6 +379,7 @@ class QueuedCommand:
 
     def send_all(self):
         param = self.serialize_me()
+        logging.debug(f"[ALL] Sending queue update for {self.command_runner.get_cmd()}")
         for client in clients:
             # send_msg calls reactor.callFromThread and reactor is single threaded, so no risk here
             # send_all is always called with a lock, so all status updates are sent in the expected order
@@ -442,12 +457,15 @@ class TurboProtocol(LineOnlyReceiver):
 
 def scan_for_disks():
     logging.debug("Scanning for disks")
-    disks_lsblk = get_disks()
+    if CURRENT_OS == 'win32':
+        disks_lsblk = get_disks_win()
+    else:
+        disks_lsblk = get_disks()
     for disk in disks_lsblk:
         if "path" not in disk:
             logging.warning("Disk has no path, ignoring: " + disk)
             continue
-        path = disk["path"]
+        path = str(disk["path"])
         # noinspection PyBroadException
         try:
             with disks_lock:
@@ -457,7 +475,6 @@ def scan_for_disks():
 
 
 def main():
-    load_settings()
     scan_for_disks()
     ip = os.getenv("IP")
     port = os.getenv("PORT")
@@ -475,6 +492,7 @@ def main():
         factory.conn_id = 0
 
         logging.info(f"Listening on {ip} port {port}")
+
         # noinspection PyUnresolvedReferences
         reactor.listenTCP(int(port), factory, interface=ip)
 
@@ -511,19 +529,38 @@ def load_settings():
         TARALLO = Tarallo.Tarallo(url, token)
 
 
-def get_disks_win():
-    label = []
-    size = []
-    drive = []
-    for line in subprocess.getoutput("wmic logicaldisk get caption").splitlines():
-        if line.rstrip() != 'Caption' and line.rstrip() != '':
-            label.append(line.rstrip())
-    for line in subprocess.getoutput("wmic logicaldisk get size").splitlines():
-        if line.rstrip() != 'Size' and line.rstrip() != '':
-            size.append(line)
-    for idx, line in enumerate(size):
-        drive += [[label[idx], line]]
-    return drive
+def get_disks_win() -> list:
+    the_map = {
+        "DiskNumber": "path",
+        "Model": "model",
+        "SerialNumber": "serial",
+        "Size": "size",
+        # "": "hotplug",
+        # "": "rota",
+        # "IsBoot": "boot",
+    }
+
+    pipe = subprocess.Popen(["powershell", "Get-Disk", "|", "ConvertTo-Json"], stdout=subprocess.PIPE)
+    output = pipe.stdout.read().decode('utf-8')
+    output = json.loads(output)
+    pipe.kill()
+    big_result = []
+    for disk in output:
+        disk: dict
+        if disk["OperationalStatus"] == "No Media":
+            continue
+        result = {}
+        for k in the_map:
+            result[the_map[k]] = str(disk[k]).strip()
+
+        if "serial" in result:
+            if result["serial"].startswith("WD-"):
+                result["serial"] = result["serial"][3:]
+        result["mountpoint"] = []
+        if disk["IsBoot"]:
+            result["mountpoint"].append("[BOOT]")
+        big_result.append(result)
+    return big_result
 
 
 def get_smartctl_status(smartctl_output: str) -> Optional[str]:
@@ -549,7 +586,7 @@ def find_mounts(el: dict):
 def get_disks(path: Optional[str] = None) -> list:
     # Name is required, otherwise the tree is flattened
     output = subprocess\
-        .getoutput(f"lsblk -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT -J {path if path else ''}")
+        .getoutput(f"lsblk -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT,SIZE -J {path if path else ''}")
     jsonized = json.loads(output)
     if "blockdevices" in jsonized:
         result = jsonized["blockdevices"]
@@ -582,4 +619,14 @@ queued_commands_lock = threading.Lock()
 
 
 if __name__ == '__main__':
-    main()
+    load_settings()
+    if CURRENT_OS == 'win32':
+        main()
+    else:
+        if bool(os.getenv("DAEMONIZE", False)):
+            import daemon
+            import lockfile
+            with daemon.DaemonContext(pidfile=lockfile.FileLock(os.getenv("LOCKFILE_PATH", f'/var/run/{NAME}.pid'))):
+                main()
+        else:
+            main()
