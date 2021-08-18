@@ -3,19 +3,17 @@ import json
 import subprocess
 import sys
 import time
+import os
+import threading
+import logging
 from typing import Optional
 from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO
-import os
 from twisted.internet import reactor, protocol
 from twisted.protocols.basic import LineOnlyReceiver
-import threading
-import logging
 from datetime import datetime
 from utilites import smartctl_get_status, parse_smartctl_output
-import ast
-
 
 NAME = "turbofresa"
 # Use env vars, do not change the value here
@@ -50,9 +48,11 @@ class Disk:
         result["code"] = self._code
         return result
 
-    def update_status(self, status: str):
+    def update_status(self, status: str) -> bool:
         if self._tarallo and self._code:
             self._tarallo.update_item_features(self._code, {"smart-data": status})
+            return True
+        return False
 
     def _get_code(self, stop_on_error: bool = True):
         if not self._tarallo:
@@ -118,8 +118,7 @@ class CommandRunner(threading.Thread):
         self._go = False
 
     def exec_command(self, cmd: str, args: str):
-        logging.getLogger(NAME)\
-            .debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
+        logging.debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
         # in {self.getName()}
         param = None
         if cmd == 'smartctl':
@@ -136,11 +135,11 @@ class CommandRunner(threading.Thread):
                 return
         elif cmd == 'queued_badblocks':
             dev = self.dev_from_args(args)
-            print(dev)
             if not dev:
                 return
             q = QueuedCommand(dev, self)
             self.badblocks(args, q)
+            return
         elif cmd == 'get_disks':
             if CURRENT_OS == 'win32':
                 param = get_disks_win()
@@ -155,6 +154,7 @@ class CommandRunner(threading.Thread):
             param = {"message": "Unrecognized command", "command": cmd}
             # Do not move this line above the other, cmd has to be overwritten here
             cmd = "error"
+        logging.debug(f"[{self._the_id}] Sending response {cmd}")
         self.send_msg(cmd, param)
 
     def get_queue(self, actual_cmd):
@@ -206,36 +206,44 @@ class CommandRunner(threading.Thread):
         try:
             if q:
                 q.notify_start("Running")
-
-            pipe = subprocess\
-                .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            output = pipe.stdout.read().decode('utf-8')
-            stderr = pipe.stderr.read().decode('utf-8')
+            if CURRENT_OS == 'win32':
+                pipe = subprocess \
+                    .Popen(("smartctl", "-a", f"/dev/pd{dev}"), shell=True, stderr=subprocess.PIPE,
+                           stdout=subprocess.PIPE)
+                output = pipe.stdout.read().decode('utf-8')
+                stderr = pipe.stderr.read().decode('utf-16')
+            else:
+                pipe = subprocess \
+                    .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE,
+                           stdout=subprocess.PIPE)
+                output = pipe.stdout.read().decode('utf-8')
+                stderr = pipe.stderr.read().decode('utf-8')
             exitcode = pipe.wait()
 
             updated = False
             status = None
 
-            if q:
-                if exitcode == 0:
-                    status = get_smartctl_status(output)
+            if exitcode == 0 or (CURRENT_OS == 'win32' and exitcode == 4):
+                status = get_smartctl_status(output)
+                if q:
                     if not status:
                         q.notify_error("Error while parsing smartctl status")
-                    else:
-                        q.notify_percentage(50.0, "Updating tarallo if needed")
-                        with disks_lock:
-                            self.update_disk_if_needed(disks[dev])
-                            # noinspection PyBroadException
-                            try:
-                                disks[dev].update_status(status)
-                                updated = True
-                            except BaseException as e:
-                                q.notify_error("Error during upload")
-                                logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
-                else:
-                    # "if queued" q is defined...
-                    # noinspection PyUnboundLocalVariable
+                        return
+            else:
+                if q:
                     q.notify_error("smartctl failed")
+                    return
+
+            if q and status:
+                q.notify_percentage(50.0, "Updating tarallo if needed")
+                with disks_lock:
+                    self.update_disk_if_needed(disks[dev])
+                    # noinspection PyBroadException
+                    try:
+                        updated = disks[dev].update_status(status)
+                    except BaseException as e:
+                        q.notify_error("Error during upload")
+                        logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
         finally:
             if q:
                 q.notify_finish()
@@ -369,6 +377,7 @@ class QueuedCommand:
 
     def send_all(self):
         param = self.serialize_me()
+        logging.debug(f"[ALL] Sending queue update for {self.command_runner.get_cmd()}")
         for client in clients:
             # send_msg calls reactor.callFromThread and reactor is single threaded, so no risk here
             # send_all is always called with a lock, so all status updates are sent in the expected order
@@ -400,7 +409,7 @@ class TurboProtocol(LineOnlyReceiver):
         with clients_lock:
             clients[self._id] = self
         logging.getLogger(NAME).debug(f"[{str(self._id)}] Client connected")
-        self.send_msg("SERVER_READY")
+        # self.send_msg("SERVER_READY")
 
     def connectionLost(self, reason=protocol.connectionDone):
         logging.getLogger(NAME).debug(f"[{str(self._id)}] Client disconnected")
@@ -450,21 +459,20 @@ def scan_for_disks():
         disks_lsblk = get_disks_win()
     else:
         disks_lsblk = get_disks()
-        for disk in disks_lsblk:
-            if "path" not in disk:
-                logging.warning("Disk has no path, ignoring: " + disk)
-                continue
-            path = disk["path"]
-            # noinspection PyBroadException
-            try:
-                with disks_lock:
-                    disks[path] = Disk(disk, TARALLO)
-            except BaseException as e:
-                logging.warning("Exception while scanning disk, skipping", exc_info=e)
+    for disk in disks_lsblk:
+        if "path" not in disk:
+            logging.warning("Disk has no path, ignoring: " + disk)
+            continue
+        path = str(disk["path"])
+        # noinspection PyBroadException
+        try:
+            with disks_lock:
+                disks[path] = Disk(disk, TARALLO)
+        except BaseException as e:
+            logging.warning("Exception while scanning disk, skipping", exc_info=e)
 
 
 def main():
-    load_settings()
     scan_for_disks()
     ip = os.getenv("IP")
     port = os.getenv("PORT")
@@ -519,7 +527,7 @@ def load_settings():
         TARALLO = Tarallo.Tarallo(url, token)
 
 
-def get_disks_win():
+def get_disks_win() -> list:
     the_map = {
         "DiskNumber": "path",
         "Model": "model",
@@ -609,4 +617,11 @@ queued_commands_lock = threading.Lock()
 
 
 if __name__ == '__main__':
-    main()
+    load_settings()
+    if CURRENT_OS == 'win32':
+        main()
+    else:
+        import daemon
+        import lockfile
+        with daemon.DaemonContext(pidfile=lockfile.FileLock(os.getenv("LOCKFILE_PATH", f'/var/run/{NAME}.pid'))):
+            main()

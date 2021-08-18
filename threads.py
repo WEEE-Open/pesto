@@ -1,26 +1,16 @@
-import ctypes
-import datetime
-import json
-import subprocess
-import traceback
 from typing import Optional
-
 from PyQt5 import uic, QtGui, QtCore
-from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtCore import Qt, QEvent, QThread
-from PyQt5.QtWidgets import QTableWidgetItem, QMenu
 from utilites import *
 import socket
 from threading import Thread
 from queue import Queue
-import ast
-import sys
-from multiprocessing import Process
-import os
-import logging
-from pesto import PATH
+from pesto import PATH, CURRENT_PLATFORM, warehouse
 
-class Client(Thread):
+
+class Client(QThread):
+    update = QtCore.pyqtSignal(str, str, name="update")
+
     """
     This is the client thread class. When it is instantiated it create TCP socket that can be used to connect
     the client to the server.
@@ -30,14 +20,17 @@ class Client(Thread):
         - host
         - port
     """
-    def __init__(self, queue: Queue, host: str, port: str):
-        Thread.__init__(self)
-        self.queue = queue
+    def __init__(self, client_queue: Queue, gui_queue: Queue):
+        super(Client, self).__init__()
+        self.client_queue = client_queue
+        self.gui_queue = gui_queue
         self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.host = host
-        self.port = int(port)
+        self.host = None
+        self.port = None
+        self.receiver: Optional[ReceiverThread]
+        self.receiver = None
 
-    def connect(self):
+    def connect(self, host: str, port: str):
         """
         When called, try to connect to the host:port combination.
         If the server is not up or is unreachable, it raise the ConnectionRefusedError exception.
@@ -46,14 +39,14 @@ class Client(Thread):
         """
         # noinspection PyBroadException
         try:
-            self.socket.connect((self.host, self.port))
-            return True, self.host, self.port
+            self.socket.connect((host, int(port)))
+            return True, host, port
         except ConnectionRefusedError:
             print("Connection Refused: Client Unreachable")
-            return False, self.host, self.port
+            return False, host, port
         except BaseException:
             print("Socket Error: Socket not connected and address not provided when sending on a datagram socket using a sendto call. Request to send or receive data canceled")
-            return False, self.host, self.port
+            return False, host, port
 
     def disconnect(self):
         """
@@ -85,32 +78,72 @@ class Client(Thread):
         The function receive a chunk of maximum 512 bytes at time and append the chunk to a list that will be
         returned at the end of the function.
         """
-        received = b''
-        bytes_recv = 0
-        BUFFER = 1
+        received = []
+        BUFFER = 512
         string = b''
-        tmp = b''
+
         while True:
+            """ global warehouse is a list that all the unreaded messages from the gui."""
+            global warehouse
+            """ 
+            check if there is a command in the warehouse. If yes, it will be sent to the gui instead of
+             waiting for a new message from server 
+             """
+            if len(warehouse) > 0:
+                if b'\r\n' in warehouse[0]:
+                    received.append(warehouse[0])
+                    del warehouse[0]
+                    break
+            """ get messages from server (512 byte per iteration) """
             chunk = self.socket.recv(BUFFER)
-            received += chunk
-            bytes_recv += len(chunk)
-            tmp += chunk
-            if len(tmp) > 2:
-                tmp = tmp.decode('utf-8')
-                tmp = tmp[1:3]
-                tmp= tmp.encode('utf-8')
-            if tmp == b'\r\n':
+            chunks = chunk.splitlines(True)
+            if len(warehouse) > 0:
+                """ join 2 messages if in the last one in warehouse there is not a newline """
+                if b'\r\n' not in warehouse[-1]:
+                    warehouse[-1] += chunks[0]
+                    del chunks[0]
+            if chunks is None:
+                pass
+            else:
+                """ store in warehouse all the messages that are ignored in the iteration """
+                for c in chunks:
+                    warehouse.append(c)
+            received.append(warehouse[0])
+            """ remove the message sent to the gui in the warehouse """
+            del warehouse[0]
+            if b'\r\n' in received[-1]:
                 break
-        received = received.decode('utf-8')
+        """ join all the received chunks to be sent to the gui and decode the byte string """
+        received = b''.join(received).decode('utf-8')
         print("SERVER: " + received)
         return received
 
+    def start_receiver(self):
+        self.receiver = ReceiverThread(self.client_queue, self)
+        self.receiver.start()
 
-class GuiBackgroundThread(QThread):
+    def test_channel(self):
+        try:
+            self.socket.connect((self.host, int(self.port)))
+            return self.ping()
+        except:
+            return False
+
+    def ping(self):
+        try:
+            self.send("ping")
+            if self.receive() == "pong":
+                return True
+            return False
+        except:
+            return False
+
+
+class UpdatesThread(QThread):
     update = QtCore.pyqtSignal(str, str, name="update")
 
     def __init__(self, gui_queue: Queue, client_queue: Queue):
-        super(GuiBackgroundThread, self).__init__()
+        super(UpdatesThread, self).__init__()
         self.gui_queue = gui_queue
         self.client_queue = client_queue
         self.running = True
@@ -133,7 +166,7 @@ class GuiBackgroundThread(QThread):
             print("Keyboard Interrupt")
 
 
-class CctfThread(Thread):
+class ReceiverThread(Thread):
     def __init__(self, queue: Queue, client: Client):
         super().__init__()
         self.running = True
@@ -147,70 +180,31 @@ class CctfThread(Thread):
                 self.client_queue.put(data)
 
 
-class GuiClientThread(QThread):
-    update = QtCore.pyqtSignal(str, str, name="update")
-
-    def __init__(self, client_queue: Queue, gui_queue: Queue):
-        super(GuiClientThread, self).__init__()
-        self.client_queue = client_queue
-        self.gui_queue = gui_queue
-        self.client: Client
-        self.client = None
-        self.running = False
-        self.receiver: Optional[CctfThread]
-        self.receiver = None
-
-    def connect(self, host: str, port: int):
-        if self.client is not None:
-            self.client.disconnect()
-        self.client = Client(queue=self.client_queue, host=host, port=str(port))
-        chk, host, port = self.client.connect()
-        if chk:
-            self.update.emit(f"{host}:{port}", "CONNECTED")
-        else:
-            message = "Cannot connect to the server.\nTry to restart the application."
-            critical_dialog(message, type='ok')
-            return
-        if not self.running:
-            self.receiver = CctfThread(self.client_queue, self.client)
-            self.receiver.start()
-        self.running = True
-
-    def ping(self):
-        self.client.send("ping")
-        return self.client.receive()
-
-    def get_disks(self):
-        self.client.send("get_disks")
-
-    def erase_disk(self, drive: str):
-        self.client.send("queued_badblocks " + drive)
-
-    def disconnect(self):
-
-        self.client.disconnect()
-
-
-class GuiServerThread(QThread):
+class LocalServerThread(QThread):
     update = QtCore.pyqtSignal(str, str, name="update")
 
     def __init__(self, server_queue: Queue):
-        super(GuiServerThread, self).__init__()
+        super(LocalServerThread, self).__init__()
         self.server_queue = server_queue
         self.running = True
         self.server = None
 
-    def start(self):
-        self.server = subprocess.Popen(["python", PATH["SERVER"], "--local"], stderr=subprocess.PIPE,
-                                       stdout=subprocess.PIPE)
-        while True:
-            output = self.server.stderr.readline().decode('utf-8')
-            if "Listening on" in output:
-                self.server_queue.put("SERVER_READY")
-                break
+    def load_server(self, running: bool):
+        if not running:
+            if CURRENT_PLATFORM == "win32":
+                message = "Cannot run local server on windows machine."
+                critical_dialog(message=message, type='ok')
+                return
+            else:
+                self.server = subprocess.Popen(["python", PATH["SERVER"]], stderr=subprocess.PIPE,
+                                               stdout=subprocess.PIPE)
+            while True:
+                output = self.server.stderr.readline().decode('utf-8')
+                if "Listening on" in output:
+                    self.server_queue.put("SERVER_READY")
+                    break
+        else:
+            self.server_queue.put("SERVER_READY")
 
     def stop(self):
-        if CURRENT_PLATFORM == 'win32':
-            self.server.terminate()
-        else:
-            self.server.terminate()
+        self.running = False
