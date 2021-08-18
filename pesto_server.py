@@ -6,13 +6,16 @@ import time
 import os
 import threading
 import logging
-from typing import Optional
+from typing import Optional, Union
 from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO
 from twisted.internet import reactor, protocol
 from twisted.protocols.basic import LineOnlyReceiver
+import threading
+import logging
 from datetime import datetime
+
 from utilites import smartctl_get_status, parse_smartctl_output
 
 NAME = "turbofresa"
@@ -85,7 +88,6 @@ class Disk:
             self._item = self._tarallo.get_item(self._code, 0)
         else:
             self._item = None
-
 
 class ErrorThatCanBeManuallyFixed(BaseException):
     pass
@@ -182,22 +184,20 @@ class CommandRunner(threading.Thread):
             if not TEST_MODE:
                 # TODO: code from turbofresa goes here
                 q.notify_percentage(10, "0 bad blocks")
-                time.sleep(1)
+                threading.Event().wait(2)
                 q.notify_percentage(20, "0 bad blocks")
-                time.sleep(1)
+                threading.Event().wait(2)
                 q.notify_percentage(30, "2 bad blocks")
-                time.sleep(1)
+                threading.Event().wait(2)
                 q.notify_percentage(42, "2 bad blocks")
-                time.sleep(1)
+                threading.Event().wait(2)
                 q.notify_percentage(60, "2 bad blocks")
-                time.sleep(1)
+                threading.Event().wait(2)
                 q.notify_percentage(80, "2 bad blocks")
-                time.sleep(1)
+                threading.Event().wait(2)
                 q.notify_percentage(99, "3 bad blocks")
-                time.sleep(1)
-                #q.notify_finish("BADBLOCKS_END")
-                pass
-            q.notify_finish("3 bad blocks")
+                threading.Event().wait(2)
+                q.notify_finish("3 bad blocks")
 
     def get_smartctl(self, dev: str, q):
         q: Optional[QueuedCommand]
@@ -317,12 +317,14 @@ class CommandRunner(threading.Thread):
 class QueuedCommand:
     def __init__(self, disk: Disk, command_runner: CommandRunner):
         self.disk = disk
+        self._target = self.disk.get_path()
         self.command_runner = command_runner
         self._percentage = 0.0
         self._started = False
         self._finished = False
         self._error = False
         self._stopped = False
+        self._stale = False
         self._lock = threading.Lock()
         self._text = "Queued"
         date = datetime.today().strftime('%Y%m%d%H%M')
@@ -388,11 +390,12 @@ class QueuedCommand:
             "id": self._id,
             "command": self.command_runner.get_cmd(),
             "text": self._text,
-            "target": self.disk.get_path(),
+            "target": self._target,
             "percentage": self._percentage,
             "started": self._started,
             "finished": self._finished,
             "error": self._error,
+            "stale": self._stale,
             "stopped": self._stopped,
         }
 
@@ -409,7 +412,6 @@ class TurboProtocol(LineOnlyReceiver):
         with clients_lock:
             clients[self._id] = self
         logging.getLogger(NAME).debug(f"[{str(self._id)}] Client connected")
-        # self.send_msg("SERVER_READY")
 
     def connectionLost(self, reason=protocol.connectionDone):
         logging.getLogger(NAME).debug(f"[{str(self._id)}] Client disconnected")
@@ -621,7 +623,10 @@ if __name__ == '__main__':
     if CURRENT_OS == 'win32':
         main()
     else:
-        import daemon
-        import lockfile
-        with daemon.DaemonContext(pidfile=lockfile.FileLock(os.getenv("LOCKFILE_PATH", f'/var/run/{NAME}.pid'))):
+        if bool(os.getenv("DAEMONIZE", False)):
+            import daemon
+            import lockfile
+            with daemon.DaemonContext(pidfile=lockfile.FileLock(os.getenv("LOCKFILE_PATH", f'/var/run/{NAME}.pid'))):
+                main()
+        else:
             main()

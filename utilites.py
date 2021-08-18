@@ -3,14 +3,14 @@ import subprocess
 import os
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QTableWidgetItem
-import socket
 import ctypes
 
-def critical_dialog(message, type):
+
+def critical_dialog(message, dialog_type):
     dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error!", message)
-    if type == "ok":
+    if dialog_type == "ok":
         dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    elif type == "yes_no":
+    elif dialog_type == "yes_no":
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
@@ -23,14 +23,14 @@ def info_dialog(message):
     dialog.exec_()
 
 
-def warning_dialog(message: str, type: str):
-    if type == "yes_no":
+def warning_dialog(message: str, dialog_type: str):
+    if dialog_type == "yes_no":
         dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
         return dialog.exec_()
-    elif type == "ok":
+    elif dialog_type == "ok":
         dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
         dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
         return dialog.exec_()
@@ -288,11 +288,11 @@ def table_setup(table: QtWidgets.QTableWidget, labels: list):
     table.installEventFilter(table)
 
 
-def initialize_path(CURRENT_PLATFORM: str, PATH: {}):
-    if CURRENT_PLATFORM == "win32":
+def initialize_path(current_platform: str, big_path: {}):
+    if current_platform == "win32":
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("myappid")
-        for path in PATH:
-            PATH[path] = win_path(PATH[path])
+        for path in big_path:
+            big_path[path] = win_path(big_path[path])
     else:
-        for path in PATH:
-            PATH[path] = linux_path(PATH[path])
+        for path in big_path:
+            big_path[path] = linux_path(big_path[path])
