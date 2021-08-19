@@ -25,6 +25,36 @@ PEsto installs its dependencies automatically, while for basilico you'll need:
 pip install -r requirements_server.txt
 ```
 
+### Server configuration
+
+Configuration is read in this order:
+
+1. /etc/basilico.conf
+2. ~/.conf/WEEE-Open/basilico.conf
+3. env
+4. Environment variables
+
+The configuration file is a list of environment variables, here's an example:
+
+```bash
+# IP where the server listens, 127.0.0.1 by default
+IP=0.0.0.0
+# Port, default 1030.
+PORT=1030
+# Log level: DEBUG, INFO, WARNING, ERROR. Default INFO.
+LOGLEVEL=DEBUG
+# Start as a daemon or a normal process, boolean, not very well tested. Default false.
+DAEMONIZE=0
+# Lock file for the daemon. Default /var/run/basilico.pid.
+LOCKFILE_PATH=/var/run/basilico.pid
+# Tarallo URL for pytarallo. Default none (tarallo will not be used)
+TARALLO_URL=http://127.0.0.1:8080
+# Tarallo token, default none.
+TARALLO_TOKEN=yoLeCHmEhNNseN0BlG0s3A:ksfPYziGg7ebj0goT0Zc7pbmQEIYvZpRTIkwuscAM_k
+# If true, no destructive actions will be performed: no badblocks, no trimming, no cannolo. Default false.
+TEST_MODE=1
+```
+
 ## Functioning
 The program pesto.py (or pesto_noCmd.pyw to hide console) is a GUI software that can do all the supported operations on the drives of the local machine and can send commands to the "remote" server (another machine in the same local network) that can do the same operations.
 
@@ -32,7 +62,7 @@ The program pesto_server.py is the server side software that can get commands by
 
 **It's highly discouraged to use the client outside a local network for security reasons.**
 
-## Supported operations
+### Supported operations
 * Pialla disco: Wipe all data on the selected drive
 * Smart: Check SMART data of the selected drive and give an indication of the overall status of the device
 * Cannolo: Load a system image to the selected drive. The system image can be set in the settings panel

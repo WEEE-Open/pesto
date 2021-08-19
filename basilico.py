@@ -585,7 +585,8 @@ def main():
 
 def load_settings():
     # Load in order each file if exists, variables are not overwritten
-    load_dotenv('.env')
+    here = os.path.dirname(os.path.realpath(__file__))
+    load_dotenv(here + '/.env')
     load_dotenv(f'~/.conf/WEEE-Open/{NAME}.conf')
     load_dotenv(f'/etc/{NAME}.conf')
     # Defaults
