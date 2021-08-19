@@ -15,11 +15,15 @@ Is constituted by:
 ## Installation
 The software can work locally or remotely.
 For the client side:
-1. git clone https://github.com/WEEE-Open/pesto.git
-2. sudo chmod +x pesto.py
-3. In program folder: ./pesto.py  
+1. `git clone https://github.com/WEEE-Open/pesto.git`
+2. `sudo chmod +x pesto.py`
+3. In program folder: `./pesto.py` or `./basilico.py`
 
-For the server side is sufficient to place the pesto_server.py file in the working directory and execute it.
+PEsto installs its dependencies automatically, while for basilico you'll need:
+
+```bash
+pip install -r requirements_server.txt
+```
 
 ## Functioning
 The program pesto.py (or pesto_noCmd.pyw to hide console) is a GUI software that can do all the supported operations on the drives of the local machine and can send commands to the "remote" server (another machine in the same local network) that can do the same operations.
