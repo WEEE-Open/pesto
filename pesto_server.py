@@ -283,7 +283,7 @@ class CommandRunner(threading.Thread):
             stderr = pipe.stderr.read().decode('utf-16')
         else:
             pipe = subprocess \
-                .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE,
+                .Popen(("sudo", "smartctl", "-a", dev), stderr=subprocess.PIPE,
                        stdout=subprocess.PIPE)
             output = pipe.stdout.read().decode('utf-8')
             stderr = pipe.stderr.read().decode('utf-8')
