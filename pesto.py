@@ -6,6 +6,7 @@ Created on Fri Jul 30 10:54:18 2021
 @author: il_palmi
 """
 import json
+import time
 import traceback
 import logging
 import sys
@@ -13,7 +14,7 @@ from PyQt5 import uic
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtWidgets import QMenu
 from threads import *
-from PyQt5.QtCore import QEvent
+from PyQt5.QtCore import Qt
 
 SPACE = 5
 
@@ -72,14 +73,14 @@ warehouse = []
 
 # UI class
 class Ui(QtWidgets.QMainWindow):
-    def __init__(self, gui_queue: Queue, client_queue: Queue, server_queue: Queue) -> None:
+    def __init__(self, gui_queue: Queue, client_queue: Queue, server_queue: Queue, app: QtWidgets.QApplication) -> None:
         super(Ui, self).__init__()
         uic.loadUi(PATH["UI"], self)
         self.gui_queue = gui_queue          # Command queue for gui
         self.client_queue = client_queue    # Command queue for client
         self.server_queue = server_queue    # Command queue for server
+        self.app = app
         self.running = True
-        self.server_ready = False
 
         """ Defining all items in GUI """
         self.diskTable = None
@@ -105,26 +106,22 @@ class Ui(QtWidgets.QMainWindow):
         self.settings: QtCore.QSettings
         self.host = None
         self.port = None
-        self.remoteMode = None
+        self.remoteMode: bool
         self.driveSmartDataTab: QtWidgets.QTabWidget
-
 
         """ Initialization operations """
         self.find_items()
         self.show()
+        self.client = Client(self.client_queue, self.gui_queue)
+        self.server = LocalServer(self.server_queue)
         self.gui_thread = UpdatesThread(self.gui_queue, self.client_queue)
-        self.client_thread = Client(self.client_queue, self.gui_queue)
-        self.server_thread = LocalServerThread(self.server_queue)
-        self.client_thread.start()
-        if CURRENT_PLATFORM != 'win32':
-            self.server_thread.start()
-        elif self.settings.value("win32ServerStartupDialog") is None:
+        self.receiver_thread = ReceiverThread(self.client, self.client_queue)
+        if CURRENT_PLATFORM == 'win32':
             message = "Cannot run local server on windows machine."
             if critical_dialog(message=message, dialog_type='ok_dna'):
                 self.settings.setValue("win32ServerStartupDialog", 1)
         self.gui_thread.start()
         self.gui_thread.update.connect(self.gui_update)         # GUI thread signals
-        self.client_thread.update.connect(self.client_updates)  # client thread signals
         self.setup()
 
     def find_items(self):
@@ -141,10 +138,6 @@ class Ui(QtWidgets.QMainWindow):
         self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.diskTable.setColumnWidth(0, 77)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
-
-        # main layout
-        self.mainLayout = self.findChild(QtWidgets.QHBoxLayout, 'mainLayout')
-        self.installEventFilter(self.mainLayout)
 
         # queue table
         self.queueTable = self.findChild(QtWidgets.QTableWidget, 'queueTable')
@@ -251,7 +244,7 @@ class Ui(QtWidgets.QMainWindow):
         self.asdLabel.setMovie(self.gif)
         self.gif.start()
 
-        #smart data tab
+        # smart data tab
         self.driveSmartDataTab = self.findChild(QtWidgets.QTabWidget, "driveSmartDataTab")
 
     def latest_conf(self):
@@ -278,55 +271,44 @@ class Ui(QtWidgets.QMainWindow):
             warning_dialog(message, dialog_type='ok')
 
         # check if server alive
-        if self.client_thread.test_channel():
-            print("Found background server. Connecting.")
+        if self.client.test_channel(self.host, self.port):
+            print("Found server. Connecting.")
             self.server_queue.put("SERVER_READY")
+            self.client.connect(self.host, self.port)
         elif CURRENT_PLATFORM != 'win32':
             print("Starting local background server")
-            self.server_thread.load_server(running=False)
-        if not CURRENT_PLATFORM == 'win32':
+            self.server.load_server()
             while True:
                 if self.server_queue.get() == "SERVER_READY":
-                    self.client_thread.connect(self.host, self.port)
+                    self.client.connect(self.host, self.port)
                     break
         else:
-            self.client_thread.connect(self.host, self.port)
+            self.client.connect(self.host, self.port)
+
         # get disks list
-        if self.client_thread.running:
-            self.client_thread.start_receiver()
-            self.client_thread.send("get_disks")
+        if self.client.running:
+            self.client.send("get_disks")
+            if not self.receiver_thread.isRunning():
+                self.receiver_thread.start()
         else:
             message = "There is no server running on local/remote machine.\nPlease check the server status"
             warning_dialog(message, dialog_type='ok')
 
-    def eventFilter(self, source, event):
-        selected_row = self.queueTable.currentRow()
-        print(source)
-        if event.type() == 82 and source is self.queueTable and selected_row != -1:
-            menu = QMenu()
-            menu.addAction("Stop", self.stop_dialog)
-            menu.addAction("Remove", self.remove_dialog)
-            menu.addAction("Log")
-            menu.addAction("Info", self.info_dialog)
-            menu.exec_(event.globalPos())
-            return True
-        return super().eventFilter(source, event)
-
-    def stop_dialog(self):
-        id = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
-        message = 'Do you want to stop the process?\nID: ' + id
+    def queue_stop(self):
+        pid = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
+        message = 'Do you want to stop the process?\nID: ' + pid
         if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
             icon = self.queueTable.cellWidget(self.queueTable.currentRow(), 3)
             icon.setPixmap(QtGui.QPixmap(PATH["ERROR"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
 
-    def remove_dialog(self):
-        id = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
-        message = 'With this action you will also stop the process (ID: ' + id + ")\n"
+    def queue_remove(self):
+        pid = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
+        message = 'With this action you will also stop the process (ID: ' + pid + ")\n"
         message += 'Do you want to proceed?'
         if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
             self.queueTable.removeRow(self.queueTable.currentRow())
 
-    def info_dialog(self):
+    def queue_info(self):
         process = self.queueTable.cellWidget(self.queueTable.currentRow(), 1).text()
         message = ''
         if process == "Smart check":
@@ -351,7 +333,7 @@ class Ui(QtWidgets.QMainWindow):
             if critical_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
                 return
             self.textField.clear()
-            self.client_thread.send("queued_badblocks " + selected_drive)
+            self.client.send("queued_badblocks " + selected_drive)
 
         except:
             print("Error in erase Function")
@@ -366,7 +348,7 @@ class Ui(QtWidgets.QMainWindow):
             # TODO: Add new tab for every smart requested. If drive tab exist, use it.
             self.textField.clear()
             drive = selected_drive.text().lstrip("Disk ")
-            self.client_thread.send("queued_smartctl " + drive)
+            self.client.send("queued_smartctl " + drive)
 
         except:
             print("Error in smart function.")
@@ -382,7 +364,7 @@ class Ui(QtWidgets.QMainWindow):
                 selected_drive = selected_drive.text().lstrip("Disk ")
             message = "Do you want to load a fresh system installation in disk " + selected_drive + "?"
             if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
-                self.client_thread.send("queued_cannolo " + selected_drive)
+                self.client.send("queued_cannolo " + selected_drive)
 
         except:
             print("Error in cannolo function.")
@@ -398,6 +380,8 @@ class Ui(QtWidgets.QMainWindow):
             self.settings.setValue("latestPort", self.port)
             self.host = "127.0.0.1"
             self.port = 1030
+            self.hostInput.setText(self.host)
+            self.portInput.setText(str(self.port))
             self.hostInput.setReadOnly(True)
             self.portInput.setReadOnly(True)
             self.saveButton.setEnabled(False)
@@ -405,13 +389,14 @@ class Ui(QtWidgets.QMainWindow):
             self.directoryText.setReadOnly(True)
             self.cannoloLabel.setText("")
         elif self.remoteRadioBtn.isChecked():
+            if not self.remoteMode:
+                self.host = self.settings.value("latestHost")
+                self.port = str(self.settings.value("latestPort"))
             self.remoteMode = True
-            self.host = self.settings.value("latestHost")
-            self.port = str(self.settings.value("latestPort"))
             self.hostInput.setReadOnly(False)
             self.hostInput.setText(self.host)
             self.portInput.setReadOnly(False)
-            self.portInput.setText(self.port)
+            self.portInput.setText(str(self.port))
             self.saveButton.setEnabled(True)
             self.findButton.setEnabled(False)
             self.directoryText.setReadOnly(False)
@@ -504,32 +489,6 @@ class Ui(QtWidgets.QMainWindow):
         dir = dialog.getExistingDirectory(self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly)
         self.directoryText.setText(dir)
 
-    def client_updates(self, text, type):
-        if type == 'CONNECTED':
-            self.statusBar().showMessage(f"Connected to {text}")
-
-        elif type == 'PING':
-            self.statusBar().showMessage(text)
-
-        elif type == 'LIST_DISKS':
-            drives = text
-            if drives is None:
-                self.diskTable.clear()
-                self.diskTable.setRowCount(0)
-                return
-
-            # compile disks table with disks list
-            for row, d in enumerate(drives):
-                self.diskTable.setRowCount(row + 1)
-                self.diskTable.setItem(row, 0, QTableWidgetItem(d[0]))
-                if sys.platform == 'win32':
-                    self.diskTable.setItem(row, 1, QTableWidgetItem(str(int(float(d[1]) / 1000000000)) + " GiB"))
-                else:
-                    self.diskTable.setItem(row, 1, QTableWidgetItem(d[1]))
-
-        elif type == 'sessionTerminated':
-            self.statusBar().showMessage("Terminating Program")
-
     def gui_update(self, cmd: str, params: str):
         """
         Typical param str is:
@@ -590,16 +549,20 @@ class Ui(QtWidgets.QMainWindow):
             for line in text:
                 self.textField.append(line)
 
-        elif cmd == 'pong':
-            self.server_ready = True
-
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.settings.setValue("remoteMode", str(self.remoteMode))
         self.settings.setValue("remoteIp", self.hostInput.text())
         self.settings.setValue("remotePort", self.portInput.text())
         self.settings.setValue("cannoloDir", self.directoryText.text())
-        self.client_thread.disconnect()
-        sys.exit(0)
+        self.client.disconnect()
+        # self.client.disconnect()
+        self.client.receive()
+        self.receiver_thread.stop()
+        time.sleep(0.5)
+        print(self.receiver_thread.isRunning())
+        self.gui_thread.stop()
+        time.sleep(0.5)
+        print(self.gui_thread.isRunning())
 
 
 def main():
@@ -609,9 +572,8 @@ def main():
         client_queue = Queue()
         server_queue = Queue()
         app = QtWidgets.QApplication(sys.argv)
-        window = Ui(gui_bg_queue, client_queue, server_queue)
+        window = Ui(gui_bg_queue, client_queue, server_queue, app)
         app.exec_()
-        input()
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")

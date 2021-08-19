@@ -1,14 +1,15 @@
+import sys
 from typing import Optional
-from PyQt5 import uic, QtGui, QtCore
-from PyQt5.QtCore import Qt, QEvent, QThread
+from PyQt5 import QtCore
+from PyQt5.QtCore import QThread
 from utilites import *
 import socket
-from threading import Thread
+import traceback
 from queue import Queue
-from pesto import PATH, CURRENT_PLATFORM, warehouse
+from pesto import PATH, warehouse
 
 
-class Client(QThread):
+class Client:
     update = QtCore.pyqtSignal(str, str, name="update")
 
     """
@@ -21,13 +22,12 @@ class Client(QThread):
         - port
     """
     def __init__(self, client_queue: Queue, gui_queue: Queue):
-        super(Client, self).__init__()
         self.client_queue = client_queue
         self.gui_queue = gui_queue
-        self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.socket: socket.socket
         self.host = None
         self.port = None
-        self.running = False
+        self.running = True
         self.receiver: Optional[ReceiverThread]
         self.receiver = None
 
@@ -40,15 +40,21 @@ class Client(QThread):
         """
         # noinspection PyBroadException
         try:
-            self.running = False
-            self.socket.connect((host, int(port)))
             self.running = True
+            self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+            self.socket.connect((host, int(port)))
             return True, host, port
         except ConnectionRefusedError:
             print("Connection Refused: Client Unreachable")
+            self.disconnect()
             return False, host, port
-        except BaseException:
+        except BaseException as ex:
+            print(ex.args[1])
+            if ex.args[0] == 106:
+                self.running = True
+                return True, host, port
             print("Socket Error: Socket not connected and address not provided when sending on a datagram socket using a sendto call. Request to send or receive data canceled")
+            self.disconnect()
             return False, host, port
 
     def disconnect(self):
@@ -56,6 +62,7 @@ class Client(QThread):
         When called, close socket
         """
         self.socket.close()
+        self.running = False
 
     def send(self, msg: str):
         """
@@ -84,6 +91,7 @@ class Client(QThread):
         received = []
         BUFFER = 512
         string = b''
+        chunk = b''
         try:
             while True:
                 """ global warehouse is a list that all the unreaded messages from the gui."""
@@ -118,32 +126,47 @@ class Client(QThread):
                 if b'\r\n' in received[-1]:
                     break
             """ join all the received chunks to be sent to the gui and decode the byte string """
-            received = b''.join(received).decode('utf-8')
+            received = b''.join(received).decode('utf-8').strip("\r\n")
             print("SERVER: " + received)
             return received
 
         except ConnectionAbortedError:
             print("Connection Aborted.")
+        except OSError as err:
+            if err.args[0] == 9:
+                print("Socket closed")
+                return False
 
     def start_receiver(self):
         self.receiver = ReceiverThread(self.client_queue, self)
         self.receiver.start()
 
-    def test_channel(self):
+    def test_channel(self, host: str, port: int):
         try:
-            self.socket.connect((self.host, int(self.port)))
-            return self.ping()
-        except:
-            return False
+            self.host = host
+            self.port = int(port)
+            self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+            self.socket.connect((self.host, self.port))
+            test = self.ping()
+            self.send("exit")
+            return test
+        except OSError as ex:
+            if ex.args[0] == 106:
+                print(ex.args[1])
 
     def ping(self):
         try:
             self.send("ping")
-            if self.receive() == "pong":
+            asd = self.receive()
+            if asd == "pong":
                 return True
             return False
         except:
             return False
+
+    def stop(self):
+        self.disconnect()
+        self.running = False
 
 
 class UpdatesThread(QThread):
@@ -172,41 +195,51 @@ class UpdatesThread(QThread):
         except KeyboardInterrupt:
             print("Keyboard Interrupt")
 
+    def stop(self):
+        self.running = False
 
-class ReceiverThread(Thread):
-    def __init__(self, queue: Queue, client: Client):
-        super().__init__()
+
+class ReceiverThread(QThread):
+    def __init__(self, client: Client, client_queue: Queue):
+        super(ReceiverThread, self).__init__()
         self.running = True
-        self.client_queue = queue
         self.client = client
+        self.client_queue = client_queue
 
     def run(self):
         while self.running:
-            data = self.client.receive()
-            if data != '':
-                self.client_queue.put(data)
+            if self.client.running:
+                data = self.client.receive()
+                if data != '':
+                    self.client_queue.put(data)
+                if data is False:
+                    break
+        self.terminate()
+
+    def stop(self):
+        self.running = False
 
 
-class LocalServerThread(QThread):
+class LocalServer:
     update = QtCore.pyqtSignal(str, str, name="update")
 
     def __init__(self, server_queue: Queue):
-        super(LocalServerThread, self).__init__()
         self.server_queue = server_queue
-        self.running = True
-        self.server = None
+        self.server: subprocess.Popen
+        self.running = False
 
-    def load_server(self, running: bool):
-        if not running:
+    def load_server(self):
+        if not self.running:
             self.server = subprocess.Popen(["python", PATH["SERVER"]], stderr=subprocess.PIPE,
                                                stdout=subprocess.PIPE)
-            while True:
-                output = self.server.stderr.readline().decode('utf-8')
-                if "Listening on" in output:
-                    self.server_queue.put("SERVER_READY")
-                    break
+            self.running = True
+            while not "Listening on" in self.server.stderr.readline().decode('utf-8'):
+                pass
+            self.server_queue.put("SERVER_READY")
         else:
             self.server_queue.put("SERVER_READY")
 
     def stop(self):
+        if self.running:
+            self.server.terminate()
         self.running = False
