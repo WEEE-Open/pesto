@@ -37,7 +37,7 @@ SMARTCHECK = ["Power_On_Hours",
               "Current Pending Sector Count"]
 
 PATH = {"UI": "/assets/interface.ui",
-        "REQUIREMENTS": "/requirements.txt",
+        "REQUIREMENTS": "/requirements_client.txt",
         "CRASH": "/crashreport.txt",
         "ASD": "/assets/asd.gif",
         "RELOAD": "/assets/reload.png",
@@ -47,7 +47,7 @@ PATH = {"UI": "/assets/interface.ui",
         "OK": "/assets/ok.png",
         "WARNING": "/assets/warning.png",
         "ERROR": "/assets/error.png",
-        "SERVER": "/pesto_server.py",
+        "SERVER": "/basilico.py",
         "LOGFILE": "/tmp/crashreport.py"}
 
 QUEUE_TABLE = ["ID",

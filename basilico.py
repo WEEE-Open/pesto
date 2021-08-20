@@ -158,7 +158,7 @@ class CommandRunner(threading.Thread):
             try:
                 self._function(self._cmd, self._args)
             except BaseException as e:
-                logging.getLogger(NAME).error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
+                logging.error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
         finally:
             # The next thread on the disk can start, if there's a queue
             if self._queued_command:
@@ -283,7 +283,7 @@ class CommandRunner(threading.Thread):
             stderr = pipe.stderr.read().decode('utf-16')
         else:
             pipe = subprocess \
-                .Popen(("sudo", "smartctl", "-a", dev), shell=True, stderr=subprocess.PIPE,
+                .Popen(("sudo", "smartctl", "-a", dev), stderr=subprocess.PIPE,
                        stdout=subprocess.PIPE)
             output = pipe.stdout.read().decode('utf-8')
             stderr = pipe.stderr.read().decode('utf-8')
@@ -343,7 +343,7 @@ class CommandRunner(threading.Thread):
         the_id = the_id or self._the_id
         thread = clients.get(the_id)
         if thread is None:
-            logging.getLogger(NAME)\
+            logging\
                 .info(f"[{the_id}] Connection already closed while trying to send {cmd}")
         else:
             thread: TurboProtocol
@@ -358,7 +358,7 @@ class CommandRunner(threading.Thread):
                 # noinspection PyUnresolvedReferences
                 reactor.callFromThread(TurboProtocol.send_msg, thread, response_string)
             except BaseException:
-                logging.getLogger(NAME)\
+                logging\
                     .warning(f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)")
 
     def get_disks(self, cmd: str, dev: str):
@@ -484,10 +484,10 @@ class TurboProtocol(LineOnlyReceiver):
         self.factory.conn_id += 1
         with clients_lock:
             clients[self._id] = self
-        logging.getLogger(NAME).debug(f"[{str(self._id)}] Client connected")
+        logging.debug(f"[{str(self._id)}] Client connected")
 
     def connectionLost(self, reason=protocol.connectionDone):
-        logging.getLogger(NAME).debug(f"[{str(self._id)}] Client disconnected")
+        logging.debug(f"[{str(self._id)}] Client disconnected")
         with clients_lock:
             del clients[self._id]
 
@@ -495,21 +495,22 @@ class TurboProtocol(LineOnlyReceiver):
         try:
             line = line.decode('utf-8')
         except UnicodeDecodeError as e:
-            logging.getLogger(NAME).warning(f"[{str(self._id)}] Oh no, UnicodeDecodeError!", exc_info=e)
+            logging.warning(f"[{str(self._id)}] Oh no, UnicodeDecodeError!", exc_info=e)
             return
 
         # \n is stripped by twisted, but with \r\n the \r is still there
         if not self._delimiter_found:
             if len(line) > 0 and line[-1] == '\r':
                 self.delimiter = b'\r\n'
-                logging.getLogger(NAME).debug(f"[{str(self._id)}] Client has delimiter \\r\\n")
+                logging.debug(f"[{str(self._id)}] Client has delimiter \\r\\n")
             else:
-                logging.getLogger(NAME).debug(f"[{str(self._id)}] Client has delimiter \\n")
+                logging.debug(f"[{str(self._id)}] Client has delimiter \\n")
             self._delimiter_found = True
 
         # Strip \r on first message (if \r\n) and any trailing whitespace
         line = line.strip()
         if line.startswith('exit'):
+            logging.debug(f"[{str(self._id)}] Client sent exit, closing connection")
             self.transport.loseConnection()
         else:
             parts = line.split(' ', 1)
@@ -523,7 +524,7 @@ class TurboProtocol(LineOnlyReceiver):
         if self._delimiter_found:
             self.sendLine(response.encode('utf-8'))
         else:
-            logging.getLogger(NAME)\
+            logging\
                 .warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
 
 
@@ -584,7 +585,8 @@ def main():
 
 def load_settings():
     # Load in order each file if exists, variables are not overwritten
-    load_dotenv('.env')
+    here = os.path.dirname(os.path.realpath(__file__))
+    load_dotenv(here + '/.env')
     load_dotenv(f'~/.conf/WEEE-Open/{NAME}.conf')
     load_dotenv(f'/etc/{NAME}.conf')
     # Defaults
