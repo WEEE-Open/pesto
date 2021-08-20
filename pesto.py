@@ -113,7 +113,7 @@ class Ui(QtWidgets.QMainWindow):
         self.find_items()
         self.show()
         self.client = Client(self.client_queue, self.gui_queue)
-        self.server = LocalServer(self.server_queue)
+        self.localServer = LocalServer(self.server_queue)
         self.gui_thread = UpdatesThread(self.gui_queue, self.client_queue)
         self.receiver_thread = ReceiverThread(self.client, self.client_queue)
         if CURRENT_PLATFORM == 'win32':
@@ -263,6 +263,7 @@ class Ui(QtWidgets.QMainWindow):
                 self.port = None
 
     def setup(self):
+        self.receiver_thread.stop()
         self.set_remote_mode()
 
         # check if the host and port field are set
@@ -270,25 +271,40 @@ class Ui(QtWidgets.QMainWindow):
             message = "The host and port combination is not set.\nPlease visit the settings section."
             warning_dialog(message, dialog_type='ok')
 
-        # check if server alive
-        if self.client.test_channel(self.host, self.port):
-            print("Found server. Connecting.")
-            self.server_queue.put("SERVER_READY")
-            self.client.connect(self.host, self.port)
-        elif CURRENT_PLATFORM != 'win32':
-            print("Starting local background server")
-            self.server.load_server()
-            while True:
-                if self.server_queue.get() == "SERVER_READY":
-                    self.client.connect(self.host, self.port)
-                    break
+        """
+        The client try to connect to the BASILICO. If it can't and the client is in remote mode, then 
+        a critical error is shown and the client goes in idle. If the client is in local mode and it cannot reach a
+        BASILICO server, a new BASILICO process is instantiated.
+        """
+        if not self.client.connect(self.host, self.port):
+            if self.remoteMode:
+                message = "Cannot reach BASILICO server.\nPlease, check if the server is running."
+                critical_dialog(message, dialog_type='ok')
+                return
+            else:
+                self.localServer.load_server()
+                while self.server_queue.get() != "SERVER_READY":  # wait until a SERVER_READY message
+                    pass
+                if not self.client.connect(self.host, self.port):
+                    message = "There was an error with the local server."
+                    critical_dialog(message, dialog_type='ok')
+
+                # if CURRENT_PLATFORM != 'win32':
+                #     self.localServer.load_server()
+                #     while self.server_queue.get() != "SERVER_READY":    # wait until a SERVER_READY message
+                #         pass
+                #     if not self.client.connect(self.host, self.port):
+                #         message = "There was an error with the local server."
+                #         critical_dialog(message, dialog_type='ok')
+                #         return
         else:
-            self.client.connect(self.host, self.port)
+            print(f"Found server. Connecting to {self.host} : {self.port}")
+            self.server_queue.put("SERVER_READY")
 
         # get disks list
         if self.client.running:
             self.client.send("get_disks")
-            if not self.receiver_thread.isRunning():
+            if not self.receiver_thread.running:
                 self.receiver_thread.start()
         else:
             message = "There is no server running on local/remote machine.\nPlease check the server status"
@@ -370,9 +386,9 @@ class Ui(QtWidgets.QMainWindow):
             print("Error in cannolo function.")
 
     def set_remote_mode(self):
-        if CURRENT_PLATFORM == 'win32':
-            self.remoteRadioBtn.setChecked(True)
-            self.localRadioBtn.setCheckable(False)
+        # if CURRENT_PLATFORM == 'win32':
+        #     self.remoteRadioBtn.setChecked(True)
+        #     self.localRadioBtn.setCheckable(False)
         if self.localRadioBtn.isChecked():
             self.remoteMode = False
             self.remoteMode = False
@@ -405,6 +421,9 @@ class Ui(QtWidgets.QMainWindow):
     def refresh(self):
         self.host = self.hostInput.text()
         self.port = int(self.portInput.text())
+        self.diskTable.setRowCount(0)
+        self.queueTable.setRowCount(0)
+        self.client.send("exit")
         self.setup()
 
     def restore(self):

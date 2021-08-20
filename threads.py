@@ -24,38 +24,36 @@ class Client:
     def __init__(self, client_queue: Queue, gui_queue: Queue):
         self.client_queue = client_queue
         self.gui_queue = gui_queue
-        self.socket: socket.socket
+        self.socket = None
         self.host = None
         self.port = None
         self.running = True
-        self.receiver: Optional[ReceiverThread]
         self.receiver = None
+        global warehouse
 
     def connect(self, host: str, port: str):
         """
         When called, try to connect to the host:port combination.
         If the server is not up or is unreachable, it raise the ConnectionRefusedError exception.
-        If the connection is established, then it checks if the server send a confirm message: if the message
-        arrives it will be put in the queue, else a RuntimeError exception will be raised.
+        It return True if a connection is established or already existing and False if it cannot connect.
         """
-        # noinspection PyBroadException
         try:
             self.running = True
             self.socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
             self.socket.connect((host, int(port)))
-            return True, host, port
+            return True
         except ConnectionRefusedError:
             print("Connection Refused: Client Unreachable")
             self.disconnect()
-            return False, host, port
+            return False
         except BaseException as ex:
             print(ex.args[1])
             if ex.args[0] == 106:
                 self.running = True
-                return True, host, port
+                return True
             print("Socket Error: Socket not connected and address not provided when sending on a datagram socket using a sendto call. Request to send or receive data canceled")
             self.disconnect()
-            return False, host, port
+            return False
 
     def disconnect(self):
         """
@@ -95,7 +93,6 @@ class Client:
         try:
             while True:
                 """ global warehouse is a list that all the unreaded messages from the gui."""
-                global warehouse
                 """ 
                 check if there is a command in the warehouse. If yes, it will be sent to the gui instead of
                  waiting for a new message from server 
@@ -120,11 +117,13 @@ class Client:
                     """ store in warehouse all the messages that are ignored in the iteration """
                     for c in chunks:
                         warehouse.append(c)
-                received.append(warehouse[0])
-                """ remove the message sent to the gui in the warehouse """
-                del warehouse[0]
-                if b'\r\n' in received[-1]:
-                    break
+                if len(warehouse) > 0:
+                    received.append(warehouse[0])
+                    """ remove the message sent to the gui in the warehouse """
+                    del warehouse[0]
+                if len(received) > 0:
+                    if b'\r\n' in received[-1]:
+                        break
             """ join all the received chunks to be sent to the gui and decode the byte string """
             received = b''.join(received).decode('utf-8').strip("\r\n")
             print("SERVER: " + received)
@@ -136,6 +135,8 @@ class Client:
             if err.args[0] == 9:
                 print("Socket closed")
                 return False
+        except:
+            print(traceback.print_exc(file=sys.stdout))
 
     def start_receiver(self):
         self.receiver = ReceiverThread(self.client_queue, self)
@@ -207,6 +208,7 @@ class ReceiverThread(QThread):
         self.client_queue = client_queue
 
     def run(self):
+        self.running = True
         while self.running:
             if self.client.running:
                 data = self.client.receive()
@@ -214,7 +216,6 @@ class ReceiverThread(QThread):
                     self.client_queue.put(data)
                 if data is False:
                     break
-        self.terminate()
 
     def stop(self):
         self.running = False
