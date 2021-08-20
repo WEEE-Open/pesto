@@ -8,4 +8,5 @@ labeled_*.csv
 .~lock.*
 venv/
 .env
-crashreport.txt
+tmp/crashreport.txt
+tmp/crashreport.py
