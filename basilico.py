@@ -619,6 +619,11 @@ def get_disks_win() -> list:
     output = json.loads(output)
     pipe.kill()
     big_result = []
+
+    # If there's a single disk, Windows returns the disk dict directly, instead
+    # of a list with a single element
+    if "DiskNumber" in output:
+        output = [output]
     for disk in output:
         disk: dict
         if disk["OperationalStatus"] == "No Media":
