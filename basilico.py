@@ -123,12 +123,13 @@ class CommandRunner(threading.Thread):
             self.send_msg("error", {"message": "Unrecognized command", "command": cmd})
             self._function = None
         self._queued_command = None
-        if disk_for_queue:
+        if disk_for_queue is not None:  # Empty string must enter this branch
             # No need to lock, disks are never deleted, so if it is found then it is valid
             disk = disks.get(disk_for_queue, None)
             if not disk:
                 self.send_msg('error', {"message": f"{args} is not a disk"})
                 self._function = None
+                return
             # Do not start yet, just prepare the data structure
             self._queued_command = QueuedCommand(disk, self)
 
@@ -283,7 +284,7 @@ class CommandRunner(threading.Thread):
             stderr = pipe.stderr.read().decode('utf-16')
         else:
             pipe = subprocess \
-                .Popen(("sudo", "smartctl", "-a", dev), stderr=subprocess.PIPE,
+                .Popen(("sudo", "-n", "smartctl", "-a", dev), stderr=subprocess.PIPE,
                        stdout=subprocess.PIPE)
             output = pipe.stdout.read().decode('utf-8')
             stderr = pipe.stderr.read().decode('utf-8')
@@ -313,6 +314,7 @@ class CommandRunner(threading.Thread):
                 except BaseException as e:
                     self._queued_command.notify_error("Error during upload")
                     logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
+            self._queued_command.notify_finish(f"Disk is {status}")
         return {
             "disk": dev,
             "status": status,
