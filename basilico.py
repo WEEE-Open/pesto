@@ -215,24 +215,92 @@ class CommandRunner(threading.Thread):
 
     # noinspection PyUnusedLocal
     def badblocks(self, cmd: str, dev: str):
-        self._queued_command.notify_start("Running")
-        # if not TEST_MODE:
-        # TODO: code from turbofresa goes here
-        self._queued_command.notify_percentage(10, "0 bad blocks")
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(20, "0 bad blocks")
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(30, "2 bad blocks")
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(42, "2 bad blocks")
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(60, "2 bad blocks")
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(80, "2 bad blocks")
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(99, "3 bad blocks")
-        threading.Event().wait(2)
-        self._queued_command.notify_finish("3 bad blocks")
+        self._queued_command.notify_start("Running badblocks")
+        if TEST_MODE:
+            self._queued_command.notify_percentage(10, "0 errors")
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(20, "0 errors")
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(30, "2 errors")
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(42, "2 errors")
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(60, "2 errors")
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(80, "2 errors")
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(99, "3 errors")
+            threading.Event().wait(2)
+            self._queued_command.notify_finish("Finished with 3 errors")
+        else:
+
+            # TODO: should it mark the disk as not erased on tarallo?
+
+            pipe = subprocess.Popen(('sudo', '-n', 'badblocks', '-s', '-w', '-t', '0x00', dev),
+                                    stderr=subprocess.PIPE)  # , stdout=subprocess.PIPE)
+
+            # TODO: restore this code and kill badblocks if it's too slow (the disk is probably broken)
+            # disk_gb = self.disk['features']['capacity-byte'] / 1024 ** 3
+            # mins_per_gb = 2  # TODO: could be set with a config file?
+            # timeout = 60 * mins_per_gb * disk_gb
+
+            percent = 0.0
+            errors = -1
+            deleting = False
+            buffer = bytearray()
+            for char in iter(lambda: pipe.stderr.read(1), ""):
+                if char == b'\b':
+                    if not deleting:
+                        result = buffer.decode('utf-8')
+                        errors_print = "?"
+
+                        # If other messages are printed, ignore them
+                        i = result.index("% done")
+                        if i >= 0:
+                            percent = float(result[i-6:i])
+                            i = result.index("(", i)
+                            if i >= 0:
+                                # errors_str = result[i+1:].split(")", 1)[0]
+                                errors_str = result[i+1:].split(" ", 1)[0]
+                                # The errors are read, write and corruption
+                                errors_str = errors_str.split("/")
+                                errors = 0  # badblocks prints the 3 totals every time
+                                for error in errors_str:
+                                    errors += int(error)
+                                errors_print = str(errors)
+                            self._queued_command.notify_percentage(percent, f"{errors_print} errors")
+                        buffer.clear()
+                        deleting = True
+                # elif char == b'\n':
+                #     # Skip the first lines (total number of blocks)
+                #     buffer.clear()
+                else:
+                    if deleting:
+                        deleting = False
+                    buffer += char
+
+            pipe.wait()
+            exitcode = pipe.wait()
+
+            if errors <= -1:
+                errors_print = "an unknown amount of"
+            elif errors == 0:
+                errors_print = "no"
+            else:
+                errors_print = str(errors)
+            final_message = f"Finished with {errors_print} errors"
+
+            if exitcode == 0:
+                self._queued_command.notify_finish(final_message)
+            else:
+                self._queued_command.notify_error()
+                final_message += f" and badblocks exited with status {exitcode}"
+                self._queued_command.notify_finish(final_message)
+
+            # print(pipe.stdout.readline().decode('utf-8'))
+            # print(pipe.stderr.readline().decode('utf-8'))
+
+            # TODO: upload to tarallo
 
     # noinspection PyUnusedLocal
     def ping(self, cmd: str, dev: str):
