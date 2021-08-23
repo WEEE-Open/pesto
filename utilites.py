@@ -1,7 +1,7 @@
 import re
 import subprocess
 import os
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtWidgets import QTableWidgetItem
 import ctypes
 
@@ -10,11 +10,21 @@ def critical_dialog(message, dialog_type):
     dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Error!", message)
     if dialog_type == "ok":
         dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        return dialog.exec_()
     elif dialog_type == "yes_no":
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
-    return dialog.exec_()
+        return dialog.exec_()
+    elif dialog_type == "ok_dna":
+        dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        non_fraccare_btn = dialog.addButton("Non fraccare", dialog.ActionRole)
+        dialog.setDefaultButton(QtWidgets.QMessageBox.Ok)
+        dialog.exec_()
+        if dialog.clickedButton() == non_fraccare_btn:
+            return True
+        else:
+            return False
 
 
 def info_dialog(message):
@@ -54,21 +64,6 @@ def linux_path(path):
 
 def check_requirements(requirements_path):
     subprocess.Popen(["pip", "install", "-r", requirements_path, "--quiet"])
-
-
-def data_output(data, maximum):
-    output = []
-    space = 5
-    for row in data:
-        temp = row[0]
-        temp += ":"
-        while len(temp) < maximum + space:
-            temp += " "
-        if len(row) < 3:
-            output.append(temp + row[1])
-        else:
-            output.append(temp + row[2])
-    return output
 
 
 def parse_smartctl_output(smartctl) -> dict:
@@ -285,7 +280,6 @@ def table_setup(table: QtWidgets.QTableWidget, labels: list):
     table.setColumnWidth(2, 50)
     table.setColumnWidth(3, 50)
     table.horizontalHeader().setStretchLastSection(True)
-    table.installEventFilter(table)
 
 
 def initialize_path(current_platform: str, big_path: {}):
