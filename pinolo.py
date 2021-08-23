@@ -93,6 +93,7 @@ class Ui(QtWidgets.QMainWindow):
 
         """ Defining all items in GUI """
         self.globalTab = self.findChild(QtWidgets.QTabWidget, 'globalTab')
+        self.gif = QMovie(PATH["ASD"])
         self.diskTable = self.findChild(QtWidgets.QTableWidget, 'tableWidget')
         self.queueTable = self.findChild(QtWidgets.QTableWidget, 'queueTable')
         self.reloadButton = self.findChild(QtWidgets.QPushButton, 'reloadButton')
@@ -113,7 +114,6 @@ class Ui(QtWidgets.QMainWindow):
         self.themeSelector = self.findChild(QtWidgets.QComboBox, 'themeSelector')
         self.asdLabel = self.findChild(QtWidgets.QLabel, "asdLabel")
         self.directoryText = self.findChild(QtWidgets.QLineEdit, "directoryText")
-        self.gif = QMovie(PATH["ASD"])
         self.smartLayout = self.findChild(QtWidgets.QVBoxLayout, 'smartLayout')
         self.smartTabs = SmartTabs()
         self.smartLayout.addWidget(self.smartTabs)
@@ -235,6 +235,10 @@ class Ui(QtWidgets.QMainWindow):
             self.cannoloLabel.setText("")
 
         # theme selector
+        for key in self.settings.childKeys():
+            if "theme" in key:
+                self.themeSelector.setCurrentText(self.settings.value(key))
+                self.set_theme()
         self.themeSelector.currentTextChanged.connect(self.set_theme)
 
         # asd tab
@@ -491,6 +495,9 @@ class Ui(QtWidgets.QMainWindow):
         if self.themeSelector.currentText() == "Dark":
             with open(PATH["DARKTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
+            self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
+            self.backgroundLabel.clear()
+            self.reloadButton.setIconSize(QtCore.QSize(25,25))
         elif self.themeSelector.currentText() == "Vaporwave":
             if CURRENT_PLATFORM == 'win32':
                 with open(PATH["WINVAPORTHEME"]) as file:
@@ -500,6 +507,7 @@ class Ui(QtWidgets.QMainWindow):
                     self.app.setStyleSheet(file.read())
             self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(50,50))
+            self.backgroundLabel.clear()
         elif self.themeSelector.currentText() == "Asd":
             if CURRENT_PLATFORM == 'win32':
                 with open(PATH["ASDWINTHEME"]) as file:
@@ -507,15 +515,19 @@ class Ui(QtWidgets.QMainWindow):
             else:
                 with open(PATH["ASDTHEME"], "r") as file:
                     self.app.setStyleSheet(file.read())
+            self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
             self.movie = QMovie(PATH["ASD"])
-            self.movie.frameChanged.connect(self.repaint)
+            self.movie.setScaledSize(QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio))
             self.movie.start()
-            palette = self.globalTab.palette()
-            palette.setBrush(QtGui.QPalette, QtGui.QBrush(QtGui.QPixmap("assets/asd.gif")))
-            self.globalTab.setPalette(palette)
+            self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
+            self.backgroundLabel.setMovie(self.movie)
+            self.reloadButton.setIconSize(QtCore.QSize(25,25))
         else:
             self.app.setStyleSheet("")
+            self.backgroundLabel.clear()
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
+            self.reloadButton.setIconSize(QtCore.QSize(25,25))
+
 
     def gui_update(self, cmd: str, params: str):
         """
@@ -599,6 +611,7 @@ class Ui(QtWidgets.QMainWindow):
         self.settings.setValue("remoteIp", self.hostInput.text())
         self.settings.setValue("remotePort", self.portInput.text())
         self.settings.setValue("cannoloDir", self.directoryText.text())
+        self.settings.setValue("theme", self.themeSelector.currentText())
         self.client.stop()
 
 
