@@ -5,16 +5,15 @@ Created on Fri Jul 30 10:54:18 2021
 
 @author: il_palmi
 """
-import json
-import time
 import logging
 import sys
 import traceback
-from PyQt5 import uic
+from PyQt5 import uic, QtGui
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtCore import Qt
 from client import *
 from utilites import *
+from queue import Queue
 
 SPACE = 5
 
@@ -41,6 +40,7 @@ PATH = {"UI": "/assets/interface.ui",
         "CRASH": "/crashreport.txt",
         "ASD": "/assets/asd.gif",
         "RELOAD": "/assets/reload.png",
+        "VAPORWAVERELOAD": "/assets/vapman.png",
         "PENDING": "/assets/pending.png",
         "ICON": "/assets/icon.png",
         "PROGRESS": "/assets/progress.png",
@@ -48,7 +48,10 @@ PATH = {"UI": "/assets/interface.ui",
         "WARNING": "/assets/warning.png",
         "ERROR": "/assets/error.png",
         "SERVER": "/basilico.py",
-        "LOGFILE": "/tmp/crashreport.py"}
+        "LOGFILE": "/tmp/crashreport.py",
+        "DARKTHEME": "/themes/darkTheme.ssh",
+        "VAPORTHEME": "/themes/vaporwaveTheme.ssh",
+        "ASDTHEME": "/themes/asdTheme.ssh"}
 
 QUEUE_TABLE = ["ID",
                "Process",
@@ -68,8 +71,6 @@ initialize_path(CURRENT_PLATFORM, PATH)
 
 logging.basicConfig(level=logging.DEBUG, filename=PATH["LOGFILE"])
 
-warehouse = []
-
 
 # UI class
 class Ui(QtWidgets.QMainWindow):
@@ -85,18 +86,18 @@ class Ui(QtWidgets.QMainWindow):
         self.port = None
         self.remoteMode = False
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
-        self.client = ReactorThread
+        self.client = None
         self.client: ReactorThread
 
-
         """ Defining all items in GUI """
+        self.globalTab = self.findChild(QtWidgets.QTabWidget, 'globalTab')
         self.diskTable = self.findChild(QtWidgets.QTableWidget, 'tableWidget')
         self.queueTable = self.findChild(QtWidgets.QTableWidget, 'queueTable')
         self.reloadButton = self.findChild(QtWidgets.QPushButton, 'reloadButton')
         self.eraseButton = self.findChild(QtWidgets.QPushButton, 'eraseButton')
         self.smartButton = self.findChild(QtWidgets.QPushButton, 'smartButton')
         self.cannoloButton = self.findChild(QtWidgets.QPushButton, 'cannoloButton')
-        self.textField = self.findChild(QtWidgets.QTextEdit, 'textEdit')
+        self.stdProcedureButton = self.findChild(QtWidgets.QPushButton, 'stdProcButton')
         self.localRadioBtn = self.findChild(QtWidgets.QRadioButton, 'localRadioBtn')
         self.remoteRadioBtn = self.findChild(QtWidgets.QRadioButton, 'remoteRadioBtn')
         self.hostInput = self.findChild(QtWidgets.QLineEdit, 'remoteIp')
@@ -107,12 +108,16 @@ class Ui(QtWidgets.QMainWindow):
         self.ipList = self.findChild(QtWidgets.QListWidget, "ipList")
         self.findButton = self.findChild(QtWidgets.QPushButton, "findButton")
         self.cannoloLabel = self.findChild(QtWidgets.QLabel, "cannoloLabel")
+        self.themeSelector = self.findChild(QtWidgets.QComboBox, 'themeSelector')
         self.asdLabel = self.findChild(QtWidgets.QLabel, "asdLabel")
         self.directoryText = self.findChild(QtWidgets.QLineEdit, "directoryText")
         self.gif = QMovie(PATH["ASD"])
-        self.driveSmartDataTab = self.findChild(QtWidgets.QTabWidget, "driveSmartDataTab")
+        self.smartLayout = self.findChild(QtWidgets.QVBoxLayout, 'smartLayout')
+        self.smartTabs = SmartTabs()
+        self.smartLayout.addWidget(self.smartTabs)
 
         """ Initialization operations """
+
         self.set_items_functions()
         self.show()
         self.localServer = LocalServer(self.server_queue)
@@ -133,12 +138,17 @@ class Ui(QtWidgets.QMainWindow):
         self.diskTable.setHorizontalHeaderItem(0, QTableWidgetItem("Drive"))
         self.diskTable.setHorizontalHeaderItem(1, QTableWidgetItem("Dimension"))
         self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.diskTable.setColumnWidth(0, 77)
+        self.diskTable.setColumnWidth(0, 65)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
+        self.diskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
         # queue table
         self.queueTable.setRowCount(0)
         table_setup(self.queueTable, QUEUE_TABLE)
+        self.queueTable.horizontalHeader().setStretchLastSection(True)
+        self.queueTable.setColumnWidth(0,125)
+        self.queueTable.setColumnWidth(2,65)
+        self.queueTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
         # reload button
         self.reloadButton.clicked.connect(self.refresh)
@@ -153,14 +163,17 @@ class Ui(QtWidgets.QMainWindow):
         # cannolo button
         self.cannoloButton.clicked.connect(self.cannolo)
 
+        # standard procedure button
+        self.stdProcedureButton.clicked.connect(self.std_procedure)
+
         # text field
-        self.textField.setReadOnly(True)
-        font = self.textField.document().defaultFont()
-        font.setFamily("Monospace")
-        font.setStyleHint(QtGui.QFont.Monospace)
-        self.textField.document().setDefaultFont(font)
-        self.textField.setCurrentFont(font)
-        self.textField.setFontPointSize(10)
+        # self.textField.setReadOnly(True)
+        # font = self.textField.document().defaultFont()
+        # font.setFamily("Monospace")
+        # font.setStyleHint(QtGui.QFont.Monospace)
+        # self.textField.document().setDefaultFont(font)
+        # self.textField.setCurrentFont(font)
+        # self.textField.setFontPointSize(10)
 
         # local radio button
         if not self.remoteMode:
@@ -218,6 +231,9 @@ class Ui(QtWidgets.QMainWindow):
         else:
             self.cannoloLabel.setText("")
 
+        # theme selector
+        self.themeSelector.currentTextChanged.connect(self.set_theme)
+
         # asd tab
         self.asdLabel.setMovie(self.gif)
         self.gif.start()
@@ -251,7 +267,7 @@ class Ui(QtWidgets.QMainWindow):
         a critical error is shown and the client goes in idle. If the client is in local mode and it cannot reach a
         BASILICO server, a new BASILICO process is instantiated.
         """
-        self.client = ReactorThread(self.host, self.port, self.client_queue)
+        self.client = ReactorThread(self.host, self.port)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
 
@@ -281,7 +297,15 @@ class Ui(QtWidgets.QMainWindow):
             message += "Wipe off all data in the selected drive."
         info_dialog(message)
 
-    def erase(self):
+    def std_procedure(self):
+        message = "Do you want to wipe all disk's data and load a fresh system image?"
+        if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
+            self.erase(std=True)
+            self.smart()
+            self.cannolo(std=True)
+
+    def erase(self, std=False):
+        # noinspection PyBroadException
         try:
             selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
             if selected_drive is None:
@@ -290,16 +314,17 @@ class Ui(QtWidgets.QMainWindow):
                 return
             else:
                 selected_drive = selected_drive.text().lstrip("Disk ")
-            message = "Do you want to wipe all disk's data?\nDisk: " + selected_drive
-            if critical_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
-                return
-            self.textField.clear()
+            if not std:
+                message = "Do you want to wipe all disk's data?\nDisk: " + selected_drive
+                if critical_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
+                    return
             self.client.send("queued_badblocks " + selected_drive)
 
-        except:
+        except BaseException:
             print("Error in erase Function")
 
     def smart(self):
+        # noinspection PyBroadException
         try:
             selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
             if selected_drive is None:
@@ -307,14 +332,14 @@ class Ui(QtWidgets.QMainWindow):
                 warning_dialog(message, dialog_type='ok')
                 return
             # TODO: Add new tab for every smart requested. If drive tab exist, use it.
-            self.textField.clear()
             drive = selected_drive.text().lstrip("Disk ")
             self.client.send("queued_smartctl " + drive)
 
-        except:
+        except BaseException:
             print("Error in smart function.")
 
-    def cannolo(self):
+    def cannolo(self, std=False):
+        # noinspection PyBroadException
         try:
             selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
             if selected_drive is None:
@@ -323,11 +348,13 @@ class Ui(QtWidgets.QMainWindow):
                 return
             else:
                 selected_drive = selected_drive.text().lstrip("Disk ")
-            message = "Do you want to load a fresh system installation in disk " + selected_drive + "?"
-            if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
-                self.client.send("queued_cannolo " + selected_drive)
+            if not std:
+                message = "Do you want to load a fresh system installation in disk " + selected_drive + "?"
+                if warning_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
+                    return
+            self.client.send("queued_cannolo " + selected_drive)
 
-        except:
+        except BaseException:
             print("Error in cannolo function.")
 
     def set_remote_mode(self):
@@ -457,6 +484,21 @@ class Ui(QtWidgets.QMainWindow):
         directory = dialog.getExistingDirectory(self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly)
         self.directoryText.setText(directory)
 
+    def set_theme(self):
+        if self.themeSelector.currentText() == "Dark":
+            with open(PATH["DARKTHEME"], "r") as file:
+                self.app.setStyleSheet(file.read())
+        elif self.themeSelector.currentText() == "Vaporwave":
+            with open(PATH["VAPORTHEME"], "r") as file:
+                self.app.setStyleSheet(file.read())
+            self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
+            self.reloadButton.setIconSize(QtCore.QSize(50,50))
+        elif self.themeSelector.currentText() == "Asd":
+            with open(PATH["ASDTHEME"], "r") as file:
+                self.app.setStyleSheet(file.read())
+        else:
+            self.app.setStyleSheet("")
+
     def gui_update(self, cmd: str, params: str):
         """
         Typical param str is:
@@ -511,10 +553,28 @@ class Ui(QtWidgets.QMainWindow):
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
                 self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
 
+
         elif cmd == 'smartctl' or cmd == 'queued_smartctl':
             text = ["Drive: " + params["disk"], "########################", "Smartctl output:\n " + params["output"]]
-            for line in text:
-                self.textField.append(line)
+            tab_count = self.smartTabs.count()
+            tab = 0
+            for tab in range(tab_count + 1):
+                if self.smartTabs.tabText(tab) == params["disk"]:
+                    message= "Il tab per il dosco esiste già asd.\nVuoi sovrascrivere l'output?"
+                    if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
+                        for line in text:
+                            self.smartTabs.text_boxes[tab].append(line)
+                elif tab == tab_count:
+                    self.smartTabs.add_tab(params["disk"])
+                    for line in text:
+                        self.smartTabs.text_boxes[tab].append(line)
+
+        elif cmd == 'connection_failed':
+            message = params["reason"]
+            if "Connection was refused by other side" in message:
+                message = "Cannot find BASILICO server.\nCheck if it's running in the " \
+                          "targeted machine."
+            warning_dialog(message, dialog_type="ok")
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.settings.setValue("remoteMode", str(self.remoteMode))
@@ -531,13 +591,14 @@ class LocalServer:
         self.server_queue = server_queue
         self.server: subprocess.Popen
         self.running = False
+        self.server = None
 
     def load_server(self):
         if not self.running:
             self.server = subprocess.Popen(["python", PATH["SERVER"]], stderr=subprocess.PIPE,
-                                               stdout=subprocess.PIPE)
+                                           stdout=subprocess.PIPE)
             self.running = True
-            while not "Listening on" in self.server.stderr.readline().decode('utf-8'):
+            while "Listening on" not in self.server.stderr.readline().decode('utf-8'):
                 pass
             self.server_queue.put("SERVER_READY")
         else:
@@ -550,6 +611,7 @@ class LocalServer:
 
 
 def main():
+    # noinspection PyBroadException
     try:
         check_requirements(PATH["REQUIREMENTS"])
         gui_bg_queue = Queue()
@@ -562,7 +624,7 @@ def main():
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
 
-    except Exception:
+    except BaseException:
         logging.exception(traceback.print_exc(file=sys.stdout))
 
 

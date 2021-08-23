@@ -4,7 +4,7 @@ import subprocess
 import sys
 import os
 from collections import deque
-from typing import Optional, Callable, Any
+from typing import Optional, Callable
 from pytarallo import Tarallo
 from dotenv import load_dotenv
 from io import StringIO

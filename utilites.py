@@ -18,10 +18,10 @@ def critical_dialog(message, dialog_type):
         return dialog.exec_()
     elif dialog_type == "ok_dna":
         dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        non_fraccare_btn = dialog.addButton("Non fraccare", dialog.ActionRole)
+        do_not_ask_btn = dialog.addButton("Don't ask again", dialog.ActionRole)
         dialog.setDefaultButton(QtWidgets.QMessageBox.Ok)
         dialog.exec_()
-        if dialog.clickedButton() == non_fraccare_btn:
+        if dialog.clickedButton() == do_not_ask_btn:
             return True
         else:
             return False
@@ -290,3 +290,20 @@ def initialize_path(current_platform: str, big_path: {}):
     else:
         for path in big_path:
             big_path[path] = linux_path(big_path[path])
+
+
+class SmartTabs(QtWidgets.QTabWidget):
+    def __init__(self):
+        super().__init__()
+        self.text_boxes = []
+
+    def add_tab(self, drive: str):
+        textBox = QtWidgets.QTextEdit()
+        textBox.setReadOnly(True)
+        font = QtGui.QFont("Courier")
+        font.setStyleHint(QtGui.QFont.TypeWriter)
+        textBox.setFont(font)
+        textBox.setFontPointSize(10)
+        textBox.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
+        self.text_boxes.append(textBox)
+        self.addTab(self.text_boxes[-1], drive)

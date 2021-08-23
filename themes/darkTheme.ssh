@@ -1,0 +1,74 @@
+QMainWindow {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+    border-color: rgb(188, 188, 188);
+}
+
+QPushButton {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+}
+
+QTabWidget {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+}
+
+QTableWidget {
+    background-color: rgb(49, 52, 59);
+    alternate-background-color: rgb(82, 87, 99);
+    color: rgb(255, 255, 255);
+}
+
+Qlabel {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+}
+
+QTabBar {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+}
+
+QTableView {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+}
+
+QFrame {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+    border-color: rgb(188, 188, 188);
+}
+
+QGroupBox {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+    border-color: rgb(188, 188, 188);
+}
+
+QRadioButton {
+    color: rgb(255, 255, 255);
+}
+
+QLineEdit {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+    border-color: rgb(188, 188, 188);
+}
+
+QMessageBox {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+    border-color: rgb(188, 188, 188);
+}
+
+QComboBox {
+    background-color: rgb(49, 52, 59);
+    color: rgb(255, 255, 255);
+    border-color: rgb(188, 188, 188);
+}
+
+QProgressBar {
+    color: rgb(255, 255, 255);
+}
