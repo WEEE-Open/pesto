@@ -51,7 +51,9 @@ PATH = {"UI": "/assets/interface.ui",
         "LOGFILE": "/tmp/crashreport.py",
         "DARKTHEME": "/themes/darkTheme.ssh",
         "VAPORTHEME": "/themes/vaporwaveTheme.ssh",
-        "ASDTHEME": "/themes/asdTheme.ssh"}
+        "ASDTHEME": "/themes/asdTheme.ssh",
+        "WINVAPORTHEME": "/themes/vaporwaveWinTheme.ssh",
+        "ASDWINTHEME": "/themes/asdWinTheme.ssh"}
 
 QUEUE_TABLE = ["ID",
                "Process",
@@ -119,12 +121,13 @@ class Ui(QtWidgets.QMainWindow):
         """ Initialization operations """
 
         self.set_items_functions()
-        self.show()
         self.localServer = LocalServer(self.server_queue)
         if CURRENT_PLATFORM == 'win32':
             message = "Cannot run local server on windows machine."
             if critical_dialog(message=message, dialog_type='ok_dna'):
                 self.settings.setValue("win32ServerStartupDialog", 1)
+            self.app.setStyle("Windows")
+        self.show()
         self.setup()
 
     def set_items_functions(self):
@@ -489,15 +492,30 @@ class Ui(QtWidgets.QMainWindow):
             with open(PATH["DARKTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
         elif self.themeSelector.currentText() == "Vaporwave":
-            with open(PATH["VAPORTHEME"], "r") as file:
-                self.app.setStyleSheet(file.read())
+            if CURRENT_PLATFORM == 'win32':
+                with open(PATH["WINVAPORTHEME"]) as file:
+                    self.app.setStyleSheet(file.read())
+            else:
+                with open(PATH["VAPORTHEME"], "r") as file:
+                    self.app.setStyleSheet(file.read())
             self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(50,50))
         elif self.themeSelector.currentText() == "Asd":
-            with open(PATH["ASDTHEME"], "r") as file:
-                self.app.setStyleSheet(file.read())
+            if CURRENT_PLATFORM == 'win32':
+                with open(PATH["ASDWINTHEME"]) as file:
+                    self.app.setStyleSheet(file.read())
+            else:
+                with open(PATH["ASDTHEME"], "r") as file:
+                    self.app.setStyleSheet(file.read())
+            self.movie = QMovie(PATH["ASD"])
+            self.movie.frameChanged.connect(self.repaint)
+            self.movie.start()
+            palette = self.globalTab.palette()
+            palette.setBrush(QtGui.QPalette, QtGui.QBrush(QtGui.QPixmap("assets/asd.gif")))
+            self.globalTab.setPalette(palette)
         else:
             self.app.setStyleSheet("")
+            self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
 
     def gui_update(self, cmd: str, params: str):
         """
