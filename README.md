@@ -9,9 +9,6 @@ Is constituted by:
 - B.A.S.I.L.I.C.O. "Badblocks Asincrono Smart Incredibile Lancio Istantaneo di Cannoli Olistico" --> Server
 - P.I.N.O.L.O. "Procacciatore di Informazioni Notevoli e Operazioni Laboriose Online"  --> Client
 
-![image](https://user-images.githubusercontent.com/39865402/128496857-68cf7025-24fe-4621-abca-ae62219e13ac.png)
-![image](https://user-images.githubusercontent.com/39865402/128496754-393a145d-3e66-487b-8418-d654a85efd15.png)
-
 ## Installation
 The software can work locally or remotely.
 For the client side:
@@ -67,6 +64,12 @@ The program pesto_server.py is the server side software that can get commands by
 * Smart: Check SMART data of the selected drive and give an indication of the overall status of the device
 * Cannolo: Load a system image to the selected drive. The system image can be set in the settings panel
 
+## Screenshots  
+
+![image](https://user-images.githubusercontent.com/39865402/130485205-2e5669df-9c13-49f7-9275-9bd141b3dec7.png)
+![image](https://user-images.githubusercontent.com/39865402/130485454-2e14848d-56b5-45ac-926d-e891d3972e65.png)
+![image](https://user-images.githubusercontent.com/39865402/130485478-73a0e3ff-87fa-46aa-8e4e-d20f46d6bad1.png)
 
 <div>Icons made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>  
 <div>Icons made by <a href="https://roundicons.com/" title="Roundicons">Roundicons</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>  
+<a href='https://www.freepik.com/vectors/background'>Background vector created by starline - www.freepik.com</a>
