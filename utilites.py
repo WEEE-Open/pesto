@@ -66,21 +66,6 @@ def check_requirements(requirements_path):
     subprocess.Popen(["pip", "install", "-r", requirements_path, "--quiet"])
 
 
-def data_output(data, maximum):
-    output = []
-    space = 5
-    for row in data:
-        temp = row[0]
-        temp += ":"
-        while len(temp) < maximum + space:
-            temp += " "
-        if len(row) < 3:
-            output.append(temp + row[1])
-        else:
-            output.append(temp + row[2])
-    return output
-
-
 def parse_smartctl_output(smartctl) -> dict:
     found = {}
     errors = 0
