@@ -87,7 +87,14 @@ class Disk:
 
     def _get_code(self, stop_on_error: bool = True):
         if not self._tarallo:
-            self._code = None
+            if TEST_MODE:
+                num = ord(self._path[-1])
+                if num % 2:
+                    self._code = 'H' + str(num)
+                else:
+                    self._code = None
+            else:
+                self._code = None
             return
         if "serial" not in self._lsblk:
             self._code = None
