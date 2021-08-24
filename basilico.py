@@ -28,6 +28,7 @@ class Disk:
         if "path" not in self._lsblk:
             raise RuntimeError("lsblk did not provide path for this disk: " + self._lsblk)
         self._path = str(self._lsblk["path"])
+        self._composite_id = Disk.make_composite_id(self._lsblk)
         self._code = None
         self._item = None
 
@@ -37,6 +38,13 @@ class Disk:
         self._tarallo = tarallo
         self._get_code(False)
         self._get_item()
+
+    @staticmethod
+    def make_composite_id(lsblk: dict):
+        return lsblk.get("path"), lsblk.get("wwn"), lsblk.get("serial")
+
+    def compare_composite_id(self, lsblk_other: dict):
+        return self._composite_id == self.make_composite_id(lsblk_other)
 
     def enqueue(self, cmd_runner):
         cmd_runner: CommandRunner
@@ -57,10 +65,14 @@ class Disk:
     def get_path(self):
         return self._path
 
-    def update_from_tarallo_if_needed(self):
+    def update_from_tarallo_if_needed(self) -> bool:
+        changes = False
         if not self._code:
+            old_code = self._code
             self._get_code(True)
+            changes = self._code == old_code
         self._get_item()
+        return changes
 
     def serialize_disk(self):
         result = self._lsblk
@@ -232,6 +244,8 @@ class CommandRunner(threading.Thread):
             self._queued_command.notify_percentage(99, "3 errors")
             threading.Event().wait(2)
             self._queued_command.notify_finish("Finished with 3 errors")
+
+            update_disks_if_needed(self)
         else:
 
             # TODO: should it mark the disk as not erased on tarallo?
@@ -300,7 +314,9 @@ class CommandRunner(threading.Thread):
             # print(pipe.stdout.readline().decode('utf-8'))
             # print(pipe.stderr.readline().decode('utf-8'))
 
-            # TODO: upload to tarallo
+            with disks_lock:
+                update_disks_if_needed(self)
+                # TODO: upload to tarallo
 
     # noinspection PyUnusedLocal
     def ping(self, cmd: str, dev: str):
@@ -330,6 +346,9 @@ class CommandRunner(threading.Thread):
         self._queued_command.notify_percentage(90)
         threading.Event().wait(2)
         self._queued_command.notify_finish("Xubuntu 99.99 LTS installed!")
+
+        update_disks_if_needed(self)
+
 
     def get_smartctl(self, cmd: str, args: str):
         params = self._get_smartctl(args, False)
@@ -374,14 +393,17 @@ class CommandRunner(threading.Thread):
 
         if queued and status:
             self._queued_command.notify_percentage(50.0, "Updating tarallo if needed")
+
             with disks_lock:
-                self.update_disk_if_needed(disks[dev])
-                # noinspection PyBroadException
-                try:
-                    updated = disks[dev].update_status(status)
-                except BaseException as e:
-                    self._queued_command.notify_error("Error during upload")
-                    logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
+                update_disks_if_needed(self)
+                disk_ref = disks[dev]
+
+            # noinspection PyBroadException
+            try:
+                updated = disk_ref.update_status(status)
+            except BaseException as e:
+                self._queued_command.notify_error("Error during upload")
+                logging.warning(f"[{self._the_id}] Can't update status of {dev} on tarallo", exc_info=e)
             self._queued_command.notify_finish(f"Disk is {status}")
         return {
             "disk": dev,
@@ -391,18 +413,6 @@ class CommandRunner(threading.Thread):
             "output": output,
             "stderr": stderr,
         }
-
-    def update_disk_if_needed(self, disk: Disk):
-        # TODO: a more granular lock is possible, here. But is it really needed?
-        # Do not use the queue lock, though
-        with disks_lock:
-            # noinspection PyBroadException
-            try:
-                disk.update_from_tarallo_if_needed()
-            except ErrorThatCanBeManuallyFixed as e:
-                self.send_msg("error_that_can_be_manually_fixed", {"message": str(e), "disk": disk})
-            except BaseException:
-                pass
 
     @staticmethod
     def _encode_param(param):
@@ -432,29 +442,13 @@ class CommandRunner(threading.Thread):
                     .warning(f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)")
 
     def get_disks(self, cmd: str, dev: str):
-        if CURRENT_OS == 'win32':
-            param = get_disks_win()
-        else:
-            param = self.get_disks_to_send()
-        self.send_msg(cmd, param)
-
-    def get_disks_to_send(self):
         result = []
         with disks_lock:
+            # Sent regardless
+            update_disks_if_needed(self, False)
             for disk in disks:
-                if disks[disk] is None:
-                    lsblk = get_disks(disk)
-                    if len(lsblk) > 0:
-                        lsblk = lsblk[0]
-                    # noinspection PyBroadException
-                    try:
-                        disks[disk] = Disk(lsblk, TARALLO)
-                    except BaseException as e:
-                        logging.warning(f"Error with disk {disk} still remains", exc_info=e)
-                if disks[disk] is not None:
-                    self.update_disk_if_needed(disks[disk])
-                    result.append(disks[disk].serialize_disk())
-        return result
+                result.append(disks[disk].serialize_disk())
+        self.send_msg(cmd, result)
 
 
 class QueuedCommand:
@@ -598,23 +592,91 @@ class TurboProtocol(LineOnlyReceiver):
                 .warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
 
 
+def update_disks_if_needed(this_thread: Optional[CommandRunner], send: bool = True):  # , disk: Optional[str] = None):
+    with disks_lock:
+        disks_lsblk = get_disks()
+        found_disks = set()
+
+        changes = False
+        for lsblk in disks_lsblk:
+            path = lsblk.get("path")
+            if path:
+                path = str(lsblk["path"])
+            else:
+                # logging.warning("Disk has no path, ignoring: " + lsblk)
+                continue
+
+            found_disks.add(path)
+            add = False
+            if path in disks:
+                if disks[path].compare_composite_id(lsblk):
+                    try:
+                        more_changes = disks[path].update_from_tarallo_if_needed()
+                        changes = changes or more_changes
+                    except ErrorThatCanBeManuallyFixed as e:
+                        if this_thread:
+                            this_thread.send_msg("error_that_can_be_manually_fixed", {"message": str(e), "disk": path})
+
+                else:
+                    logging.info(f"Disk {path} has changed")
+                    del disks[path]
+                    add = True
+            else:
+                logging.info(f"Disk {path} is new")
+                add = True
+            if add:
+                # noinspection PyBroadException
+                try:
+                    disks[path] = Disk(lsblk, TARALLO)
+                    changes = True
+                except BaseException as e:
+                    logging.warning("Exception while re-scanning for disks, skipping", exc_info=e)
+
+        # RuntimeError: dictionary changed size during iteration
+        to_delete = []
+        for path in disks:
+            if path in found_disks:
+                continue
+            else:
+                logging.info(f"Disk {path} is gone")
+                to_delete.append(path)
+
+        for path in to_delete:
+            del disks[path]
+            changes = True
+
+        if send and changes and this_thread:
+            result = []
+            with disks_lock:
+                for disk in disks:
+                    result.append(disks[disk].serialize_disk())
+            this_thread.send_msg('get_disks', result)
+
+
 def scan_for_disks():
-    logging.debug("Scanning for disks")
+    with disks_lock:
+        logging.debug("Scanning for disks")
+        disks_lsblk = get_disks()
+        for disk_lsblk in disks_lsblk:
+            path = disk_lsblk.get("path")
+            if path:
+                path = str(disk_lsblk["path"])
+            else:
+                logging.warning("Disk has no path, ignoring: " + disk_lsblk)
+                continue
+            # noinspection PyBroadException
+            try:
+                disks[path] = Disk(disk_lsblk, TARALLO)
+            except BaseException as e:
+                logging.warning("Exception while scanning for disks, skipping", exc_info=e)
+
+
+def get_disks():
     if CURRENT_OS == 'win32':
         disks_lsblk = get_disks_win()
     else:
-        disks_lsblk = get_disks()
-    for disk in disks_lsblk:
-        if "path" not in disk:
-            logging.warning("Disk has no path, ignoring: " + disk)
-            continue
-        path = str(disk["path"])
-        # noinspection PyBroadException
-        try:
-            with disks_lock:
-                disks[path] = Disk(disk, TARALLO)
-        except BaseException as e:
-            logging.warning("Exception while scanning disk, skipping", exc_info=e)
+        disks_lsblk = get_disks_linux()
+    return disks_lsblk
 
 
 def main():
@@ -732,7 +794,7 @@ def find_mounts(el: dict):
     return mounts
 
 
-def get_disks(path: Optional[str] = None) -> list:
+def get_disks_linux(path: Optional[str] = None) -> list:
     # Name is required, otherwise the tree is flattened
     output = subprocess\
         .getoutput(f"lsblk -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT,SIZE -J {path if path else ''}")
