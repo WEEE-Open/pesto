@@ -17,7 +17,6 @@ QTableWidget > QWidget {
 
 Qlabel {
     background-color: rgba(199, 199, 199, 100);
-    color: rgb(255, 255, 255);
 }
 
 QTabBar {
@@ -51,7 +50,7 @@ QLineEdit {
 
 QMessageBox {
     background-color: rgba(255, 255, 0, 170);
-    border-color: rgb(188, 188, 188);
+    color: rgb(255,255,255)
 }
 
 QComboBox {

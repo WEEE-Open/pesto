@@ -44,7 +44,15 @@ def warning_dialog(message: str, dialog_type: str):
         dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
         dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
         return dialog.exec_()
-
+    elif dialog_type == "yes_no_chk":
+        dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
+        dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
+        dialog.addButton(QtWidgets.QMessageBox.No)
+        dialog.setDefaultButton(QtWidgets.QMessageBox.No)
+        cb = QtWidgets.QCheckBox("Click here to load cannolo image.")
+        dialog.setCheckBox(cb)
+        result = [dialog.exec_(), True if cb.isChecked() else False]
+        return result
 
 def win_path(path):
     new_path = r""

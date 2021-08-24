@@ -8,6 +8,9 @@ Created on Fri Jul 30 10:54:18 2021
 import logging
 import sys
 import traceback
+from typing import Union
+
+import PyQt5.QtWidgets
 from PyQt5 import uic, QtGui
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtCore import Qt
@@ -47,6 +50,7 @@ PATH = {"UI": "/assets/interface.ui",
         "OK": "/assets/ok.png",
         "WARNING": "/assets/warning.png",
         "ERROR": "/assets/error.png",
+        "STOP": "/assets/stop.png",
         "SERVER": "/basilico.py",
         "LOGFILE": "/tmp/crashreport.py",
         "DARKTHEME": "/themes/darkTheme.ssh",
@@ -112,14 +116,12 @@ class Ui(QtWidgets.QMainWindow):
         self.findButton = self.findChild(QtWidgets.QPushButton, "findButton")
         self.cannoloLabel = self.findChild(QtWidgets.QLabel, "cannoloLabel")
         self.themeSelector = self.findChild(QtWidgets.QComboBox, 'themeSelector')
-        self.asdLabel = self.findChild(QtWidgets.QLabel, "asdLabel")
         self.directoryText = self.findChild(QtWidgets.QLineEdit, "directoryText")
         self.smartLayout = self.findChild(QtWidgets.QVBoxLayout, 'smartLayout')
         self.smartTabs = SmartTabs()
         self.smartLayout.addWidget(self.smartTabs)
 
         """ Initialization operations """
-
         self.set_items_functions()
         self.localServer = LocalServer(self.server_queue)
         if CURRENT_PLATFORM == 'win32':
@@ -129,6 +131,38 @@ class Ui(QtWidgets.QMainWindow):
             self.app.setStyle("Windows")
         self.show()
         self.setup()
+        # self.queueTable.installEventFilter(self)
+
+        self.queueTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.stop_action = QtWidgets.QAction("Stop", self)
+        self.stop_action.triggered.connect(self.queue_stop)
+        self.queueTable.addAction(self.stop_action)
+        self.remove_action = QtWidgets.QAction("Remove", self)
+        self.remove_action.triggered.connect(self.queue_remove)
+        self.queueTable.addAction(self.remove_action)
+        self.remove_all_action = QtWidgets.QAction("Remove All", self)
+        self.remove_all_action.triggered.connect(self.queue_clear)
+        self.queueTable.addAction(self.remove_all_action)
+        self.info_action = QtWidgets.QAction("Info", self)
+        self.info_action.triggered.connect(self.queue_info)
+        self.queueTable.addAction(self.info_action)
+        self.queueTable.itemSelectionChanged.connect(self.on_table_select)
+
+        self.stop_action.setEnabled(False)
+        self.remove_action.setEnabled(False)
+        self.remove_all_action.setEnabled(True)
+        self.info_action.setEnabled(False)
+
+    def on_table_select(self):
+        sel = self.queueTable.currentRow()
+        if sel == -1:
+            self.stop_action.setEnabled(False)
+            self.remove_action.setEnabled(False)
+            self.info_action.setEnabled(False)
+        else:
+            self.stop_action.setEnabled(True)
+            self.remove_action.setEnabled(True)
+            self.info_action.setEnabled(True)
 
     def set_items_functions(self):
         # set icon
@@ -241,11 +275,18 @@ class Ui(QtWidgets.QMainWindow):
                 self.set_theme()
         self.themeSelector.currentTextChanged.connect(self.set_theme)
 
-        # asd tab
-        self.asdLabel.setMovie(self.gif)
-        self.gif.start()
-
-        # smart data tab
+    def eventFilter(self, source, event):
+        if event.type() == QtCore.QEvent.ContextMenu:
+            asd = self.queueTable.itemClicked
+            if source is self.queueTable and self.queueTable.selectedItems() != -1:
+                menu = QtWidgets.QMenu()
+                menu.addAction("asd")
+                menu.addAction("bsd")
+                menu.addAction("csd")
+                if menu.exec_(event.globalPos()):
+                    print("asd")
+                return True
+        return super().eventFilter(source, event)
 
     def latest_conf(self):
         self.remoteMode = self.settings.value("remoteMode")
@@ -278,22 +319,32 @@ class Ui(QtWidgets.QMainWindow):
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
 
+    def deselect(self):
+        self.queueTable.clearSelection()
+        self.queueTable.clearFocus()
+
     def queue_stop(self):
-        pid = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
+        pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = 'Do you want to stop the process?\nID: ' + pid
         if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
-            icon = self.queueTable.cellWidget(self.queueTable.currentRow(), 3)
-            icon.setPixmap(QtGui.QPixmap(PATH["ERROR"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
+            self.client.send(f"stop {pid}")
+        self.deselect()
 
     def queue_remove(self):
-        pid = self.queueTable.cellWidget(self.queueTable.currentRow(), 0).text()
+        pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = 'With this action you will also stop the process (ID: ' + pid + ")\n"
         message += 'Do you want to proceed?'
         if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
+            self.client.send("remove")
             self.queueTable.removeRow(self.queueTable.currentRow())
+        self.deselect()
+
+    def queue_clear(self):
+        self.queueTable.setRowCount(0)
+        self.client.send("remove all")
 
     def queue_info(self):
-        process = self.queueTable.cellWidget(self.queueTable.currentRow(), 1).text()
+        process = self.queueTable.item(self.queueTable.currentRow(), 1).text()
         message = ''
         if process == "Smart check":
             message += "Process type: " + process + "\n"
@@ -303,13 +354,17 @@ class Ui(QtWidgets.QMainWindow):
             message += "Process type: " + process + "\n"
             message += "Wipe off all data in the selected drive."
         info_dialog(message)
+        self.deselect()
 
     def std_procedure(self):
         message = "Do you want to wipe all disk's data and load a fresh system image?"
-        if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
+        dialog = warning_dialog(message, dialog_type='yes_no_chk')
+        if dialog[0] == QtWidgets.QMessageBox.Yes:
             self.erase(std=True)
-            self.smart()
-            self.cannolo(std=True)
+            self.smart(std=True)
+            if dialog[1]:
+                self.cannolo(std=True)
+            self.sleep()
 
     def erase(self, std=False):
         # noinspection PyBroadException
@@ -330,13 +385,15 @@ class Ui(QtWidgets.QMainWindow):
         except BaseException:
             print("Error in erase Function")
 
-    def smart(self):
+    def smart(self, std=False):
         # noinspection PyBroadException
         try:
             selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
             if selected_drive is None:
-                message = "There are no selected drives."
-                warning_dialog(message, dialog_type='ok')
+                if not std:
+                    message = "There are no selected drives."
+                    warning_dialog(message, dialog_type='ok')
+                    return
                 return
             # TODO: Add new tab for every smart requested. If drive tab exist, use it.
             drive = selected_drive.text().lstrip("Disk ")
@@ -350,8 +407,10 @@ class Ui(QtWidgets.QMainWindow):
         try:
             selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
             if selected_drive is None:
-                message = "There are no selected drives."
-                warning_dialog(message, dialog_type='ok')
+                if not std:
+                    message = "There are no selected drives."
+                    warning_dialog(message, dialog_type='ok')
+                    return
                 return
             else:
                 selected_drive = selected_drive.text().lstrip("Disk ")
@@ -360,6 +419,23 @@ class Ui(QtWidgets.QMainWindow):
                 if warning_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
                     return
             self.client.send("queued_cannolo " + selected_drive)
+
+        except BaseException:
+            print("Error in cannolo function.")
+
+    def sleep(self, std=False):
+        # noinspection PyBroadException
+        try:
+            selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+            if selected_drive is None:
+                if not std:
+                    message = "There are no selected drives."
+                    warning_dialog(message, dialog_type='ok')
+                    return
+                return
+            else:
+                selected_drive = selected_drive.text().lstrip("Disk ")
+            self.client.send("queued_sleep " + selected_drive)
 
         except BaseException:
             print("Error in cannolo function.")
@@ -380,7 +456,7 @@ class Ui(QtWidgets.QMainWindow):
             self.hostInput.setReadOnly(True)
             self.portInput.setReadOnly(True)
             self.saveButton.setEnabled(False)
-            self.findButton.setEnabled(True)
+            self.findButton.clicked.connect(self.find_directory)
             self.directoryText.setReadOnly(True)
             self.cannoloLabel.setText("")
         elif self.remoteRadioBtn.isChecked():
@@ -393,7 +469,7 @@ class Ui(QtWidgets.QMainWindow):
             self.portInput.setReadOnly(False)
             self.portInput.setText(str(self.port))
             self.saveButton.setEnabled(True)
-            self.findButton.setEnabled(False)
+            self.findButton.clicked.connect(self.find_image)
             self.directoryText.setReadOnly(False)
             self.cannoloLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
 
@@ -491,6 +567,14 @@ class Ui(QtWidgets.QMainWindow):
         directory = dialog.getExistingDirectory(self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly)
         self.directoryText.setText(directory)
 
+    def find_image(self):
+        # noinspection PyBroadException
+        try:
+            self.client.send("img_dir " + self.directoryText.text())
+
+        except BaseException:
+            print("Error in smart function.")
+
     def set_theme(self):
         if self.themeSelector.currentText() == "Dark":
             with open(PATH["DARKTHEME"], "r") as file:
@@ -528,7 +612,6 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
 
-
     def gui_update(self, cmd: str, params: str):
         """
         Typical param str is:
@@ -540,28 +623,41 @@ class Ui(QtWidgets.QMainWindow):
         """
         try:
             params = json.loads(params)
-            params: dict
+            params: Union[dict, list]
         except json.decoder.JSONDecodeError:
             print(f"Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
-        if cmd == 'queue_status':
-            row = 0
-            rows = self.queueTable.rowCount()
-            for row in range(rows + 1):
-                # Check if we already have that id
-                item = self.queueTable.item(row, 0)
-                if item is not None and item.text() == params["id"]:
-                    # print("found " + params["id"] + " on line " + str(row))
-                    break
-                elif item is None:
-                    self.update_queue(pid=params["id"], drive=params["target"], mode=params["command"])
-                    # print("added row " + str(row))
-                    rows += 1
-            progress_bar = self.queueTable.cellWidget(row, 4)
-            progress_bar.setValue(int(params["percentage"]))
-            if int(params["percentage"]) == 100:
-                status = self.queueTable.cellWidget(row, 3)
-                status.setPixmap(QtGui.QPixmap(PATH["OK"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
+        if cmd == 'queue_status' or cmd == 'get_queue':
+            if cmd == 'queue_status':
+                params = [params]
+            for param in params:
+                param: dict
+                row = 0
+                rows = self.queueTable.rowCount()
+                for row in range(rows + 1):
+                    # Check if we already have that id
+                    item = self.queueTable.item(row, 0)
+                    if item is not None and item.text() == param["id"]:
+                        break
+                    elif item is None:
+                        self.update_queue(pid=param["id"], drive=param["target"], mode=param["command"])
+                        rows += 1
+                progress_bar = self.queueTable.cellWidget(row, 4)
+                status_cell = self.queueTable.cellWidget(row, 3)
+                progress_bar.setValue(int(param["percentage"]))
+                if param["stale"]:
+                    pass
+                elif param["stopped"]:
+                    # TODO: we don't have an icon for this, maybe we should
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
+                elif param["error"]:
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["ERROR"]).scaledToHeight(25, Qt.SmoothTransformation))
+                elif param["finished"]:  # and not error
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["OK"]).scaledToHeight(25, Qt.SmoothTransformation))
+                elif param["started"]:
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
+                else:
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
 
         elif cmd == 'get_disks':
             drives = params
@@ -583,9 +679,8 @@ class Ui(QtWidgets.QMainWindow):
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
                 self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
 
-
         elif cmd == 'smartctl' or cmd == 'queued_smartctl':
-            text = ["Drive: " + params["disk"], "########################", "Smartctl output:\n " + params["output"]]
+            text = ("Smartctl output:\n " + params["output"]).splitlines()
             tab_count = self.smartTabs.count()
             tab = 0
             for tab in range(tab_count + 1):
@@ -605,6 +700,13 @@ class Ui(QtWidgets.QMainWindow):
                 message = "Cannot find BASILICO server.\nCheck if it's running in the " \
                           "targeted machine."
             warning_dialog(message, dialog_type="ok")
+
+        elif cmd == 'connection_made':
+            self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
+
+        elif cmd == 'img_found':
+            for img in params:
+                print(params[img])
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.settings.setValue("remoteMode", str(self.remoteMode))

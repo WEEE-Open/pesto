@@ -35,7 +35,9 @@ class Client(LineOnlyReceiver):
         print("Connected to server.")
         global receiver
         receiver = self
+        self.factory.update_gui("connection_made")
         self.send_msg("get_disks")
+        self.send_msg("get_queue")
 
     def disconnect(self):
         try:
@@ -50,8 +52,10 @@ class ClientFactory(protocol.ClientFactory):
 
     protocol = Client
 
-    def __init__(self, update_event: QtCore.pyqtSignal):
+    def __init__(self, update_event: QtCore.pyqtSignal, host: str, port: int):
         self.updateEvent = update_event
+        self.host = host
+        self.port = port
         # WHY ARE YOU RUNNING?
         self.running = False
 
@@ -69,12 +73,16 @@ class ClientFactory(protocol.ClientFactory):
 
     def update_gui(self, data):
         data: str
-        parts = data.split(' ', 1)
-        cmd = parts[0]
-        if len(parts) > 1:
-            args = parts[1]
+        if data == 'connection_made':
+            cmd = data
+            args = json.dumps({"host": self.host, "port": str(self.port)})
         else:
-            args = ''
+            parts = data.split(' ', 1)
+            cmd = parts[0]
+            if len(parts) > 1:
+                args = parts[1]
+            else:
+                args = ''
         self.updateEvent.emit(cmd, args)
 
 
@@ -86,7 +94,7 @@ class ReactorThread(QThread):
         self.host = host
         self.port = port
         self.protocol = Client
-        self.factory = ClientFactory(self.updateEvent)
+        self.factory = ClientFactory(self.updateEvent, self.host, self.port)
         self.reactor = reactor
 
     def run(self) -> None:

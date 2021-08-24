@@ -122,6 +122,9 @@
            <property name="textElideMode">
             <enum>Qt::ElideMiddle</enum>
            </property>
+           <property name="gridStyle">
+            <enum>Qt::NoPen</enum>
+           </property>
            <property name="sortingEnabled">
             <bool>true</bool>
            </property>
@@ -254,14 +257,26 @@
          <property name="sizeAdjustPolicy">
           <enum>QAbstractScrollArea::AdjustToContents</enum>
          </property>
+         <property name="autoScroll">
+          <bool>false</bool>
+         </property>
          <property name="editTriggers">
           <set>QAbstractItemView::NoEditTriggers</set>
+         </property>
+         <property name="dragEnabled">
+          <bool>false</bool>
+         </property>
+         <property name="dragDropMode">
+          <enum>QAbstractItemView::NoDragDrop</enum>
          </property>
          <property name="alternatingRowColors">
           <bool>false</bool>
          </property>
          <property name="selectionMode">
           <enum>QAbstractItemView::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
          </property>
          <property name="showGrid">
           <bool>false</bool>
@@ -272,11 +287,14 @@
          <property name="sortingEnabled">
           <bool>true</bool>
          </property>
+         <property name="cornerButtonEnabled">
+          <bool>false</bool>
+         </property>
          <property name="columnCount">
           <number>5</number>
          </property>
          <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
-          <bool>false</bool>
+          <bool>true</bool>
          </attribute>
          <attribute name="horizontalHeaderStretchLastSection">
           <bool>false</bool>
@@ -323,7 +341,7 @@
         <x>300</x>
         <y>10</y>
         <width>251</width>
-        <height>161</height>
+        <height>190</height>
        </rect>
       </property>
       <property name="title">
@@ -427,7 +445,7 @@
         <x>560</x>
         <y>10</y>
         <width>111</width>
-        <height>231</height>
+        <height>190</height>
        </rect>
       </property>
       <property name="title">
@@ -437,7 +455,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>40</y>
+         <y>30</y>
          <width>70</width>
          <height>30</height>
         </rect>
@@ -450,7 +468,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>80</y>
+         <y>70</y>
          <width>70</width>
          <height>30</height>
         </rect>
@@ -463,7 +481,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>180</y>
+         <y>150</y>
          <width>70</width>
          <height>30</height>
         </rect>
@@ -476,7 +494,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>140</y>
+         <y>110</y>
          <width>70</width>
          <height>30</height>
         </rect>
@@ -492,7 +510,7 @@
         <x>140</x>
         <y>10</y>
         <width>151</width>
-        <height>230</height>
+        <height>190</height>
        </rect>
       </property>
       <property name="title">
@@ -504,63 +522,8 @@
          <x>10</x>
          <y>30</y>
          <width>131</width>
-         <height>190</height>
+         <height>150</height>
         </rect>
-       </property>
-      </widget>
-     </widget>
-     <widget class="QGroupBox" name="groupBox_3">
-      <property name="geometry">
-       <rect>
-        <x>9</x>
-        <y>250</y>
-        <width>661</width>
-        <height>110</height>
-       </rect>
-      </property>
-      <property name="title">
-       <string>System image for CANNOLO</string>
-      </property>
-      <widget class="QLineEdit" name="directoryText">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>30</y>
-         <width>621</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-       <property name="clearButtonEnabled">
-        <bool>false</bool>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="findButton">
-       <property name="geometry">
-        <rect>
-         <x>570</x>
-         <y>70</y>
-         <width>71</width>
-         <height>31</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Find</string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="cannoloLabel">
-       <property name="geometry">
-        <rect>
-         <x>30</x>
-         <y>70</y>
-         <width>530</width>
-         <height>18</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Label</string>
        </property>
       </widget>
      </widget>
@@ -570,7 +533,7 @@
         <x>10</x>
         <y>110</y>
         <width>120</width>
-        <height>131</height>
+        <height>90</height>
        </rect>
       </property>
       <property name="title">
@@ -607,32 +570,112 @@
        </item>
       </widget>
      </widget>
-    </widget>
-    <widget class="QWidget" name="asdTab">
-     <attribute name="title">
-      <string>Asd</string>
-     </attribute>
-     <widget class="QWidget" name="horizontalLayoutWidget_2">
+     <widget class="QGroupBox" name="groupBox_5">
       <property name="geometry">
        <rect>
-        <x>-1</x>
-        <y>-1</y>
-        <width>691</width>
-        <height>361</height>
+        <x>10</x>
+        <y>200</y>
+        <width>660</width>
+        <height>160</height>
        </rect>
       </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QLabel" name="asdLabel">
-         <property name="text">
-          <string>TextLabel</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-       </item>
-      </layout>
+      <property name="title">
+       <string>CANNOLO Settings</string>
+      </property>
+      <widget class="QLineEdit" name="directoryText">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>40</y>
+         <width>510</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+       <property name="clearButtonEnabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+      <widget class="QLabel" name="cannoloLabel">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>120</y>
+         <width>510</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Label</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="findButton">
+       <property name="geometry">
+        <rect>
+         <x>540</x>
+         <y>40</y>
+         <width>100</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Find</string>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_3">
+       <property name="geometry">
+        <rect>
+         <x>30</x>
+         <y>20</y>
+         <width>140</width>
+         <height>18</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Cannolo image path</string>
+       </property>
+      </widget>
+      <widget class="QComboBox" name="comboBox">
+       <property name="geometry">
+        <rect>
+         <x>20</x>
+         <y>80</y>
+         <width>510</width>
+         <height>32</height>
+        </rect>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton">
+       <property name="geometry">
+        <rect>
+         <x>540</x>
+         <y>80</y>
+         <width>100</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>New swap rule</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="pushButton_2">
+       <property name="geometry">
+        <rect>
+         <x>540</x>
+         <y>120</y>
+         <width>100</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Remove rule</string>
+       </property>
+      </widget>
      </widget>
     </widget>
    </widget>
