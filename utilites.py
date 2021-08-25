@@ -1,8 +1,9 @@
 import re
 import subprocess
 import os
-from PyQt5 import QtWidgets, QtGui
-from PyQt5.QtWidgets import QTableWidgetItem
+from typing import Optional
+
+from PyQt5 import QtWidgets, QtGui, uic, QtCore
 import ctypes
 
 
@@ -53,6 +54,33 @@ def warning_dialog(message: str, dialog_type: str):
         dialog.setCheckBox(cb)
         result = [dialog.exec_(), True if cb.isChecked() else False]
         return result
+
+
+class CannoloDialog(QtWidgets.QDialog):
+    update = QtCore.pyqtSignal(str, name="event")
+
+    def __init__(self, PATH, images: list):
+        super(CannoloDialog, self).__init__()
+        self.path = PATH
+        self.images = images
+        uic.loadUi(self.path["CANNOLOUI"], self)
+
+        self.label = self.findChild(QtWidgets.QLabel, 'dialogLabel')
+        self.isoList = self.findChild(QtWidgets.QListWidget, 'isoList')
+        self.isoList.addItems(self.images)
+        self.selectButton = self.findChild(QtWidgets.QPushButton, 'selectButton')
+        self.selectButton.clicked.connect(self.select)
+        self.cancelButton = self.findChild(QtWidgets.QPushButton, 'cancelButton')
+        self.cancelButton.clicked.connect(self.close)
+        self.show()
+
+    def select(self):
+        if self.isoList.currentItem() is None:
+            print("no cctf selected")
+            return
+        iso = self.isoList.currentItem().text()
+        self.update.emit(iso)
+        self.close()
 
 
 def win_path(path):
@@ -295,9 +323,10 @@ def initialize_path(current_platform: str, big_path: {}):
 class SmartTabs(QtWidgets.QTabWidget):
     def __init__(self):
         super().__init__()
-        self.text_boxes = []
 
-    def add_tab(self, drive: str):
+    def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list):
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout()
         textBox = QtWidgets.QTextEdit()
         textBox.setReadOnly(True)
         font = QtGui.QFont("Courier")
@@ -305,5 +334,12 @@ class SmartTabs(QtWidgets.QTabWidget):
         textBox.setFont(font)
         textBox.setFontPointSize(10)
         textBox.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
-        self.text_boxes.append(textBox)
-        self.addTab(self.text_boxes[-1], drive)
+        textBox.append('\n'.join(text))
+        if not status:
+            status = "Errore deflagrante: impossibile determinare lo stato del disco."
+        label = QtWidgets.QLabel(f"{status}\nUploaded: {uploaded}")
+        layout.addWidget(label)
+        layout.addWidget(textBox)
+        widget.setLayout(layout)
+        # self.text_boxes.append(widget)
+        self.addTab(widget, drive)

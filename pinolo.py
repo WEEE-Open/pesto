@@ -9,10 +9,10 @@ import logging
 import sys
 import traceback
 from typing import Union
-
 from PyQt5 import uic
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QTableWidgetItem
 from client import *
 from utilites import *
 from queue import Queue
@@ -38,6 +38,8 @@ SMARTCHECK = ["Power_On_Hours",
               "Current Pending Sector Count"]
 
 PATH = {"UI": "/assets/interface.ui",
+        "INFOUI": "/assets/info.ui",
+        "CANNOLOUI": "/assets/cannolo_select.ui",
         "REQUIREMENTS": "/requirements_client.txt",
         "CRASH": "/crashreport.txt",
         "ASD": "/assets/asd.gif",
@@ -104,6 +106,7 @@ class Ui(QtWidgets.QMainWindow):
         self.eraseButton = self.findChild(QtWidgets.QPushButton, 'eraseButton')
         self.smartButton = self.findChild(QtWidgets.QPushButton, 'smartButton')
         self.cannoloButton = self.findChild(QtWidgets.QPushButton, 'cannoloButton')
+        self.taralloButton = self.findChild(QtWidgets.QPushButton, 'taralloButton')
         self.stdProcedureButton = self.findChild(QtWidgets.QPushButton, 'stdProcButton')
         self.localRadioBtn = self.findChild(QtWidgets.QRadioButton, 'localRadioBtn')
         self.remoteRadioBtn = self.findChild(QtWidgets.QRadioButton, 'remoteRadioBtn')
@@ -124,15 +127,21 @@ class Ui(QtWidgets.QMainWindow):
         self.remove_action = QtWidgets.QAction("Remove", self)
         self.remove_all_action = QtWidgets.QAction("Remove All", self)
         self.info_action = QtWidgets.QAction("Info", self)
+        self.asdlabel = self.findChild(QtWidgets.QLabel, 'asdLabel')
+        self.asdGif = QMovie(PATH["ASD"])
+        self.asdGif.setScaledSize(QtCore.QSize().scaled(self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio))
+        self.asdGif.start()
+        self.asdlabel.setMovie(self.asdGif)
 
 
         """ Initialization operations """
         self.set_items_functions()
         self.localServer = LocalServer(self.server_queue)
         if CURRENT_PLATFORM == 'win32':
-            message = "Cannot run local server on windows machine."
-            if critical_dialog(message=message, dialog_type='ok_dna'):
-                self.settings.setValue("win32ServerStartupDialog", 1)
+            if self.settings.value("win32ServerStartupDialog") != 1:
+                message = "Cannot run local server on windows machine."
+                if critical_dialog(message=message, dialog_type='ok_dna'):
+                    self.settings.setValue("win32ServerStartupDialog", 1)
             self.app.setStyle("Windows")
         self.show()
         self.setup()
@@ -205,6 +214,9 @@ class Ui(QtWidgets.QMainWindow):
         # standard procedure button
         self.stdProcedureButton.clicked.connect(self.std_procedure)
 
+        # tarallo button
+        self.taralloButton.clicked.connect(self.load_to_tarallo)
+
         # text field
         # self.textField.setReadOnly(True)
         # font = self.textField.document().defaultFont()
@@ -252,9 +264,7 @@ class Ui(QtWidgets.QMainWindow):
         self.ipList.clicked.connect(self.load_config)
 
         # find button
-        self.findButton.clicked.connect(self.find_directory)
-        if self.remoteMode:
-            self.findButton.setEnabled(False)
+        self.findButton.clicked.connect(self.find_image)
 
         # directory text
         for key in self.settings.childKeys():
@@ -337,7 +347,7 @@ class Ui(QtWidgets.QMainWindow):
         message = 'With this action you will also stop the process (ID: ' + pid + ")\n"
         message += 'Do you want to proceed?'
         if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.Yes:
-            self.client.send("remove")
+            self.client.send(f"remove {pid}")
             self.queueTable.removeRow(self.queueTable.currentRow())
         self.deselect()
 
@@ -362,6 +372,7 @@ class Ui(QtWidgets.QMainWindow):
         message = "Do you want to wipe all disk's data and load a fresh system image?"
         dialog = warning_dialog(message, dialog_type='yes_no_chk')
         if dialog[0] == QtWidgets.QMessageBox.Yes:
+            self.load_to_tarallo(std=True)
             self.erase(std=True)
             self.smart(std=True)
             if dialog[1]:
@@ -425,6 +436,20 @@ class Ui(QtWidgets.QMainWindow):
         except BaseException:
             print("Error in cannolo function.")
 
+    def load_to_tarallo(self, std=False):
+        selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+        selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
+        if selected_drive_id != '':
+            message = "The selected disk have alredy a TARALLO id."
+            warning_dialog(message, dialog_type='ok')
+            return
+        if not std:
+            message = "Do you want to load the disk informations into TARALLO?"
+            if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.No:
+                return
+        selected_drive = selected_drive.text().lstrip("Disk ")
+        self.client.send(f"queued_upload_to_tarallo {selected_drive}")
+
     def sleep(self, std=False):
         # noinspection PyBroadException
         try:
@@ -458,7 +483,6 @@ class Ui(QtWidgets.QMainWindow):
             self.hostInput.setReadOnly(True)
             self.portInput.setReadOnly(True)
             self.saveButton.setEnabled(False)
-            self.findButton.clicked.connect(self.find_directory)
             self.directoryText.setReadOnly(True)
             self.cannoloLabel.setText("")
         elif self.remoteRadioBtn.isChecked():
@@ -471,15 +495,12 @@ class Ui(QtWidgets.QMainWindow):
             self.portInput.setReadOnly(False)
             self.portInput.setText(str(self.port))
             self.saveButton.setEnabled(True)
-            self.findButton.clicked.connect(self.find_image)
             self.directoryText.setReadOnly(False)
             self.cannoloLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
 
     def refresh(self):
         self.host = self.hostInput.text()
         self.port = int(self.portInput.text())
-        self.diskTable.setRowCount(0)
-        self.queueTable.setRowCount(0)
         self.client.reconnect(self.host, self.port)
 
     def restore(self):
@@ -491,7 +512,7 @@ class Ui(QtWidgets.QMainWindow):
         row = self.queueTable.rowCount()
         self.queueTable.insertRow(row)
         for idx, entry in enumerate(QUEUE_TABLE):
-            label: Union[None, str, QtWidgets.QLabel, QtWidgets.QProgressBar]
+            label: Union[None, str, QtWidgets.QLabel, QtWidgets.QProgressBar, QtWidgets.QTableWidgetItem]
             label = None
             if entry == "ID":  # ID
                 label = pid
@@ -564,18 +585,27 @@ class Ui(QtWidgets.QMainWindow):
             self.ipList.clear()
             self.setup()
 
-    def find_directory(self):
-        dialog = QtWidgets.QFileDialog()
-        directory = dialog.getExistingDirectory(self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly)
-        self.directoryText.setText(directory)
-
     def find_image(self):
         # noinspection PyBroadException
         try:
-            self.client.send("img_dir " + self.directoryText.text())
+            if self.remoteMode:
+                self.client.send("list_iso " + self.directoryText.text())
+                message = "Select one of the following images as default image for CANNOLO."
+                iso_list = ["asd.iso", "cctf.iso", "lollone.iso"]
+                self.dialog = CannoloDialog(PATH, iso_list)
+                self.dialog.update.connect(self.set_default_cannolo)
 
-        except BaseException:
+            else:
+                dialog = QtWidgets.QFileDialog()
+                directory = dialog.getExistingDirectory(self, "Open Directory", "/home",
+                                                        QtWidgets.QFileDialog.ShowDirsOnly)
+                self.directoryText.setText(directory)
+        except BaseException as ex:
             print("Error in smart function.")
+            print(ex)
+
+    def set_default_cannolo(self, img: str):
+        print(f"SETDEFAULTCANNOLO: {img}")
 
     def set_theme(self):
         if self.themeSelector.currentText() == "Dark":
@@ -694,9 +724,7 @@ class Ui(QtWidgets.QMainWindow):
                         for line in text:
                             self.smartTabs.text_boxes[tab].append(line)
                 elif tab == tab_count:
-                    self.smartTabs.add_tab(params["disk"])
-                    for line in text:
-                        self.smartTabs.text_boxes[tab].append(line)
+                    self.smartTabs.add_tab(params["disk"], params["status"], params["updated"], text)
 
         elif cmd == 'connection_failed':
             message = params["reason"]
@@ -708,9 +736,20 @@ class Ui(QtWidgets.QMainWindow):
         elif cmd == 'connection_made':
             self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
 
-        elif cmd == 'img_found':
-            for img in params:
-                print(params[img])
+        # This is an example, the iso_list cmd does not exist now on server
+        elif cmd == 'iso_list':
+            images = []
+            for param in params:
+                images.append(param["iso"])
+                message = "Select one of the following images as default image for CANNOLO."
+
+        elif cmd == 'error':
+            message = params["message"]
+            critical_dialog(message, dialog_type='ok')
+
+        elif cmd == 'error_that_can_be_manually_fixed':
+            message = params["message"]
+            warning_dialog(message, dialog_type='ok')
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         self.settings.setValue("remoteMode", str(self.remoteMode))
