@@ -211,6 +211,7 @@ class CommandRunner(threading.Thread):
             "queued_smartctl": self.queued_get_smartctl,
             "queued_badblocks": self.badblocks,
             "queued_cannolo": self.cannolo,
+            "queued_sleep": self.sleep,
             "get_disks": self.get_disks,
             "ping": self.ping,
             "get_queue": self.get_queue,
@@ -397,6 +398,18 @@ class CommandRunner(threading.Thread):
 
         update_disks_if_needed(self)
 
+    def sleep(self, _cmd: str, dev: str):
+        self._queued_command.notify_start("Calling hdparm")
+        if CURRENT_OS == 'win32':
+            res = subprocess.Popen(('hdparm', '-Y', dev), shell=True)
+        else:
+            res = subprocess.Popen(('sudo', 'hdparm', '-Y', dev), )
+        exitcode = res.wait()
+        if exitcode == 0:
+            self._queued_command.notify_finish("Good night!")
+        else:
+            self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
+
     def get_smartctl(self, cmd: str, args: str):
         params = self._get_smartctl(args, False)
         if params:
@@ -549,6 +562,18 @@ class QueuedCommand:
             if text is not None:
                 self._text = text
             self._finished = True
+            self._percentage = 100.0
+            self.send_to_all_clients()
+
+            if self._to_delete:
+                self.notify_delete()
+
+    def notify_finish_with_error(self, text: Optional[str] = None):
+        with self._notifications_lock:
+            if text is not None:
+                self._text = text
+            self._finished = True
+            self._error = True
             self._percentage = 100.0
             self.send_to_all_clients()
 
