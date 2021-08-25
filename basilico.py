@@ -166,6 +166,7 @@ class CommandRunner(threading.Thread):
         try:
             # Stop immediately if nothing was dispatched
             if not self._function:
+                self._queued_command.notify_error("Unknown command")
                 return
             # Also stop if program is terminating
             if not self._go:
