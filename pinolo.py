@@ -10,8 +10,7 @@ import sys
 import traceback
 from typing import Union
 
-import PyQt5.QtWidgets
-from PyQt5 import uic, QtGui
+from PyQt5 import uic
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtCore import Qt
 from client import *
@@ -53,6 +52,7 @@ PATH = {"UI": "/assets/interface.ui",
         "STOP": "/assets/stop.png",
         "SERVER": "/basilico.py",
         "LOGFILE": "/tmp/crashreport.py",
+        "DEFAULTTHEME": "/themes/defaultTheme.ssh",
         "DARKTHEME": "/themes/darkTheme.ssh",
         "VAPORTHEME": "/themes/vaporwaveTheme.ssh",
         "ASDTHEME": "/themes/asdTheme.ssh",
@@ -120,6 +120,11 @@ class Ui(QtWidgets.QMainWindow):
         self.smartLayout = self.findChild(QtWidgets.QVBoxLayout, 'smartLayout')
         self.smartTabs = SmartTabs()
         self.smartLayout.addWidget(self.smartTabs)
+        self.stop_action = QtWidgets.QAction("Stop", self)
+        self.remove_action = QtWidgets.QAction("Remove", self)
+        self.remove_all_action = QtWidgets.QAction("Remove All", self)
+        self.info_action = QtWidgets.QAction("Info", self)
+
 
         """ Initialization operations """
         self.set_items_functions()
@@ -131,31 +136,10 @@ class Ui(QtWidgets.QMainWindow):
             self.app.setStyle("Windows")
         self.show()
         self.setup()
-        # self.queueTable.installEventFilter(self)
 
-        self.queueTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        self.stop_action = QtWidgets.QAction("Stop", self)
-        self.stop_action.triggered.connect(self.queue_stop)
-        self.queueTable.addAction(self.stop_action)
-        self.remove_action = QtWidgets.QAction("Remove", self)
-        self.remove_action.triggered.connect(self.queue_remove)
-        self.queueTable.addAction(self.remove_action)
-        self.remove_all_action = QtWidgets.QAction("Remove All", self)
-        self.remove_all_action.triggered.connect(self.queue_clear)
-        self.queueTable.addAction(self.remove_all_action)
-        self.info_action = QtWidgets.QAction("Info", self)
-        self.info_action.triggered.connect(self.queue_info)
-        self.queueTable.addAction(self.info_action)
-        self.queueTable.itemSelectionChanged.connect(self.on_table_select)
-
-        self.stop_action.setEnabled(False)
-        self.remove_action.setEnabled(False)
-        self.remove_all_action.setEnabled(True)
-        self.info_action.setEnabled(False)
-
-    def on_table_select(self):
-        sel = self.queueTable.currentRow()
-        if sel == -1:
+    def on_table_select(self, selected):
+        sel = selected.count()
+        if sel == 0:
             self.stop_action.setEnabled(False)
             self.remove_action.setEnabled(False)
             self.info_action.setEnabled(False)
@@ -172,20 +156,38 @@ class Ui(QtWidgets.QMainWindow):
         self.latest_conf()
 
         # disks table
-        self.diskTable.setHorizontalHeaderItem(0, QTableWidgetItem("Drive"))
-        self.diskTable.setHorizontalHeaderItem(1, QTableWidgetItem("Dimension"))
         self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.diskTable.horizontalHeader().setStretchLastSection(True)
         self.diskTable.setColumnWidth(0, 65)
+        self.diskTable.setColumnWidth(1, 65)
+        self.diskTable.setColumnWidth(2, 65)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
         self.diskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
 
         # queue table
+        self.queueTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.queueTable.setRowCount(0)
-        table_setup(self.queueTable, QUEUE_TABLE)
         self.queueTable.horizontalHeader().setStretchLastSection(True)
-        self.queueTable.setColumnWidth(0,125)
-        self.queueTable.setColumnWidth(2,65)
+        self.queueTable.setColumnWidth(0, 125)
+        self.queueTable.setColumnWidth(2, 65)
+        self.queueTable.setColumnWidth(3, 65)
+        self.queueTable.setColumnWidth(4, 50)
+        self.queueTable.horizontalHeader().setStretchLastSection(True)
         self.queueTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
+        self.queueTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.stop_action.triggered.connect(self.queue_stop)
+        self.queueTable.addAction(self.stop_action)
+        self.stop_action.setEnabled(False)
+        self.remove_action.triggered.connect(self.queue_remove)
+        self.queueTable.addAction(self.remove_action)
+        self.remove_action.setEnabled(False)
+        self.remove_all_action.triggered.connect(self.queue_clear)
+        self.queueTable.addAction(self.remove_all_action)
+        self.remove_all_action.setEnabled(True)
+        self.info_action.triggered.connect(self.queue_info)
+        self.queueTable.addAction(self.info_action)
+        self.info_action.setEnabled(False)
+        self.queueTable.selectionModel().selectionChanged.connect(self.on_table_select)
 
         # reload button
         self.reloadButton.clicked.connect(self.refresh)
@@ -489,8 +491,8 @@ class Ui(QtWidgets.QMainWindow):
         row = self.queueTable.rowCount()
         self.queueTable.insertRow(row)
         for idx, entry in enumerate(QUEUE_TABLE):
-            label: object
-            label = object()
+            label: Union[None, str, QtWidgets.QLabel, QtWidgets.QProgressBar]
+            label = None
             if entry == "ID":  # ID
                 label = pid
             elif entry == "Process":  # PROCESS
@@ -606,8 +608,10 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.backgroundLabel.setMovie(self.movie)
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
-        else:
+        elif self.themeSelector.currentText() == "Default":
             self.app.setStyleSheet("")
+            with open(PATH["DEFAULTTHEME"], "r") as file:
+                self.app.setStyleSheet(file.read())
             self.backgroundLabel.clear()
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
@@ -662,7 +666,6 @@ class Ui(QtWidgets.QMainWindow):
         elif cmd == 'get_disks':
             drives = params
             if len(drives) <= 0:
-                self.diskTable.clear()
                 self.diskTable.setRowCount(0)
                 return
             # compile disks table with disks list
@@ -677,7 +680,8 @@ class Ui(QtWidgets.QMainWindow):
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem("Disk " + d["path"]))
                 else:
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
-                self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
+                self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
+                self.diskTable.setItem(rows - 1, 2, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
 
         elif cmd == 'smartctl' or cmd == 'queued_smartctl':
             text = ("Smartctl output:\n " + params["output"]).splitlines()

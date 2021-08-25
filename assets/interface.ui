@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>690</width>
-    <height>430</height>
+    <width>760</width>
+    <height>480</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,14 +18,14 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>690</width>
-    <height>430</height>
+    <width>760</width>
+    <height>480</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>690</width>
-    <height>430</height>
+    <width>760</width>
+    <height>480</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -46,8 +46,8 @@
      <rect>
       <x>0</x>
       <y>0</y>
-      <width>690</width>
-      <height>400</height>
+      <width>760</width>
+      <height>451</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -65,8 +65,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>681</width>
-        <height>361</height>
+        <width>751</width>
+        <height>421</height>
        </rect>
       </property>
       <layout class="QHBoxLayout" name="mainLayout">
@@ -95,6 +95,12 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>0</height>
+            </size>
+           </property>
            <property name="maximumSize">
             <size>
              <width>180</width>
@@ -119,8 +125,14 @@
            <property name="editTriggers">
             <set>QAbstractItemView::NoEditTriggers</set>
            </property>
+           <property name="selectionMode">
+            <enum>QAbstractItemView::ExtendedSelection</enum>
+           </property>
            <property name="textElideMode">
             <enum>Qt::ElideMiddle</enum>
+           </property>
+           <property name="showGrid">
+            <bool>false</bool>
            </property>
            <property name="gridStyle">
             <enum>Qt::NoPen</enum>
@@ -128,8 +140,11 @@
            <property name="sortingEnabled">
             <bool>true</bool>
            </property>
+           <property name="cornerButtonEnabled">
+            <bool>false</bool>
+           </property>
            <property name="columnCount">
-            <number>2</number>
+            <number>3</number>
            </property>
            <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
             <bool>false</bool>
@@ -140,8 +155,21 @@
            <attribute name="verticalHeaderShowSortIndicator" stdset="0">
             <bool>true</bool>
            </attribute>
-           <column/>
-           <column/>
+           <column>
+            <property name="text">
+             <string>Drive</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Tarallo ID</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Size</string>
+            </property>
+           </column>
           </widget>
          </item>
          <item>
@@ -169,7 +197,7 @@
              </property>
              <property name="minimumSize">
               <size>
-               <width>50</width>
+               <width>60</width>
                <height>0</height>
               </size>
              </property>
@@ -255,7 +283,7 @@
           <enum>Qt::ScrollBarAlwaysOff</enum>
          </property>
          <property name="sizeAdjustPolicy">
-          <enum>QAbstractScrollArea::AdjustToContents</enum>
+          <enum>QAbstractScrollArea::AdjustToContentsOnFirstShow</enum>
          </property>
          <property name="autoScroll">
           <bool>false</bool>
@@ -273,10 +301,10 @@
           <bool>false</bool>
          </property>
          <property name="selectionMode">
-          <enum>QAbstractItemView::SingleSelection</enum>
+          <enum>QAbstractItemView::ExtendedSelection</enum>
          </property>
          <property name="selectionBehavior">
-          <enum>QAbstractItemView::SelectRows</enum>
+          <enum>QAbstractItemView::SelectItems</enum>
          </property>
          <property name="showGrid">
           <bool>false</bool>
@@ -288,7 +316,7 @@
           <bool>true</bool>
          </property>
          <property name="cornerButtonEnabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
          <property name="columnCount">
           <number>5</number>
@@ -305,11 +333,31 @@
          <attribute name="verticalHeaderStretchLastSection">
           <bool>false</bool>
          </attribute>
-         <column/>
-         <column/>
-         <column/>
-         <column/>
-         <column/>
+         <column>
+          <property name="text">
+           <string>ID</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Process</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Disk</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Status</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Progress</string>
+          </property>
+         </column>
         </widget>
        </item>
       </layout>
@@ -324,8 +372,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>681</width>
-        <height>361</height>
+        <width>751</width>
+        <height>421</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="smartLayout"/>
@@ -338,10 +386,10 @@
      <widget class="QGroupBox" name="groupBox_2">
       <property name="geometry">
        <rect>
-        <x>300</x>
+        <x>10</x>
         <y>10</y>
         <width>251</width>
-        <height>190</height>
+        <height>180</height>
        </rect>
       </property>
       <property name="title">
@@ -351,7 +399,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>20</y>
+         <y>50</y>
          <width>81</width>
          <height>18</height>
         </rect>
@@ -364,7 +412,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>40</y>
+         <y>70</y>
          <width>211</width>
          <height>32</height>
         </rect>
@@ -374,7 +422,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>80</y>
+         <y>110</y>
          <width>81</width>
          <height>18</height>
         </rect>
@@ -387,50 +435,18 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>100</y>
+         <y>130</y>
          <width>211</width>
          <height>32</height>
         </rect>
        </property>
       </widget>
-     </widget>
-     <widget class="QGroupBox" name="radioGroupBox">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>10</y>
-        <width>120</width>
-        <height>91</height>
-       </rect>
-      </property>
-      <property name="title">
-       <string>Mode</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-      </property>
-      <property name="flat">
-       <bool>false</bool>
-      </property>
-      <widget class="QRadioButton" name="remoteRadioBtn">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>60</y>
-         <width>105</width>
-         <height>22</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Remote</string>
-       </property>
-      </widget>
       <widget class="QRadioButton" name="localRadioBtn">
        <property name="geometry">
         <rect>
-         <x>20</x>
-         <y>30</y>
-         <width>105</width>
+         <x>50</x>
+         <y>20</y>
+         <width>50</width>
          <height>22</height>
         </rect>
        </property>
@@ -438,14 +454,27 @@
         <string>Local</string>
        </property>
       </widget>
+      <widget class="QRadioButton" name="remoteRadioBtn">
+       <property name="geometry">
+        <rect>
+         <x>140</x>
+         <y>20</y>
+         <width>60</width>
+         <height>22</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Remote</string>
+       </property>
+      </widget>
      </widget>
      <widget class="QGroupBox" name="groupBox">
       <property name="geometry">
        <rect>
-        <x>560</x>
-        <y>10</y>
-        <width>111</width>
-        <height>190</height>
+        <x>610</x>
+        <y>200</y>
+        <width>140</width>
+        <height>220</height>
        </rect>
       </property>
       <property name="title">
@@ -456,7 +485,7 @@
         <rect>
          <x>20</x>
          <y>30</y>
-         <width>70</width>
+         <width>100</width>
          <height>30</height>
         </rect>
        </property>
@@ -469,7 +498,7 @@
         <rect>
          <x>20</x>
          <y>70</y>
-         <width>70</width>
+         <width>100</width>
          <height>30</height>
         </rect>
        </property>
@@ -481,8 +510,8 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>150</y>
-         <width>70</width>
+         <y>170</y>
+         <width>100</width>
          <height>30</height>
         </rect>
        </property>
@@ -494,8 +523,8 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>110</y>
-         <width>70</width>
+         <y>130</y>
+         <width>100</width>
          <height>30</height>
         </rect>
        </property>
@@ -507,10 +536,10 @@
      <widget class="QGroupBox" name="ipBox">
       <property name="geometry">
        <rect>
-        <x>140</x>
+        <x>610</x>
         <y>10</y>
-        <width>151</width>
-        <height>190</height>
+        <width>140</width>
+        <height>180</height>
        </rect>
       </property>
       <property name="title">
@@ -521,8 +550,8 @@
         <rect>
          <x>10</x>
          <y>30</y>
-         <width>131</width>
-         <height>150</height>
+         <width>120</width>
+         <height>140</height>
         </rect>
        </property>
       </widget>
@@ -530,10 +559,10 @@
      <widget class="QGroupBox" name="groupBox_4">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>110</y>
+        <x>480</x>
+        <y>10</y>
         <width>120</width>
-        <height>90</height>
+        <height>80</height>
        </rect>
       </property>
       <property name="title">
@@ -575,8 +604,8 @@
        <rect>
         <x>10</x>
         <y>200</y>
-        <width>660</width>
-        <height>160</height>
+        <width>590</width>
+        <height>221</height>
        </rect>
       </property>
       <property name="title">
@@ -586,8 +615,8 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>40</y>
-         <width>510</width>
+         <y>50</y>
+         <width>440</width>
          <height>30</height>
         </rect>
        </property>
@@ -602,7 +631,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>120</y>
+         <y>140</y>
          <width>510</width>
          <height>30</height>
         </rect>
@@ -617,8 +646,8 @@
       <widget class="QPushButton" name="findButton">
        <property name="geometry">
         <rect>
-         <x>540</x>
-         <y>40</y>
+         <x>470</x>
+         <y>50</y>
          <width>100</width>
          <height>30</height>
         </rect>
@@ -631,7 +660,7 @@
        <property name="geometry">
         <rect>
          <x>30</x>
-         <y>20</y>
+         <y>30</y>
          <width>140</width>
          <height>18</height>
         </rect>
@@ -644,8 +673,8 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>80</y>
-         <width>510</width>
+         <y>100</y>
+         <width>440</width>
          <height>32</height>
         </rect>
        </property>
@@ -653,8 +682,8 @@
       <widget class="QPushButton" name="pushButton">
        <property name="geometry">
         <rect>
-         <x>540</x>
-         <y>80</y>
+         <x>470</x>
+         <y>100</y>
          <width>100</width>
          <height>30</height>
         </rect>
@@ -666,8 +695,8 @@
       <widget class="QPushButton" name="pushButton_2">
        <property name="geometry">
         <rect>
-         <x>540</x>
-         <y>120</y>
+         <x>470</x>
+         <y>140</y>
          <width>100</width>
          <height>30</height>
         </rect>
@@ -689,7 +718,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>TextLabel</string>
+     <string/>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>

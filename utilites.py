@@ -54,6 +54,7 @@ def warning_dialog(message: str, dialog_type: str):
         result = [dialog.exec_(), True if cb.isChecked() else False]
         return result
 
+
 def win_path(path):
     new_path = r""
     for char in path:
@@ -279,15 +280,6 @@ def smartctl_get_status(smart: dict) -> str:
                     return "sus"
                 else:
                     return "ok"
-
-
-def table_setup(table: QtWidgets.QTableWidget, labels: list):
-    for idx, label in enumerate(labels):
-        table.setHorizontalHeaderItem(idx, QTableWidgetItem(label))
-    table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-    table.setColumnWidth(2, 50)
-    table.setColumnWidth(3, 50)
-    table.horizontalHeader().setStretchLastSection(True)
 
 
 def initialize_path(current_platform: str, big_path: {}):
