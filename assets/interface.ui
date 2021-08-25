@@ -265,6 +265,13 @@
                </property>
               </widget>
              </item>
+             <item>
+              <widget class="QPushButton" name="taralloButton">
+               <property name="text">
+                <string>Carica sul TARALLO</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
           </layout>
@@ -386,10 +393,10 @@
      <widget class="QGroupBox" name="groupBox_2">
       <property name="geometry">
        <rect>
-        <x>10</x>
+        <x>160</x>
         <y>10</y>
-        <width>251</width>
-        <height>180</height>
+        <width>250</width>
+        <height>270</height>
        </rect>
       </property>
       <property name="title">
@@ -467,25 +474,12 @@
         <string>Remote</string>
        </property>
       </widget>
-     </widget>
-     <widget class="QGroupBox" name="groupBox">
-      <property name="geometry">
-       <rect>
-        <x>610</x>
-        <y>200</y>
-        <width>140</width>
-        <height>220</height>
-       </rect>
-      </property>
-      <property name="title">
-       <string>Utility Buttons</string>
-      </property>
       <widget class="QPushButton" name="restoreButton">
        <property name="geometry">
         <rect>
-         <x>20</x>
-         <y>30</y>
-         <width>100</width>
+         <x>150</x>
+         <y>180</y>
+         <width>80</width>
          <height>30</height>
         </rect>
        </property>
@@ -493,25 +487,12 @@
         <string>Restore</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="defaultButton">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>70</y>
-         <width>100</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Defaults</string>
-       </property>
-      </widget>
       <widget class="QPushButton" name="saveButton">
        <property name="geometry">
         <rect>
-         <x>20</x>
-         <y>170</y>
-         <width>100</width>
+         <x>150</x>
+         <y>220</y>
+         <width>80</width>
          <height>30</height>
         </rect>
        </property>
@@ -519,27 +500,27 @@
         <string>Save</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="removeButton">
+      <widget class="QPushButton" name="defaultButton">
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>130</y>
-         <width>100</width>
-         <height>30</height>
+         <y>180</y>
+         <width>120</width>
+         <height>70</height>
         </rect>
        </property>
        <property name="text">
-        <string>Remove</string>
+        <string>Default</string>
        </property>
       </widget>
      </widget>
      <widget class="QGroupBox" name="ipBox">
       <property name="geometry">
        <rect>
-        <x>610</x>
+        <x>10</x>
         <y>10</y>
         <width>140</width>
-        <height>180</height>
+        <height>320</height>
        </rect>
       </property>
       <property name="title">
@@ -551,17 +532,30 @@
          <x>10</x>
          <y>30</y>
          <width>120</width>
-         <height>140</height>
+         <height>240</height>
         </rect>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="removeButton">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>280</y>
+         <width>120</width>
+         <height>30</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Remove</string>
        </property>
       </widget>
      </widget>
      <widget class="QGroupBox" name="groupBox_4">
       <property name="geometry">
        <rect>
-        <x>480</x>
-        <y>10</y>
-        <width>120</width>
+        <x>10</x>
+        <y>340</y>
+        <width>140</width>
         <height>80</height>
        </rect>
       </property>
@@ -573,7 +567,7 @@
         <rect>
          <x>10</x>
          <y>30</y>
-         <width>100</width>
+         <width>120</width>
          <height>32</height>
         </rect>
        </property>
@@ -602,10 +596,10 @@
      <widget class="QGroupBox" name="groupBox_5">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>200</y>
+        <x>160</x>
+        <y>290</y>
         <width>590</width>
-        <height>221</height>
+        <height>130</height>
        </rect>
       </property>
       <property name="title">
@@ -631,8 +625,8 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>140</y>
-         <width>510</width>
+         <y>90</y>
+         <width>550</width>
          <height>30</height>
         </rect>
        </property>
@@ -669,42 +663,22 @@
         <string>Cannolo image path</string>
        </property>
       </widget>
-      <widget class="QComboBox" name="comboBox">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>100</y>
-         <width>440</width>
-         <height>32</height>
-        </rect>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="pushButton">
-       <property name="geometry">
-        <rect>
-         <x>470</x>
-         <y>100</y>
-         <width>100</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>New swap rule</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="pushButton_2">
-       <property name="geometry">
-        <rect>
-         <x>470</x>
-         <y>140</y>
-         <width>100</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Remove rule</string>
-       </property>
-      </widget>
+     </widget>
+     <widget class="QLabel" name="asdLabel">
+      <property name="geometry">
+       <rect>
+        <x>420</x>
+        <y>20</y>
+        <width>321</width>
+        <height>261</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
      </widget>
     </widget>
    </widget>
