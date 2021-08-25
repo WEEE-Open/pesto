@@ -216,6 +216,7 @@ class CommandRunner(threading.Thread):
             "get_queue": self.get_queue,
             "remove": self.remove_from_queue,
             "remove_all": self.remove_from_queue,
+            "list_iso": self.list_iso,
         }
         logging.debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
         if cmd.startswith('queued_'):
@@ -241,20 +242,40 @@ class CommandRunner(threading.Thread):
         # This may be more complicated for some future commands
         return args
 
-    # noinspection PyUnusedLocal,PyMethodMayBeStatic
-    def remove_from_queue(self, cmd: str, cmd_id: str):
-        if len(cmd_id) == 0:
+    def list_iso(self, cmd: str, iso_dir: str):
+        files = []
+        try:
+            for file in os.listdir(iso_dir):
+                if file.startswith('.'):
+                    continue
+                files.append(os.path.join(iso_dir, file))
+        except FileNotFoundError:
+            self.send_msg("error", {"message": f"ISO directory {iso_dir} does not exist on server"})
+            return
+        except NotADirectoryError:
+            self.send_msg("error", {"message": f"Cannot read {iso_dir} on server: is not a directory"})
+            return
+        except PermissionError:
+            self.send_msg("error", {"message": f"Cannot read {iso_dir} on server: permission denied"})
+            return
+        except BaseException as e:
+            self.send_msg("error", {"message": f"Cannot list files in iso dir {iso_dir}: {str(e)}"})
+            return
+        self.send_msg(cmd, files)
+
+    # noinspection PyMethodMayBeStatic
+    def remove_from_queue(self, _cmd: str, queue_id: str):
+        if len(queue_id) == 0:
             while len(queued_commands) > 0:
                 queued_commands[-1].delete_when_done()
         else:
             for the_cmd in queued_commands:
-                if the_cmd.id_is(cmd_id):
+                if the_cmd.id_is(queue_id):
                     the_cmd.delete_when_done()
                     break
         return None
 
-    # noinspection PyUnusedLocal
-    def badblocks(self, cmd: str, dev: str):
+    def badblocks(self, _cmd: str, dev: str):
         self._queued_command.notify_start("Running badblocks")
         if TEST_MODE:
             self._queued_command.notify_percentage(10, "0 errors")
@@ -346,12 +367,11 @@ class CommandRunner(threading.Thread):
                 update_disks_if_needed(self)
                 # TODO: upload to tarallo
 
-    # noinspection PyUnusedLocal
-    def ping(self, cmd: str, dev: str):
+    def ping(self, _cmd: str, _nothing: str):
         self.send_msg("pong", None)
 
     # noinspection PyUnusedLocal
-    def cannolo(self, cmd: str, dev: str):
+    def cannolo(self, _cmd: str, dev: str):
         self._queued_command.notify_start("Cannoling")
         # if not TEST_MODE:
         # TODO: code from turbofresa goes here
@@ -468,7 +488,7 @@ class CommandRunner(threading.Thread):
                 logging\
                     .warning(f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)")
 
-    def get_disks(self, cmd: str, dev: str):
+    def get_disks(self, cmd: str, _nothing: str):
         result = []
         with disks_lock:
             # Sent regardless
