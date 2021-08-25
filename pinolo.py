@@ -353,7 +353,7 @@ class Ui(QtWidgets.QMainWindow):
 
     def queue_clear(self):
         self.queueTable.setRowCount(0)
-        self.client.send("remove all")
+        self.client.send("remove_all")
 
     def queue_info(self):
         process = self.queueTable.item(self.queueTable.currentRow(), 1).text()

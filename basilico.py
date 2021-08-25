@@ -56,7 +56,11 @@ class Disk:
     def dequeue(self, cmd_runner):
         cmd_runner: CommandRunner
         with self._queue_lock:
-            self._commands_queue.remove(cmd_runner)
+            try:
+                self._commands_queue.remove(cmd_runner)
+            except ValueError:
+                # TODO: This could be a return
+                pass
             if len(self._commands_queue) > 0:
                 next_in_line: CommandRunner = self._commands_queue[0]
                 if not next_in_line.is_alive():
@@ -167,6 +171,7 @@ class CommandRunner(threading.Thread):
             # Stop immediately if nothing was dispatched
             if not self._function:
                 self._queued_command.notify_error("Unknown command")
+                self._queued_command.delete_when_done()
                 return
             # Also stop if program is terminating
             if not self._go:
@@ -183,8 +188,9 @@ class CommandRunner(threading.Thread):
         finally:
             # The next thread on the disk can start, if there's a queue
             if self._queued_command:
-                # TODO: this will notify finish twice. But it could be checked that the update is actually an update.
-                self._queued_command.notify_finish()
+                # Notify finish only if not already notified, as a catch all for errors
+                # that may prevent the actual function from notifying
+                self._queued_command.notify_finish_safe()
                 self._queued_command.disk.dequeue(self)
             # Not running anymore (in a few nanoseconds, anyway)
             with running_commands_lock:
@@ -208,6 +214,8 @@ class CommandRunner(threading.Thread):
             "get_disks": self.get_disks,
             "ping": self.ping,
             "get_queue": self.get_queue,
+            "remove": self.remove_from_queue,
+            "remove_all": self.remove_from_queue,
         }
         logging.debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
         if cmd.startswith('queued_'):
@@ -232,6 +240,18 @@ class CommandRunner(threading.Thread):
     def dev_from_args(args: str):
         # This may be more complicated for some future commands
         return args
+
+    # noinspection PyUnusedLocal,PyMethodMayBeStatic
+    def remove_from_queue(self, cmd: str, cmd_id: str):
+        if len(cmd_id) == 0:
+            while len(queued_commands) > 0:
+                queued_commands[-1].delete_when_done()
+        else:
+            for the_cmd in queued_commands:
+                if the_cmd.id_is(cmd_id):
+                    the_cmd.delete_when_done()
+                    break
+        return None
 
     # noinspection PyUnusedLocal
     def badblocks(self, cmd: str, dev: str):
@@ -357,7 +377,6 @@ class CommandRunner(threading.Thread):
 
         update_disks_if_needed(self)
 
-
     def get_smartctl(self, cmd: str, args: str):
         params = self._get_smartctl(args, False)
         if params:
@@ -472,12 +491,17 @@ class QueuedCommand:
         self._stale = False
         self._notifications_lock = threading.Lock()
         self._text = "Queued"
+        self._to_delete = False
+        self._deleted = False
         date = datetime.today().strftime('%Y%m%d%H%M')
         with queued_commands_lock:
             self._id = f"{date}-{str(len(queued_commands))}"
             queued_commands.append(self)
         with self._notifications_lock:
             self.send_to_all_clients()
+
+    def id_is(self, the_id: str):
+        return self._id == the_id
 
     def lock_notifications(self):
         self._notifications_lock.acquire()
@@ -493,6 +517,13 @@ class QueuedCommand:
             self._percentage = 0.0
             self.send_to_all_clients()
 
+    def notify_finish_safe(self, text: Optional[str] = None):
+        with self._notifications_lock:
+            if self._finished:
+                return
+        # TODO: RLock? Probably not needed
+        self.notify_finish(text)
+
     def notify_finish(self, text: Optional[str] = None):
         with self._notifications_lock:
             if text is not None:
@@ -500,6 +531,9 @@ class QueuedCommand:
             self._finished = True
             self._percentage = 100.0
             self.send_to_all_clients()
+
+            if self._to_delete:
+                self.notify_delete()
 
     def notify_error(self, text: Optional[str] = None):
         with self._notifications_lock:
@@ -522,13 +556,47 @@ class QueuedCommand:
             self._percentage = percent
             self.send_to_all_clients()
 
+    def delete_when_done(self):
+        self._to_delete = True
+        # Locking is pointless, notify_delete must be called after releasing the lock anyway
+        if self._finished:
+            self.notify_delete()
+
+    def notify_delete(self):
+        if self._deleted:
+            return
+
+        with self._notifications_lock:
+            with queued_commands_lock:
+                try:
+                    queued_commands.remove(self)
+                    self._deleted = True
+                except ValueError:
+                    # Already deleted, do not send anything
+                    pass
+                # If already deleted, this will do nothing
+                self.disk.dequeue(self)
+            if self._deleted:
+                self.delete_from_all_clients()
+
     def send_to_all_clients(self):
+        # For added safety, do not send updates of deleted rows (the reference may still exist)
+        if self._deleted:
+            return
+
         param = self.serialize_me()
         # logging.debug(f"[ALL] Sending queue update for {self.command_runner.get_cmd()}")
         for client in clients:
             # send_msg calls reactor.callFromThread and reactor is single threaded, so no risk here
             # send_all is always called with a lock, so all status updates are sent in the expected order
             self.command_runner.send_msg("queue_status", param, client)
+
+    def delete_from_all_clients(self):
+        param = {
+            "id": self._id,
+        }
+        for client in clients:
+            self.command_runner.send_msg("remove", param, client)
 
     def serialize_me(self) -> dict:
         return {
