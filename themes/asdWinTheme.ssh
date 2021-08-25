@@ -10,13 +10,36 @@ QTabWidget {
     background-color: rgba(255, 255, 255, 0);
 }
 
+QTabWidget::pane {
+    background-color: rgba(255, 255, 255, 0);
+}
+
+QTabWidget::tab-bar {
+    background-color: rgba(255, 255, 255, 0);
+}
+
+
+QTabBar::tab {
+    background-color: rgba(255, 255, 255, 0);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    min-height: 18px;
+    min-width: 60px;
+}
+
+QTabBar::tab:selected{
+    background-color: black;
+    color: yellow
+}
+
+QTabBar::tab:hover {
+    background-color: rgba(0, 0, 0, 120);
+    color: yellow
+}
+
 QTableWidget > QWidget {
     background-color: rgba(255, 255, 255, 0);
     color: rgb(255, 255, 255);
-}
-
-Qlabel {
-    background-color: rgba(199, 199, 199, 100);
 }
 
 QTabBar {
@@ -25,7 +48,7 @@ QTabBar {
 
 QTableView {
     background-color: rgb(49, 52, 59);
-    color: rgb(255, 255, 255);
+    color: rgb(3, 202, 252);
 }
 
 
@@ -44,8 +67,8 @@ QRadioButton {
 
 QLineEdit {
     background-color: rgba(199, 199, 199, 120);
-    color: rgb(255, 255, 255);
-    border-color: rgb(188, 188, 188);
+    color: rgb(3, 202, 252);
+    border-color: rgb(3, 202, 252);
 }
 
 QMessageBox {
@@ -74,6 +97,43 @@ QHeaderView::section {
     background-color: rgba(255, 255, 255, 0);
 }
 
-QScrollBar::vertical {
-    background-color: rgba(255, 255, 255, 0);
+QProgressBar {
+    border: 2px solid grey;
+    border-radius: 5px;
+    color: rgb(3, 202, 252)
+}
+
+QProgressBar::chunk {
+    background-color: rgb(255, 255, 0);
+    width: 20px;
+    color: rgb(3, 202, 252)
+}
+
+QStatusBar {
+    color: rgb(3, 202, 252)
+}
+
+QTextEdit {
+    background-color: rgb(0, 0, 0, 150);
+    color: rgb(55, 255, 0);
+}
+
+QScrollBar:vertical {
+    background: yellow;
+    width: 15px;
+}
+
+QScrollBar::handle:vertical {
+    background: rgba(0, 0, 0, 120);
+    min-height: 20px;
+}
+
+QScrollBar:horizontal {
+    background: rgb(255, 255, 0);
+    height: 15px;
+}
+
+QScrollBar::handle:horizontal {
+    background: rgba(0, 0, 0, 120);
+    min-height: 20px;
 }

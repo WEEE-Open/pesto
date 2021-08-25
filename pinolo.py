@@ -43,6 +43,7 @@ PATH = {"UI": "/assets/interface.ui",
         "REQUIREMENTS": "/requirements_client.txt",
         "CRASH": "/crashreport.txt",
         "ASD": "/assets/asd.gif",
+        "ASDVAP": "/assets/asdvap.gif",
         "RELOAD": "/assets/reload.png",
         "VAPORWAVERELOAD": "/assets/vapman.png",
         "PENDING": "/assets/pending.png",
@@ -286,19 +287,6 @@ class Ui(QtWidgets.QMainWindow):
                 self.themeSelector.setCurrentText(self.settings.value(key))
                 self.set_theme()
         self.themeSelector.currentTextChanged.connect(self.set_theme)
-
-    def eventFilter(self, source, event):
-        if event.type() == QtCore.QEvent.ContextMenu:
-            asd = self.queueTable.itemClicked
-            if source is self.queueTable and self.queueTable.selectedItems() != -1:
-                menu = QtWidgets.QMenu()
-                menu.addAction("asd")
-                menu.addAction("bsd")
-                menu.addAction("csd")
-                if menu.exec_(event.globalPos()):
-                    print("asd")
-                return True
-        return super().eventFilter(source, event)
 
     def latest_conf(self):
         self.remoteMode = self.settings.value("remoteMode")
@@ -614,6 +602,7 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.backgroundLabel.clear()
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
+            self.asd_gif_set(PATH["ASD"])
         elif self.themeSelector.currentText() == "Vaporwave":
             if CURRENT_PLATFORM == 'win32':
                 with open(PATH["WINVAPORTHEME"]) as file:
@@ -624,6 +613,7 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(50,50))
             self.backgroundLabel.clear()
+            self.asd_gif_set(PATH["ASDVAP"])
         elif self.themeSelector.currentText() == "Asd":
             if CURRENT_PLATFORM == 'win32':
                 with open(PATH["ASDWINTHEME"]) as file:
@@ -638,6 +628,7 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.backgroundLabel.setMovie(self.movie)
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
+            self.asd_gif_set(PATH["ASD"])
         elif self.themeSelector.currentText() == "Default":
             self.app.setStyleSheet("")
             with open(PATH["DEFAULTTHEME"], "r") as file:
@@ -645,6 +636,14 @@ class Ui(QtWidgets.QMainWindow):
             self.backgroundLabel.clear()
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
+            self.asd_gif_set(PATH["ASD"])
+
+    def asd_gif_set(self, dir: str):
+        self.asdGif = QMovie(dir)
+        self.asdGif.setScaledSize(
+            QtCore.QSize().scaled(self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio))
+        self.asdGif.start()
+        self.asdlabel.setMovie(self.asdGif)
 
     def gui_update(self, cmd: str, params: str):
         """
