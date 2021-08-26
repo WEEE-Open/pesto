@@ -18,7 +18,6 @@ QTabWidget::tab-bar {
     background-color: rgba(255, 255, 255, 0);
 }
 
-
 QTabBar::tab {
     background-color: rgba(255, 255, 255, 0);
     border-top-left-radius: 4px;
@@ -79,10 +78,6 @@ QMessageBox {
 QComboBox {
     background-color: rgba(255, 255, 0, 255);
     border-color: rgb(188, 188, 188);
-}
-
-QProgressBar {
-    color: rgb(255, 255, 255);
 }
 
 QListWidget {

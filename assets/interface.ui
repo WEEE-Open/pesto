@@ -47,7 +47,7 @@
       <x>0</x>
       <y>0</y>
       <width>760</width>
-      <height>451</height>
+      <height>450</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -66,7 +66,7 @@
         <x>0</x>
         <y>0</y>
         <width>751</width>
-        <height>421</height>
+        <height>411</height>
        </rect>
       </property>
       <layout class="QHBoxLayout" name="mainLayout">
@@ -380,7 +380,7 @@
         <x>0</x>
         <y>0</y>
         <width>751</width>
-        <height>421</height>
+        <height>410</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="smartLayout"/>
@@ -453,7 +453,7 @@
         <rect>
          <x>50</x>
          <y>20</y>
-         <width>50</width>
+         <width>60</width>
          <height>22</height>
         </rect>
        </property>
@@ -466,7 +466,7 @@
         <rect>
          <x>140</x>
          <y>20</y>
-         <width>60</width>
+         <width>80</width>
          <height>22</height>
         </rect>
        </property>
@@ -556,7 +556,7 @@
         <x>10</x>
         <y>340</y>
         <width>140</width>
-        <height>80</height>
+        <height>70</height>
        </rect>
       </property>
       <property name="title">
@@ -599,7 +599,7 @@
         <x>160</x>
         <y>290</y>
         <width>590</width>
-        <height>130</height>
+        <height>120</height>
        </rect>
       </property>
       <property name="title">
@@ -625,7 +625,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>90</y>
+         <y>86</y>
          <width>550</width>
          <height>30</height>
         </rect>
