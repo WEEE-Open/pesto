@@ -28,16 +28,35 @@ class Disk:
         if "path" not in self._lsblk:
             raise RuntimeError("lsblk did not provide path for this disk: " + self._lsblk)
         self._path = str(self._lsblk["path"])
+        self._mountpoint_map = self._lsblk["mountpoint_map"]
+        del self._lsblk["mountpoint_map"]
+
         self._composite_id = Disk.make_composite_id(self._lsblk)
         self._code = None
         self._item = None
 
+        self._update_lock = threading.Lock()
         self._queue_lock = threading.Lock()
         self._commands_queue = deque()
 
         self._tarallo = tarallo
         self._get_code(False)
         self._get_item()
+
+    def update_mountpoints(self):
+        with self._update_lock:
+            # lsblk 2 is like Despacito 2
+            lsblk2 = get_disks(self._path)
+            for one_disk in lsblk2:
+                if one_disk.get("path") == self._path:
+                    self._lsblk["mountpoint"] = one_disk.get("mountpoint", [])
+                    self._mountpoint_map = self._lsblk.get("mountpoint_map", {})
+                    del self._lsblk["mountpoint_map"]
+
+    def get_mountpoints_map(self) -> dict:
+        # Probably pointless lock
+        with self._update_lock:
+            return self._mountpoint_map
 
     @staticmethod
     def make_composite_id(lsblk: dict):
@@ -279,6 +298,10 @@ class CommandRunner(threading.Thread):
         return None
 
     def badblocks(self, _cmd: str, dev: str):
+        go_ahead = self._unswap()
+        if not go_ahead:
+            return
+
         self._queued_command.notify_start("Running badblocks")
         if TEST_MODE:
             self._queued_command.notify_percentage(10, "0 errors")
@@ -375,6 +398,10 @@ class CommandRunner(threading.Thread):
 
     # noinspection PyUnusedLocal
     def cannolo(self, _cmd: str, dev: str):
+        go_ahead = self._unswap()
+        if not go_ahead:
+            return
+
         self._queued_command.notify_start("Cannoling")
         # if not TEST_MODE:
         # TODO: code from turbofresa goes here
@@ -399,6 +426,31 @@ class CommandRunner(threading.Thread):
         self._queued_command.notify_finish("Xubuntu 99.99 LTS installed!")
 
         update_disks_if_needed(self)
+
+    def _unswap(self) -> bool:
+        self._queued_command.disk.update_mountpoints()
+        mountpoints = self._queued_command.disk.get_mountpoints_map()
+        unswap_them = []
+        oh_no = None
+        for part in mountpoints:
+            if mountpoints[part] == "[SWAP]":
+                unswap_them.append(part)
+            else:
+                oh_no = part
+                break
+        if oh_no:
+            self._queued_command.notify_finish_with_error(f"Partition {oh_no} is mounted as {mountpoints[oh_no]}")
+            return False
+        if len(unswap_them) > 0:
+            self._queued_command.notify_start("Unswapping the disk")
+            for path in unswap_them:
+                sp = subprocess.Popen(("sudo", "swapoff", path))
+                exitcode = sp.wait()
+                if exitcode != 0:
+                    self._queued_command.notify_finish_with_error(f"Failed to unswap {path}, exit code {str(exitcode)}")
+                    return False
+            self._queued_command.disk.update_mountpoints()
+        return True
 
     def sleep(self, _cmd: str, dev: str):
         self._queued_command.notify_start("Calling hdparm")
@@ -794,11 +846,11 @@ def scan_for_disks():
                 logging.warning("Exception while scanning for disks, skipping", exc_info=e)
 
 
-def get_disks():
+def get_disks(path: Optional[str] = None):
     if CURRENT_OS == 'win32':
         disks_lsblk = get_disks_win()
     else:
-        disks_lsblk = get_disks_linux()
+        disks_lsblk = get_disks_linux(path)
     return disks_lsblk
 
 
@@ -892,6 +944,7 @@ def get_disks_win() -> list:
                 result["serial"] = result["serial"][3:]
         result["mountpoint"] = []
         if disk["IsBoot"]:
+            result["mountpoint_map"] = {str(disk["DiskNumber"]): "[BOOT]"}
             result["mountpoint"].append("[BOOT]")
         big_result.append(result)
     return big_result
@@ -907,13 +960,14 @@ def get_smartctl_status(smartctl_output: str) -> Optional[str]:
 
 
 def find_mounts(el: dict):
-    mounts = []
+    mounts = {}
     if el["mountpoint"] is not None:
-        mounts.append(el["mountpoint"])
+        mounts[el["path"]] = el["mountpoint"]
     if "children" in el:
         children = el["children"]
         for child in children:
-            mounts += find_mounts(child)
+            children_mounts = find_mounts(child)
+            mounts = {**mounts, **children_mounts}
     return mounts
 
 
@@ -932,7 +986,8 @@ def get_disks_linux(path: Optional[str] = None) -> list:
             del el["children"]
         if "name" in el:
             del el["name"]
-        el["mountpoint"] = mounts
+        el["mountpoint_map"] = mounts
+        el["mountpoint"] = list(mounts.values())
 
     return result
 
