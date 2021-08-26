@@ -262,7 +262,7 @@ class CommandRunner(threading.Thread):
     @staticmethod
     def dev_from_args(args: str):
         # This may be more complicated for some future commands
-        return args
+        return args.split(' ', 1)[0]
 
     def list_iso(self, cmd: str, iso_dir: str):
         files = []
@@ -396,8 +396,23 @@ class CommandRunner(threading.Thread):
     def ping(self, _cmd: str, _nothing: str):
         self.send_msg("pong", None)
 
-    # noinspection PyUnusedLocal
-    def cannolo(self, _cmd: str, dev: str):
+    def cannolo(self, _cmd: str, dev_and_iso: str):
+        parts: list[Optional[str]] = dev_and_iso.split(' ', 1)
+        while len(parts) < 2:
+            parts.append(None)
+        dev, iso = parts
+        if iso is None:
+            self._queued_command.notify_finish_with_error(f"No iso selected")
+            return
+
+        if not os.path.exists(iso):
+            self._queued_command.notify_finish_with_error(f"File {iso} does not exist")
+            return
+
+        if not os.path.isfile(iso):
+            self._queued_command.notify_finish_with_error(f"{iso} is not a file (is it a directory?)")
+            return
+
         go_ahead = self._unswap()
         if not go_ahead:
             return
@@ -423,7 +438,9 @@ class CommandRunner(threading.Thread):
         threading.Event().wait(2)
         self._queued_command.notify_percentage(90)
         threading.Event().wait(2)
-        self._queued_command.notify_finish("Xubuntu 99.99 LTS installed!")
+
+        pretty_iso = self._pretty_print_iso(iso)
+        self._queued_command.notify_finish(f"{pretty_iso} installed!")
 
         update_disks_if_needed(self)
 
@@ -563,6 +580,13 @@ class CommandRunner(threading.Thread):
             for disk in disks:
                 result.append(disks[disk].serialize_disk())
         self.send_msg(cmd, result)
+
+    @staticmethod
+    def _pretty_print_iso(iso: str):
+        filename = iso.rsplit('/', 1)[-1]
+        filename = filename.split('.', 1)[0]
+        filename = filename.replace('-', ' ').replace('_', ' ')
+        return filename
 
 
 class QueuedCommand:
