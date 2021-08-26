@@ -140,11 +140,13 @@ class CommandRunner(threading.Thread):
         self._args = args
         self._the_id = the_id
         self._go = True
+        self._queued_command = None
 
         self._function, disk_for_queue = self.dispatch_command(cmd, args)
         if not self._function:
             self.send_msg("error", {"message": "Unrecognized command", "command": cmd})
             self._function = None
+            return
         self._queued_command = None
         if disk_for_queue is not None:  # Empty string must enter this branch
             # No need to lock, disks are never deleted, so if it is found then it is valid
