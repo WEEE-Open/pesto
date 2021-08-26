@@ -7,6 +7,7 @@ Created on Fri Jul 30 10:54:18 2021
 """
 import logging
 import sys
+import time
 import traceback
 from typing import Union
 from PyQt5 import uic
@@ -97,6 +98,8 @@ class Ui(QtWidgets.QMainWindow):
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
         self.client = None
         self.client: ReactorThread
+        self.manual_cannolo = False
+        self.selected_drive = None
 
         """ Defining all items in GUI """
         self.globalTab = self.findChild(QtWidgets.QTabWidget, 'globalTab')
@@ -370,18 +373,18 @@ class Ui(QtWidgets.QMainWindow):
     def erase(self, std=False):
         # noinspection PyBroadException
         try:
-            selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            if selected_drive is None:
+            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+            if self.selected_drive is None:
                 message = "There are no selected drives."
                 warning_dialog(message, dialog_type='ok')
                 return
             else:
-                selected_drive = selected_drive.text().lstrip("Disk ")
+                self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if not std:
-                message = "Do you want to wipe all disk's data?\nDisk: " + selected_drive
+                message = "Do you want to wipe all disk's data?\nDisk: " + self.selected_drive
                 if critical_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
                     return
-            self.client.send("queued_badblocks " + selected_drive)
+            self.client.send("queued_badblocks " + self.selected_drive)
 
         except BaseException:
             print("Error in erase Function")
@@ -389,15 +392,15 @@ class Ui(QtWidgets.QMainWindow):
     def smart(self, std=False):
         # noinspection PyBroadException
         try:
-            selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            if selected_drive is None:
+            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+            if self.selected_drive is None:
                 if not std:
                     message = "There are no selected drives."
                     warning_dialog(message, dialog_type='ok')
                     return
                 return
             # TODO: Add new tab for every smart requested. If drive tab exist, use it.
-            drive = selected_drive.text().lstrip("Disk ")
+            drive = self.selected_drive.text().lstrip("Disk ")
             self.client.send("queued_smartctl " + drive)
 
         except BaseException:
@@ -406,28 +409,32 @@ class Ui(QtWidgets.QMainWindow):
     def cannolo(self, std=False):
         # noinspection PyBroadException
         try:
-            selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            if selected_drive is None:
+            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+            directory = self.directoryText.text().rsplit("/", 1)[0] + '/'
+            if self.selected_drive is None:
                 if not std:
                     message = "There are no selected drives."
                     warning_dialog(message, dialog_type='ok')
                     return
                 return
             else:
-                selected_drive = selected_drive.text().lstrip("Disk ")
+                self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if not std:
-                message = "Do you want to load a fresh system installation in disk " + selected_drive + "?"
+                message = "Do you want to load a fresh system installation in disk " + self.selected_drive + "?"
                 if warning_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
                     return
-            self.client.send("queued_cannolo " + selected_drive)
+                self.client.send(f"list_iso {directory}")
+                self.manual_cannolo = True
+                return
+            self.client.send(f"queued_cannolo {self.selected_drive}")
 
         except BaseException:
             print("Error in cannolo function.")
 
     def load_to_tarallo(self, std=False):
-        selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-        selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
-        if selected_drive_id != '':
+        self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+        self.selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
+        if self.selected_drive_id != '':
             message = "The selected disk have alredy a TARALLO id."
             warning_dialog(message, dialog_type='ok')
             return
@@ -435,22 +442,22 @@ class Ui(QtWidgets.QMainWindow):
             message = "Do you want to load the disk informations into TARALLO?"
             if warning_dialog(message, dialog_type='yes_no') == QtWidgets.QMessageBox.No:
                 return
-        selected_drive = selected_drive.text().lstrip("Disk ")
-        self.client.send(f"queued_upload_to_tarallo {selected_drive}")
+        self.selected_drive = self.selected_drive.text().lstrip("Disk ")
+        self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
 
     def sleep(self, std=False):
         # noinspection PyBroadException
         try:
-            selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            if selected_drive is None:
+            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+            if self.selected_drive is None:
                 if not std:
                     message = "There are no selected drives."
                     warning_dialog(message, dialog_type='ok')
                     return
                 return
             else:
-                selected_drive = selected_drive.text().lstrip("Disk ")
-            self.client.send("queued_sleep " + selected_drive)
+                self.selected_drive = self.selected_drive.text().lstrip("Disk ")
+            self.client.send("queued_sleep " + self.selected_drive)
 
         except BaseException:
             print("Error in cannolo function.")
@@ -577,11 +584,15 @@ class Ui(QtWidgets.QMainWindow):
         # noinspection PyBroadException
         try:
             if self.remoteMode:
-                self.client.send("list_iso " + self.directoryText.text())
-                message = "Select one of the following images as default image for CANNOLO."
-                iso_list = ["asd.iso", "cctf.iso", "lollone.iso"]
-                self.dialog = CannoloDialog(PATH, iso_list)
-                self.dialog.update.connect(self.set_default_cannolo)
+                directory = self.directoryText.text()
+                splitted_dir = directory.rsplit("/",1)
+                if len(splitted_dir[1].split(".")) > 1:
+                    self.client.send("list_iso " + directory.rsplit("/", 1)[0])
+                else:
+                    if directory[-1] != '/':
+                        directory += '/'
+                    self.client.send("list_iso " + directory)
+
 
             else:
                 dialog = QtWidgets.QFileDialog()
@@ -592,8 +603,15 @@ class Ui(QtWidgets.QMainWindow):
             print("Error in smart function.")
             print(ex)
 
-    def set_default_cannolo(self, img: str):
-        print(f"SETDEFAULTCANNOLO: {img}")
+    def set_default_cannolo(self, dir: str, img: str):
+        self.iso_dir = dir
+        if self.set_default_cannolo:
+            self.directoryText.setText(dir)
+            self.statusBar().showMessage(f"Default cannolo image set as {img}.iso")
+
+    def use_cannolo_img(self, dir: str, img: str):
+        self.statusBar().showMessage(f"Sending cannolo to {self.selected_drive} with {dir}")
+        self.client.send(f"queued_cannolo {self.selected_drive}")
 
     def set_theme(self):
         if self.themeSelector.currentText() == "Dark":
@@ -723,7 +741,7 @@ class Ui(QtWidgets.QMainWindow):
                         for line in text:
                             self.smartTabs.text_boxes[tab].append(line)
                 elif tab == tab_count:
-                    self.smartTabs.add_tab(params["disk"], params["status"], params["updated"], text)
+                        self.smartTabs.add_tab(params["disk"], params["status"], params["updated"], text)
 
         elif cmd == 'connection_failed':
             message = params["reason"]
@@ -736,11 +754,13 @@ class Ui(QtWidgets.QMainWindow):
             self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
 
         # This is an example, the iso_list cmd does not exist now on server
-        elif cmd == 'iso_list':
-            images = []
-            for param in params:
-                images.append(param["iso"])
-                message = "Select one of the following images as default image for CANNOLO."
+        elif cmd == 'list_iso':
+            self.dialog = CannoloDialog(PATH, params)
+            if self.manual_cannolo:
+                self.dialog.update.connect(self.use_cannolo_img)
+                self.manual_cannolo = False
+            else:
+                self.dialog.update.connect(self.set_default_cannolo)
 
         elif cmd == 'error':
             message = params["message"]

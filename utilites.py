@@ -57,17 +57,23 @@ def warning_dialog(message: str, dialog_type: str):
 
 
 class CannoloDialog(QtWidgets.QDialog):
-    update = QtCore.pyqtSignal(str, name="event")
+    update = QtCore.pyqtSignal(str, str, name="event")
 
     def __init__(self, PATH, images: list):
         super(CannoloDialog, self).__init__()
         self.path = PATH
         self.images = images
+        self.files = []
         uic.loadUi(self.path["CANNOLOUI"], self)
 
         self.label = self.findChild(QtWidgets.QLabel, 'dialogLabel')
         self.isoList = self.findChild(QtWidgets.QListWidget, 'isoList')
-        self.isoList.addItems(self.images)
+        for img in self.images:
+            img = img.rsplit("/", 1)[1]
+            img = img.rsplit(".")
+            if img[1] == 'iso':
+                self.files.append(img[0])
+        self.isoList.addItems(self.files)
         self.selectButton = self.findChild(QtWidgets.QPushButton, 'selectButton')
         self.selectButton.clicked.connect(self.select)
         self.cancelButton = self.findChild(QtWidgets.QPushButton, 'cancelButton')
@@ -79,7 +85,9 @@ class CannoloDialog(QtWidgets.QDialog):
             print("no cctf selected")
             return
         iso = self.isoList.currentItem().text()
-        self.update.emit(iso)
+        for dir in self.images:
+            if iso in dir:
+                self.update.emit(dir, iso)
         self.close()
 
 
@@ -324,7 +332,7 @@ class SmartTabs(QtWidgets.QTabWidget):
     def __init__(self):
         super().__init__()
 
-    def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list):
+    def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list, color='black'):
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
         textBox = QtWidgets.QTextEdit()
@@ -338,8 +346,8 @@ class SmartTabs(QtWidgets.QTabWidget):
         if not status:
             status = "Errore deflagrante: impossibile determinare lo stato del disco."
         label = QtWidgets.QLabel(f"{status}\nUploaded: {uploaded}")
+        label.setStyleSheet(f'color: {color}')
         layout.addWidget(label)
         layout.addWidget(textBox)
         widget.setLayout(layout)
-        # self.text_boxes.append(widget)
         self.addTab(widget, drive)
