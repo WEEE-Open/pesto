@@ -9,14 +9,19 @@ Is constituted by:
 - B.A.S.I.L.I.C.O. "Badblocks Asincrono Smart Incredibile Lancio Istantaneo di Cannoli Olistico" --> Server
 - P.I.N.O.L.O. "Procacciatore di Informazioni Notevoli e Operazioni Laboriose Online"  --> Client
 
-## Installation
-The software can work locally or remotely.
-For the client side:
+## Client Installation
+To install the client, open a terminal and execute the following commands:
 1. `git clone https://github.com/WEEE-Open/pesto.git`
-2. `sudo chmod +x pesto.py`
-3. In program folder: `./pesto.py` or `./basilico.py`
+2. `sudo chmod +x pinolo.py`
+3. In program folder: `./pinolo.py`
 
-PEsto installs its dependencies automatically, while for basilico you'll need:
+## Server Installation
+To install the server in a remote machine:
+1. `git clone https://github.com/WEEE-Open/pesto.git`
+2. `sudo chmod +x basilico.py`
+3. In program folder: `./basilico.py`
+
+PINOLO installs its dependencies automatically, while for BASILICO you'll need:
 
 ```bash
 pip install -r requirements_server.txt
@@ -53,16 +58,15 @@ TEST_MODE=1
 ```
 
 ## Functioning
-The program pesto.py (or pesto_noCmd.pyw to hide console) is a GUI software that can do all the supported operations on the drives of the local machine and can send commands to the "remote" server (another machine in the same local network) that can do the same operations.
+PESTO is a utility software that allows you to make some operations on hard disks or SSDs, like:
+- ERASE: Wipe all data on the selected drive.
+- SMART: Check SMART data of the selected drive to give an estimate of the operating status of the device.
+- CANNOLO: Load an operating system image on the selected drive.
+- LOAD TO TARALLO: Utility that can communicate with TARALLO, sending all the necessary data to add the selected device to the inventory.  
 
-The program pesto_server.py is the server side software that can get commands by a client in the same local network to do all the supported operations on the server's drives.
+`pinolo.py` is the user interface of the software with which the user can perform all the operations on the drives. This program by itself will be useless if not coupled with the server `basilico.py`. This one is the heart of PESTO: it performs all the commands that the user send to him, constantly sending back informations to the client that shows them to the user in a more human friendly way.
 
 **It's highly discouraged to use the client outside a local network for security reasons.**
-
-### Supported operations
-* Pialla disco: Wipe all data on the selected drive
-* Smart: Check SMART data of the selected drive and give an indication of the overall status of the device
-* Cannolo: Load a system image to the selected drive. The system image can be set in the settings panel
 
 ## Screenshots  
 
