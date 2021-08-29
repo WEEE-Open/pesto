@@ -970,6 +970,9 @@ def get_disks_win() -> list:
         if disk["IsBoot"]:
             result["mountpoint_map"] = {str(disk["DiskNumber"]): "[BOOT]"}
             result["mountpoint"].append("[BOOT]")
+        else:
+            result["mountpoint_map"] = {}
+            result["mountpoint"] = []
         big_result.append(result)
     return big_result
 
