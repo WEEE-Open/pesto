@@ -519,8 +519,8 @@ class Ui(QtWidgets.QMainWindow):
                 label.setAlignment(Qt.AlignCenter)
                 self.queueTable.setCellWidget(row, idx, label)
             else:
+                label.setAlignment(Qt.AlignCenter)
                 layout = QtWidgets.QVBoxLayout()
-                layout.setAlignment(Qt.AlignCenter)
                 layout.setContentsMargins(0, 0, 0, 0)
                 layout.addWidget(label)
                 widget = QtWidgets.QWidget()
