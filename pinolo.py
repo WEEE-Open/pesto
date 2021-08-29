@@ -118,6 +118,7 @@ class Ui(QtWidgets.QMainWindow):
         """ Initialization operations """
         self.set_items_functions()
         self.localServer = LocalServer()
+        self.localServer.update.connect(self.server_com)
         if CURRENT_PLATFORM == 'win32':
             if self.settings.value("win32ServerStartupDialog") != 1:
                 message = "Cannot run local server on windows machine."
@@ -363,7 +364,7 @@ class Ui(QtWidgets.QMainWindow):
             self.client.send("queued_badblocks " + self.selected_drive)
 
         except BaseException:
-            print("Error in erase Function")
+            print("GUI: Error in erase Function")
 
     def smart(self, std=False):
         # noinspection PyBroadException
@@ -380,7 +381,7 @@ class Ui(QtWidgets.QMainWindow):
             self.client.send("queued_smartctl " + drive)
 
         except BaseException:
-            print("Error in smart function.")
+            print("GUI: Error in smart function.")
 
     def cannolo(self, std=False):
         # noinspection PyBroadException
@@ -405,7 +406,7 @@ class Ui(QtWidgets.QMainWindow):
             self.client.send(f"queued_cannolo {self.selected_drive}")
 
         except BaseException:
-            print("Error in cannolo function.")
+            print("GUI: Error in cannolo function.")
 
     def load_to_tarallo(self, std=False):
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
@@ -436,14 +437,15 @@ class Ui(QtWidgets.QMainWindow):
             self.client.send("queued_sleep " + self.selected_drive)
 
         except BaseException:
-            print("Error in cannolo function.")
+            print("GUI: Error in cannolo function.")
 
     def set_remote_mode(self):
         # if CURRENT_PLATFORM == 'win32':
         #     self.remoteRadioBtn.setChecked(True)
         #     self.localRadioBtn.setCheckable(False)
         if self.localRadioBtn.isChecked():
-            self.remoteMode = False
+            if self.remoteMode:
+                self.client.send("do_not_close_at_end")
             self.remoteMode = False
             self.settings.setValue("latestHost", self.host)
             self.settings.setValue("latestPort", self.port)
@@ -460,6 +462,7 @@ class Ui(QtWidgets.QMainWindow):
             if not self.remoteMode:
                 self.host = self.settings.value("latestHost")
                 self.port = int(self.settings.value("latestPort"))
+                self.client.send("close_at_end")
             self.remoteMode = True
             self.hostInput.setReadOnly(False)
             self.hostInput.setText(self.host)
@@ -582,8 +585,7 @@ class Ui(QtWidgets.QMainWindow):
                 self.directoryText.setText(directory)
                 
         except BaseException as ex:
-            print("Error in smart function.")
-            print(ex)
+            print(f"GUI: Error in smart function [{ex}]")
 
     def set_default_cannolo(self, directory: str, img: str):
         if self.set_default_cannolo:
@@ -659,6 +661,14 @@ class Ui(QtWidgets.QMainWindow):
         self.asdGif.start()
         self.asdlabel.setMovie(self.asdGif)
 
+    def server_com(self, cmd: str, st2: str):
+        if cmd == 'SERVER_READY':
+            print("GUI: Local server loaded. Connecting...")
+            self.client.reconnect(self.host, self.port)
+        elif cmd == 'SERVER_ALREADY_UP':
+            print("GUI: Local server already up. Reconnecting...")
+            self.client.reconnect(self.host, self.port)
+
     def gui_update(self, cmd: str, params: str):
         """
         Typical param str is:
@@ -672,7 +682,7 @@ class Ui(QtWidgets.QMainWindow):
             params = json.loads(params)
             params: Union[dict, list]
         except json.decoder.JSONDecodeError:
-            print(f"Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
+            print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
         if cmd == 'queue_status' or cmd == 'get_queue':
             if cmd == 'queue_status':
@@ -741,6 +751,11 @@ class Ui(QtWidgets.QMainWindow):
 
         elif cmd == 'connection_failed':
             message = params["reason"]
+            if not self.remoteMode:
+                print("GUI: Connection Failed: Local server not running.")
+                print("GUI: Trying to start local server...")
+                self.localServer.start()
+                return
             if "Connection was refused by other side" in message:
                 message = "Cannot find BASILICO server.\nCheck if it's running in the " \
                           "targeted machine."
@@ -772,14 +787,15 @@ class Ui(QtWidgets.QMainWindow):
         self.settings.setValue("remotePort", self.portInput.text())
         self.settings.setValue("cannoloDir", self.directoryText.text())
         self.settings.setValue("theme", self.themeSelector.currentText())
-        self.client.stop()
+        # if not self.remoteMode:
+        self.client.stop(self.remoteMode)
 
 
 class LocalServer(QThread):
     update = QtCore.pyqtSignal(str, str, name="update")
 
-    def __init__(self):
-        super().__init__(self)
+    def __init__(self, parent=None):
+        QtCore.QThread.__init__(self, parent)
         self.server: subprocess.Popen
         self.server = None
         self.running = False
@@ -788,12 +804,12 @@ class LocalServer(QThread):
         if not self.running:
             self.server = subprocess.Popen(["python", PATH["SERVER"]], stderr=subprocess.PIPE,
                                            stdout=subprocess.PIPE)
-            self.running = True
             while "Listening on" not in self.server.stderr.readline().decode('utf-8'):
                 pass
-            print("SERVER_READY")
+            self.running = True
+            self.update.emit("SERVER_READY", '')
         else:
-            print("SERVER_READY")
+            self.update.emit("SERVER_ALREADY_UP", '')
 
     def stop(self):
         if self.running:

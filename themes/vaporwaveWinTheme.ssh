@@ -119,6 +119,23 @@ QScrollBar::vertical {
     background-color: rgba(255, 255, 255, 0);
 }
 
+QScrollBar::sub-page:vertical, QScrollBar::add-page:vertical {
+    background-color: transparent;
+}
+
+QScrollBar::horizontal {
+    background-color: rgba(255, 255, 255, 0);
+}
+
+QScrollBar::sub-page:horizontal, QScrollBar::add-page:horizontal {
+    background-color: transparent;
+}
+
 QStatusBar {
+    color: white;
+}
+
+QTextEdit {
+    background-color: rgb(255, 255, 255, 100);
     color: white;
 }

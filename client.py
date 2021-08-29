@@ -9,6 +9,8 @@ Created on Fri Aug 20 12:35:26 2021
 """
 import builtins
 import json
+
+import twisted.internet.error
 from twisted.internet import reactor, protocol
 from PyQt5.QtCore import QThread
 from PyQt5 import QtCore
@@ -25,14 +27,18 @@ class Client(LineOnlyReceiver):
             line = line.decode('utf-8')
             self.factory.update_gui(line)
         except UnicodeDecodeError:
-            print(f"Oh no, UnicodeDecodeError!")
+            print(f"CLIENT: Oh no, UnicodeDecodeError!")
             return
 
     def send_msg(self, msg: str):
-        self.sendLine(msg.encode("utf-8"))
+        if msg == "queued_close_at_end":
+            self.sendLine(msg.encode("utf-8"))
+            self.disconnect()
+        else:
+            self.sendLine(msg.encode("utf-8"))
 
     def connectionMade(self):
-        print("Connected to server.")
+        print("CLIENT: Connected to server.")
         global receiver
         receiver = self
         self.factory.update_gui("connection_made")
@@ -44,29 +50,31 @@ class Client(LineOnlyReceiver):
             self.transport.loseConnection()
         except builtins.AttributeError as ex:
             if "NoneType" in str(ex):
-                print("Trying to disconnect but no connection established.")
+                print("CLIENT: Trying to disconnect but no connection established.")
 
 
 class ClientFactory(protocol.ClientFactory):
     """ Qui succedono le cose """
+    # TODO: write documentation
 
     protocol = Client
 
-    def __init__(self, update_event: QtCore.pyqtSignal, host: str, port: int):
+    def __init__(self, update_event: QtCore.pyqtSignal, host: str, port: int, remoteMode: bool):
         self.updateEvent = update_event
         self.host = host
         self.port = port
-        # WHY ARE YOU RUNNING?
+        self.remoteMode = remoteMode
+        # WHY ARE YOU RUNNING? ~cit.
         self.running = False
 
     def startedConnecting(self, connector):
-        print("Connecting.")
+        print("CLIENT: Connecting.")
 
     def clientConnectionLost(self, connector, reason):
-        print(f"Lost connection. Reason: {reason}")
+        print(f"CLIENT: Lost connection. Reason: {reason}")
 
     def clientConnectionFailed(self, connector, reason):
-        print(f"Connection failed. Reason: {reason}")
+        print(f"CLIENT: Connection failed. Reason: {reason}")
         d = {"reason": str(reason).replace('\n', '')}
         data = "connection_failed " + json.dumps(d, separators=(',', ':'), indent=None)
         self.update_gui(data)
@@ -89,12 +97,13 @@ class ClientFactory(protocol.ClientFactory):
 class ReactorThread(QThread):
     updateEvent = QtCore.pyqtSignal(str, str, name="update")
 
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, remoteMode: bool):
         QThread.__init__(self)
         self.host = host
         self.port = port
+        self.remoteMode = remoteMode
         self.protocol = Client
-        self.factory = ClientFactory(self.updateEvent, self.host, self.port)
+        self.factory = ClientFactory(self.updateEvent, self.host, self.port, self.remoteMode)
         self.reactor = reactor
 
     def run(self) -> None:
@@ -103,9 +112,12 @@ class ReactorThread(QThread):
         # noinspection PyUnresolvedReferences
         self.reactor.run(installSignalHandlers=False)
 
-    def stop(self):
+    def stop(self, remoteMode: bool):
         # noinspection PyUnresolvedReferences
-        self.reactor.callFromThread(Client.disconnect, receiver)
+        if not remoteMode:
+            self.reactor.callFromThread(Client.send_msg, receiver, "close_at_end")
+        else:
+            self.reactor.callFromThread(Client.disconnect, receiver)
 
     def reconnect(self, host: str, port: int):
         # noinspection PyUnresolvedReferences

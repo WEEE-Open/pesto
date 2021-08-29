@@ -331,8 +331,9 @@ def initialize_path(current_platform: str, big_path: {}):
 class SmartTabs(QtWidgets.QTabWidget):
     def __init__(self):
         super().__init__()
+        self.color = None
 
-    def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list, color='black'):
+    def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list):
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
         textBox = QtWidgets.QTextEdit()
@@ -346,14 +347,33 @@ class SmartTabs(QtWidgets.QTabWidget):
         if not status:
             status = "Errore deflagrante: impossibile determinare lo stato del disco."
         label = QtWidgets.QLabel(f"{status}\nUploaded: {uploaded}")
-        label.setStyleSheet(f'color: {color}')
+        label.setStyleSheet(f'color: {self.color}')
         layout.addWidget(label)
         layout.addWidget(textBox)
         widget.setLayout(layout)
         self.addTab(widget, drive)
 
     def set_style(self, style: str):
+        tab_count = self.count()
         if style == "WeeeOpen":
             self.setStyleSheet("QTabBar::tab { background-color: rgba(0, 152, 58, 255); color: white; }")
+            for n in range(tab_count):
+                label = self.widget(n).findChild(QtWidgets.QLabel)
+                label.setStyleSheet("color: black")
+            self.color = 'black'
+        elif style == 'Dark':
+            for n in range(tab_count):
+                label = self.widget(n).findChild(QtWidgets.QLabel)
+                label.setStyleSheet("color: white")
+            self.color = 'white'
+        elif style == 'Vaporwave':
+            for n in range(tab_count):
+                label = self.widget(n).findChild(QtWidgets.QLabel)
+                label.setStyleSheet("color: white")
+            self.color = 'white'
+
         else:
-            self.setStyleSheet("")
+            for n in range(tab_count):
+                label = self.widget(n).findChild(QtWidgets.QLabel)
+                label.setStyleSheet("color: black")
+            self.color = 'black'
