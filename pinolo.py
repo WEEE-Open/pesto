@@ -7,7 +7,6 @@ Created on Fri Jul 30 10:54:18 2021
 """
 import logging
 import sys
-import time
 import traceback
 from typing import Union
 from PyQt5 import uic
@@ -17,26 +16,6 @@ from PyQt5.QtWidgets import QTableWidgetItem
 from client import *
 from utilites import *
 from queue import Queue
-
-SPACE = 5
-
-REQUIREMENTS = ["Model Family",
-                "Device Model",
-                "Serial Number",
-                "Power_On_Hours",
-                "Power_Cycle_Count",
-                "SSD_Life_Left",
-                "Lifetime_Writes_GiB",
-                "Reallocated_Sector_Ct",
-                "LU WWN Device Id",
-                "Rotation Rate",
-                "Current Pending Sector Count",
-                "Model Number",
-                "Firmware Version"]
-
-SMARTCHECK = ["Power_On_Hours",
-              "Reallocated_Sector_Cd",
-              "Current Pending Sector Count"]
 
 PATH = {"UI": "/assets/interface.ui",
         "INFOUI": "/assets/info.ui",
@@ -74,17 +53,11 @@ QUEUE_TABLE = ["ID",
                "Progress"
                ]
 
-CLIENT_COMMAND = {"PING": "===PING===",
-                  "GET_DISK": "===GET_DISK===",
-                  "GET_DISK_WIN": "GET_DISK_WIN",
-                  "CONNECT": "===CONNECT==="}
-
 CURRENT_PLATFORM = sys.platform
 
 initialize_path(CURRENT_PLATFORM, PATH)
 
 logging.basicConfig(level=logging.DEBUG, filename=PATH["LOGFILE"])
-
 
 # UI class
 class Ui(QtWidgets.QMainWindow):
@@ -535,7 +508,6 @@ class Ui(QtWidgets.QMainWindow):
                     label.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
             elif entry == "Progress":  # PROGRESS
                 label = QtWidgets.QProgressBar()
-                label: QtWidgets.QProgressBar
                 label.setValue(0)
 
             if entry in ["ID", "Process", "Disk"]:
@@ -547,10 +519,9 @@ class Ui(QtWidgets.QMainWindow):
                 label.setAlignment(Qt.AlignCenter)
                 self.queueTable.setCellWidget(row, idx, label)
             else:
-                label.setAlignment(Qt.AlignCenter)
                 layout = QtWidgets.QVBoxLayout()
-                layout.setAlignment(Qt.AlignVCenter)
-                layout.setContentsMargins(0,0,0,0)
+                layout.setAlignment(Qt.AlignCenter)
+                layout.setContentsMargins(0, 0, 0, 0)
                 layout.addWidget(label)
                 widget = QtWidgets.QWidget()
                 widget.setLayout(layout)
@@ -596,7 +567,6 @@ class Ui(QtWidgets.QMainWindow):
         # noinspection PyBroadException
         try:
             if self.remoteMode:
-<<<<<<< Updated upstream
                 directory = self.directoryText.text()
                 splitted_dir = directory.rsplit("/",1)
                 if len(splitted_dir[1].split(".")) > 1:
@@ -606,11 +576,6 @@ class Ui(QtWidgets.QMainWindow):
                         directory += '/'
                     self.client.send("list_iso " + directory)
 
-=======
-                self.client.send("list_iso " + self.directoryText.text())
-                self.dialog = CannoloDialog(PATH, iso_list)
-                self.dialog.update.connect(self.set_default_cannolo)
->>>>>>> Stashed changes
 
             else:
                 dialog = QtWidgets.QFileDialog()
@@ -725,6 +690,8 @@ class Ui(QtWidgets.QMainWindow):
                     elif item is None:
                         self.update_queue(pid=param["id"], drive=param["target"], mode=param["command"])
                         rows += 1
+                print(row)
+                print(self.queueTable.item(row, 0).text())
                 progress_bar = self.queueTable.cellWidget(row, 4).findChild(QtWidgets.QProgressBar)
                 status_cell = self.queueTable.cellWidget(row, 3)
                 progress_bar.setValue(int(param["percentage"]))
