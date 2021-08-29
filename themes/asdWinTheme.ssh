@@ -6,20 +6,16 @@ QPushButton {
     background-color: rgba(255, 255, 0, 255);
 }
 
-QTabWidget {
-    background-color: rgba(255, 255, 255, 0);
-}
-
 QTabWidget::pane {
-    background-color: rgba(255, 255, 255, 0);
+    background-color: rgba(255, 255, 255, 125);
 }
 
 QTabWidget::tab-bar {
-    background-color: rgba(255, 255, 255, 0);
+    background-color: transparent;
 }
 
 QTabBar::tab {
-    background-color: rgba(255, 255, 255, 0);
+    background-color: transparent;
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
     min-height: 18px;
@@ -37,7 +33,7 @@ QTabBar::tab:hover {
 }
 
 QTableWidget > QWidget {
-    background-color: rgba(255, 255, 255, 0);
+    background-color: transparent;
     color: rgb(255, 255, 255);
 }
 
@@ -47,12 +43,11 @@ QTabBar {
 
 QTableView {
     background-color: rgb(49, 52, 59);
-    color: rgb(3, 202, 252);
+    color: black;
 }
 
-
 QFrame {
-    background-color: rgba(255, 255, 255, 0);
+    background-color: transparent;
 }
 
 QGroupBox {
@@ -60,13 +55,22 @@ QGroupBox {
     border-radius: 1px
 }
 
-QRadioButton {
-    background-color: rgba(199, 199, 199, 100);
+QRadioButton::indicator {
+    width: 15px;
+    height: 15px;
+}
+
+QRadioButton::indicator::unchecked {
+    image: url(assets/radio/radio_unckd.png);
+}
+
+QRadioButton::indicator::checked {
+    image: url(assets/radio/radio_ckd.png);
 }
 
 QLineEdit {
     background-color: rgba(199, 199, 199, 120);
-    color: rgb(3, 202, 252);
+    color: black;
     border-color: rgb(3, 202, 252);
 }
 
@@ -93,13 +97,13 @@ QTableWidgetItem {
 }
 
 QHeaderView::section {
-    background-color: rgba(255, 255, 255, 0);
+    background-color: transparent;
 }
 
 QProgressBar {
     border: 2px solid grey;
     border-radius: 5px;
-    color: rgb(3, 202, 252);
+    color: rgb(55, 255, 0);
     min-height: 10px;
     max-height: 15px;
 }
@@ -111,7 +115,7 @@ QProgressBar::chunk {
 }
 
 QStatusBar {
-    color: rgb(3, 202, 252);
+    color: black;
 }
 
 QTextEdit {

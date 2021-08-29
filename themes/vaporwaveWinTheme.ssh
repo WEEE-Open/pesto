@@ -1,5 +1,5 @@
 QMainWindow {
-    border-image: url(assets/vaporwave.png);
+    border-image: url(assets/backgrounds/vaporwave.png);
 }
 
 QPushButton {
@@ -62,11 +62,11 @@ QRadioButton::indicator {
 }
 
 QRadioButton::indicator::unchecked {
-    image: url(assets/radio_unckd.png);
+    image: url(assets/radio/radio_unckd.png);
 }
 
 QRadioButton::indicator::checked {
-    image: url(assets/radio_ckd.png);
+    image: url(assets/radio/radio_ckd.png);
 }
 
 QLineEdit {

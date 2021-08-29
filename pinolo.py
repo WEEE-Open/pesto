@@ -5,7 +5,6 @@ Created on Fri Jul 30 10:54:18 2021
 
 @author: il_palmi
 """
-import logging
 import sys
 import traceback
 from typing import Union
@@ -17,32 +16,38 @@ from client import *
 from utilites import *
 from queue import Queue
 
-PATH = {"UI": "/assets/interface.ui",
-        "INFOUI": "/assets/info.ui",
-        "CANNOLOUI": "/assets/cannolo_select.ui",
-        "REQUIREMENTS": "/requirements_client.txt",
-        "CRASH": "/crashreport.txt",
-        "ASD": "/assets/asd.gif",
-        "ASDVAP": "/assets/asdvap.gif",
-        "RELOAD": "/assets/reload.png",
-        "WHITERELOAD": "/assets/reload_white.png",
-        "VAPORWAVERELOAD": "/assets/vapman.png",
-        "PENDING": "/assets/pending.png",
+PATH = {"REQUIREMENTS": "/requirements_client.txt",
+
+        "UI": "/assets/qt/interface.ui",
+        "INFOUI": "/assets/qt/info.ui",
+        "CANNOLOUI": "/assets/qt/cannolo_select.ui",
+
         "ICON": "/assets/icon.png",
-        "PROGRESS": "/assets/progress.png",
-        "OK": "/assets/ok.png",
-        "WARNING": "/assets/warning.png",
-        "ERROR": "/assets/error.png",
-        "WEEELOGO": "/assets/weee_logo.png",
-        "WEEETXT": "/assets/weee_text.png",
+
+        "ASD": "/assets/asd/asd.gif",
+        "ASDVAP": "/assets/asd/asdvap.gif",
+
+        "RELOAD": "/assets/reload/reload.png",
+        "WHITERELOAD": "/assets/reload/reload_white.png",
+        "VAPORWAVERELOAD": "/assets/reload/vapman.png",
+
+        "PENDING": "/assets/table/pending.png",
+        "PROGRESS": "/assets/table/progress.png",
+        "OK": "/assets/table/ok.png",
+        "WARNING": "/assets/table/warning.png",
+        "ERROR": "/assets/table/error.png",
         "STOP": "/assets/stop.png",
+
+        "WEEETXT": "/assets/weee_text.png",
+
         "SERVER": "/basilico.py",
-        "LOGFILE": "/tmp/crashreport.py",
+
         "DEFAULTTHEME": "/themes/defaultTheme.ssh",
         "DARKTHEME": "/themes/darkTheme.ssh",
         "VAPORTHEME": "/themes/vaporwaveTheme.ssh",
         "ASDTHEME": "/themes/asdTheme.ssh",
-        "WINVAPORTHEME": "/themes/vaporwaveWinTheme.ssh",
+        "WEEETHEME": "/themes/weeeTheme.ssh",
+        "VAPORWINTHEME": "/themes/vaporwaveWinTheme.ssh",
         "ASDWINTHEME": "/themes/asdWinTheme.ssh",
         "WEEEWINTHEME": "/themes/weeeWinTheme.ssh"}
 
@@ -57,26 +62,21 @@ CURRENT_PLATFORM = sys.platform
 
 initialize_path(CURRENT_PLATFORM, PATH)
 
-logging.basicConfig(level=logging.DEBUG, filename=PATH["LOGFILE"])
 
 # UI class
 class Ui(QtWidgets.QMainWindow):
-    def __init__(self, gui_queue: Queue, client_queue: Queue, server_queue: Queue, app: QtWidgets.QApplication) -> None:
+    def __init__(self, app: QtWidgets.QApplication) -> None:
         super(Ui, self).__init__()
         uic.loadUi(PATH["UI"], self)
-        self.gui_queue = gui_queue          # Command queue for gui
-        self.client_queue = client_queue    # Command queue for client
-        self.server_queue = server_queue    # Command queue for server
         self.app = app
-        self.running = True
         self.host = None
         self.port = None
         self.remoteMode = False
-        self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
-        self.client = None
         self.client: ReactorThread
+        self.client = None
         self.manual_cannolo = False
         self.selected_drive = None
+        self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
 
         """ Defining all items in GUI """
         self.globalTab = self.findChild(QtWidgets.QTabWidget, 'globalTab')
@@ -110,14 +110,14 @@ class Ui(QtWidgets.QMainWindow):
         self.info_action = QtWidgets.QAction("Info", self)
         self.asdlabel = self.findChild(QtWidgets.QLabel, 'asdLabel')
         self.asdGif = QMovie(PATH["ASD"])
-        self.asdGif.setScaledSize(QtCore.QSize().scaled(self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio))
+        self.asdGif.setScaledSize(QtCore.QSize().scaled(self.asdlabel.width(), self.asdlabel.height(),
+                                                        Qt.KeepAspectRatio))
         self.asdGif.start()
         self.asdlabel.setMovie(self.asdGif)
 
-
         """ Initialization operations """
         self.set_items_functions()
-        self.localServer = LocalServer(self.server_queue)
+        self.localServer = LocalServer()
         if CURRENT_PLATFORM == 'win32':
             if self.settings.value("win32ServerStartupDialog") != 1:
                 message = "Cannot run local server on windows machine."
@@ -294,7 +294,7 @@ class Ui(QtWidgets.QMainWindow):
         a critical error is shown and the client goes in idle. If the client is in local mode and it cannot reach a
         BASILICO server, a new BASILICO process is instantiated.
         """
-        self.client = ReactorThread(self.host, self.port)
+        self.client = ReactorThread(self.host, self.port, self.remoteMode)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
 
@@ -409,8 +409,8 @@ class Ui(QtWidgets.QMainWindow):
 
     def load_to_tarallo(self, std=False):
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-        self.selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
-        if self.selected_drive_id != '':
+        selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
+        if selected_drive_id != '':
             message = "The selected disk have alredy a TARALLO id."
             warning_dialog(message, dialog_type='ok')
             return
@@ -568,32 +568,30 @@ class Ui(QtWidgets.QMainWindow):
         try:
             if self.remoteMode:
                 directory = self.directoryText.text()
-                splitted_dir = directory.rsplit("/",1)
+                splitted_dir = directory.rsplit("/", 1)
                 if len(splitted_dir[1].split(".")) > 1:
                     self.client.send("list_iso " + directory.rsplit("/", 1)[0])
                 else:
                     if directory[-1] != '/':
                         directory += '/'
                     self.client.send("list_iso " + directory)
-
-
             else:
                 dialog = QtWidgets.QFileDialog()
                 directory = dialog.getExistingDirectory(self, "Open Directory", "/home",
                                                         QtWidgets.QFileDialog.ShowDirsOnly)
                 self.directoryText.setText(directory)
+                
         except BaseException as ex:
             print("Error in smart function.")
             print(ex)
 
-    def set_default_cannolo(self, dir: str, img: str):
-        self.iso_dir = dir
+    def set_default_cannolo(self, directory: str, img: str):
         if self.set_default_cannolo:
-            self.directoryText.setText(dir)
+            self.directoryectoryText.setText(directory)
             self.statusBar().showMessage(f"Default cannolo image set as {img}.iso")
 
-    def use_cannolo_img(self, dir: str, img: str):
-        self.statusBar().showMessage(f"Sending cannolo to {self.selected_drive} with {dir}")
+    def use_cannolo_img(self, directory: str, img: str):
+        self.statusBar().showMessage(f"Sending cannolo to {self.selected_drive} with {img}")
         self.client.send(f"queued_cannolo {self.selected_drive}")
 
     def set_theme(self):
@@ -608,7 +606,7 @@ class Ui(QtWidgets.QMainWindow):
             self.cannoloLabel.setStyleSheet('color: yellow')
         elif theme == "Vaporwave":
             if CURRENT_PLATFORM == 'win32':
-                with open(PATH["WINVAPORTHEME"]) as file:
+                with open(PATH["VAPORWINTHEME"]) as file:
                     self.app.setStyleSheet(file.read())
             else:
                 with open(PATH["VAPORTHEME"], "r") as file:
@@ -633,6 +631,7 @@ class Ui(QtWidgets.QMainWindow):
             self.backgroundLabel.setMovie(self.movie)
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
             self.asd_gif_set(PATH["ASD"])
+            self.cannoloLabel.setStyleSheet('color: blue')
         elif theme == "WeeeOpen":
             if CURRENT_PLATFORM == 'win32':
                 with open(PATH["WEEEWINTHEME"]) as file:
@@ -690,8 +689,6 @@ class Ui(QtWidgets.QMainWindow):
                     elif item is None:
                         self.update_queue(pid=param["id"], drive=param["target"], mode=param["command"])
                         rows += 1
-                print(row)
-                print(self.queueTable.item(row, 0).text())
                 progress_bar = self.queueTable.cellWidget(row, 4).findChild(QtWidgets.QProgressBar)
                 status_cell = self.queueTable.cellWidget(row, 3)
                 progress_bar.setValue(int(param["percentage"]))
@@ -778,25 +775,25 @@ class Ui(QtWidgets.QMainWindow):
         self.client.stop()
 
 
-class LocalServer:
+class LocalServer(QThread):
     update = QtCore.pyqtSignal(str, str, name="update")
 
-    def __init__(self, server_queue: Queue):
-        self.server_queue = server_queue
+    def __init__(self):
+        super().__init__(self)
         self.server: subprocess.Popen
-        self.running = False
         self.server = None
+        self.running = False
 
-    def load_server(self):
+    def run(self):
         if not self.running:
             self.server = subprocess.Popen(["python", PATH["SERVER"]], stderr=subprocess.PIPE,
                                            stdout=subprocess.PIPE)
             self.running = True
             while "Listening on" not in self.server.stderr.readline().decode('utf-8'):
                 pass
-            self.server_queue.put("SERVER_READY")
+            print("SERVER_READY")
         else:
-            self.server_queue.put("SERVER_READY")
+            print("SERVER_READY")
 
     def stop(self):
         if self.running:
@@ -808,18 +805,15 @@ def main():
     # noinspection PyBroadException
     try:
         check_requirements(PATH["REQUIREMENTS"])
-        gui_bg_queue = Queue()
-        client_queue = Queue()
-        server_queue = Queue()
         app = QtWidgets.QApplication(sys.argv)
-        window = Ui(gui_bg_queue, client_queue, server_queue, app)
+        window = Ui(app)
         app.exec_()
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
 
     except BaseException:
-        logging.exception(traceback.print_exc(file=sys.stdout))
+        print(traceback.print_exc(file=sys.stdout))
 
 
 if __name__ == "__main__":

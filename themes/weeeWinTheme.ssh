@@ -54,3 +54,16 @@ QLineEdit {
     background-color: rgba(0, 152, 58, 200);
     color: white;
 }
+
+QRadioButton::indicator {
+    width: 13px;
+    height: 13px;
+}
+
+QRadioButton::indicator::unchecked {
+    image: url(assets/radio/blk_radio_unckd.png);
+}
+
+QRadioButton::indicator::checked {
+    image: url(assets/radio/blk_radio_ckd.png);
+}
