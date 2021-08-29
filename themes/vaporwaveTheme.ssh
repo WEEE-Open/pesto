@@ -70,7 +70,17 @@ QComboBox {
 }
 
 QProgressBar {
+    border: 2px solid grey;
+    border-radius: 5px;
     color: rgb(255, 255, 255);
+    min-height: 10px;
+    max-height: 15px;
+}
+
+QProgressBar::chunk {
+    background-color: rgb(255, 255, 0);
+    width: 20px;
+    color: rgb(3, 202, 252);
 }
 
 QListWidget {

@@ -16,7 +16,7 @@ QTableWidget > QWidget {
     color: rgb(255, 255, 255);
 }
 
-Qlabel {
+QLabel {
     background-color: rgba(255, 255, 255, 0);
     color: rgb(255, 255, 255);
 }
@@ -48,8 +48,25 @@ QGroupBox {
     border-radius: 1px
 }
 
+QGroupBox::title {
+    color: white;
+}
+
 QRadioButton {
-    color: rgb(255, 255, 255);
+    color: white;
+}
+
+QRadioButton::indicator {
+    width: 13px;
+    height: 13px;
+}
+
+QRadioButton::indicator::unchecked {
+    image: url(assets/radio_unckd.png);
+}
+
+QRadioButton::indicator::checked {
+    image: url(assets/radio_ckd.png);
 }
 
 QLineEdit {
@@ -71,11 +88,23 @@ QComboBox {
 }
 
 QProgressBar {
+    border: 2px solid grey;
+    border-radius: 5px;
     color: rgb(255, 255, 255);
+    min-height: 10px;
+    max-height: 15px;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+QProgressBar::chunk {
+    background-color: rgb(245, 66, 149);
+    width: 20px;
+    color: rgb(3, 202, 252);
 }
 
 QListWidget {
     background-color: rgba(238, 176, 255, 120);
+    color: white;
 }
 
 QTableWidgetItem {
@@ -88,4 +117,8 @@ QHeaderView::section {
 
 QScrollBar::vertical {
     background-color: rgba(255, 255, 255, 0);
+}
+
+QStatusBar {
+    color: white;
 }

@@ -80,6 +80,10 @@ QComboBox {
     border-color: rgb(188, 188, 188);
 }
 
+QProgressBar {
+    color: rgb(255, 255, 255);
+}
+
 QListWidget {
     background-color: rgba(199, 199, 199, 120);
 }
@@ -95,7 +99,9 @@ QHeaderView::section {
 QProgressBar {
     border: 2px solid grey;
     border-radius: 5px;
-    color: rgb(3, 202, 252)
+    color: rgb(3, 202, 252);
+    min-height: 10px;
+    max-height: 15px;
 }
 
 QProgressBar::chunk {
@@ -105,7 +111,7 @@ QProgressBar::chunk {
 }
 
 QStatusBar {
-    color: rgb(3, 202, 252)
+    color: rgb(3, 202, 252);
 }
 
 QTextEdit {
