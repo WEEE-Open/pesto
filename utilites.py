@@ -351,3 +351,9 @@ class SmartTabs(QtWidgets.QTabWidget):
         layout.addWidget(textBox)
         widget.setLayout(layout)
         self.addTab(widget, drive)
+
+    def set_style(self, style: str):
+        if style == "WeeeOpen":
+            self.setStyleSheet("QTabBar::tab { background-color: rgba(0, 152, 58, 255); color: white; }")
+        else:
+            self.setStyleSheet("")

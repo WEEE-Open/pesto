@@ -46,6 +46,7 @@ PATH = {"UI": "/assets/interface.ui",
         "ASD": "/assets/asd.gif",
         "ASDVAP": "/assets/asdvap.gif",
         "RELOAD": "/assets/reload.png",
+        "WHITERELOAD": "/assets/reload_white.png",
         "VAPORWAVERELOAD": "/assets/vapman.png",
         "PENDING": "/assets/pending.png",
         "ICON": "/assets/icon.png",
@@ -53,6 +54,8 @@ PATH = {"UI": "/assets/interface.ui",
         "OK": "/assets/ok.png",
         "WARNING": "/assets/warning.png",
         "ERROR": "/assets/error.png",
+        "WEEELOGO": "/assets/weee_logo.png",
+        "WEEETXT": "/assets/weee_text.png",
         "STOP": "/assets/stop.png",
         "SERVER": "/basilico.py",
         "LOGFILE": "/tmp/crashreport.py",
@@ -61,7 +64,8 @@ PATH = {"UI": "/assets/interface.ui",
         "VAPORTHEME": "/themes/vaporwaveTheme.ssh",
         "ASDTHEME": "/themes/asdTheme.ssh",
         "WINVAPORTHEME": "/themes/vaporwaveWinTheme.ssh",
-        "ASDWINTHEME": "/themes/asdWinTheme.ssh"}
+        "ASDWINTHEME": "/themes/asdWinTheme.ssh",
+        "WEEEWINTHEME": "/themes/weeeWinTheme.ssh"}
 
 QUEUE_TABLE = ["ID",
                "Process",
@@ -278,7 +282,6 @@ class Ui(QtWidgets.QMainWindow):
             self.directoryText.setReadOnly(False)
 
         # cannolo label
-        self.cannoloLabel.setStyleSheet('color: blue')
         if self.remoteMode:
             self.cannoloLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
         else:
@@ -540,9 +543,18 @@ class Ui(QtWidgets.QMainWindow):
                 label: QtWidgets.QTableWidgetItem
                 label.setTextAlignment(Qt.AlignCenter)
                 self.queueTable.setItem(row, idx, label)
-            else:
+            elif entry == "Status":
                 label.setAlignment(Qt.AlignCenter)
                 self.queueTable.setCellWidget(row, idx, label)
+            else:
+                label.setAlignment(Qt.AlignCenter)
+                layout = QtWidgets.QVBoxLayout()
+                layout.setAlignment(Qt.AlignVCenter)
+                layout.setContentsMargins(0,0,0,0)
+                layout.addWidget(label)
+                widget = QtWidgets.QWidget()
+                widget.setLayout(layout)
+                self.queueTable.setCellWidget(row, idx, widget)
 
     def save_config(self):
         ip = self.hostInput.text()
@@ -584,6 +596,7 @@ class Ui(QtWidgets.QMainWindow):
         # noinspection PyBroadException
         try:
             if self.remoteMode:
+<<<<<<< Updated upstream
                 directory = self.directoryText.text()
                 splitted_dir = directory.rsplit("/",1)
                 if len(splitted_dir[1].split(".")) > 1:
@@ -593,6 +606,11 @@ class Ui(QtWidgets.QMainWindow):
                         directory += '/'
                     self.client.send("list_iso " + directory)
 
+=======
+                self.client.send("list_iso " + self.directoryText.text())
+                self.dialog = CannoloDialog(PATH, iso_list)
+                self.dialog.update.connect(self.set_default_cannolo)
+>>>>>>> Stashed changes
 
             else:
                 dialog = QtWidgets.QFileDialog()
@@ -614,14 +632,16 @@ class Ui(QtWidgets.QMainWindow):
         self.client.send(f"queued_cannolo {self.selected_drive}")
 
     def set_theme(self):
-        if self.themeSelector.currentText() == "Dark":
+        theme = self.themeSelector.currentText()
+        if theme == "Dark":
             with open(PATH["DARKTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
-            self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
+            self.reloadButton.setIcon(QIcon(PATH["WHITERELOAD"]))
             self.backgroundLabel.clear()
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
             self.asd_gif_set(PATH["ASD"])
-        elif self.themeSelector.currentText() == "Vaporwave":
+            self.cannoloLabel.setStyleSheet('color: yellow')
+        elif theme == "Vaporwave":
             if CURRENT_PLATFORM == 'win32':
                 with open(PATH["WINVAPORTHEME"]) as file:
                     self.app.setStyleSheet(file.read())
@@ -632,7 +652,8 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIconSize(QtCore.QSize(50,50))
             self.backgroundLabel.clear()
             self.asd_gif_set(PATH["ASDVAP"])
-        elif self.themeSelector.currentText() == "Asd":
+            self.cannoloLabel.setStyleSheet('color: rgb(252, 186, 3)')
+        elif theme == "Asd":
             if CURRENT_PLATFORM == 'win32':
                 with open(PATH["ASDWINTHEME"]) as file:
                     self.app.setStyleSheet(file.read())
@@ -647,7 +668,16 @@ class Ui(QtWidgets.QMainWindow):
             self.backgroundLabel.setMovie(self.movie)
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
             self.asd_gif_set(PATH["ASD"])
-        elif self.themeSelector.currentText() == "Default":
+        elif theme == "WeeeOpen":
+            if CURRENT_PLATFORM == 'win32':
+                with open(PATH["WEEEWINTHEME"]) as file:
+                    self.app.setStyleSheet(file.read())
+            self.backgroundLabel.clear()
+            self.backgroundLabel.setPixmap(QtGui.QPixmap(PATH["WEEETXT"]))
+            self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
+            self.reloadButton.setIconSize(QtCore.QSize(25, 25))
+            self.asd_gif_set(PATH["ASD"])
+        elif theme == "Default":
             self.app.setStyleSheet("")
             with open(PATH["DEFAULTTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
@@ -655,6 +685,8 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(25,25))
             self.asd_gif_set(PATH["ASD"])
+            self.cannoloLabel.setStyleSheet('color: blue')
+        self.smartTabs.set_style(theme)
 
     def asd_gif_set(self, dir: str):
         self.asdGif = QMovie(dir)
@@ -693,7 +725,7 @@ class Ui(QtWidgets.QMainWindow):
                     elif item is None:
                         self.update_queue(pid=param["id"], drive=param["target"], mode=param["command"])
                         rows += 1
-                progress_bar = self.queueTable.cellWidget(row, 4)
+                progress_bar = self.queueTable.cellWidget(row, 4).findChild(QtWidgets.QProgressBar)
                 status_cell = self.queueTable.cellWidget(row, 3)
                 progress_bar.setValue(int(param["percentage"]))
                 if param["stale"]:
