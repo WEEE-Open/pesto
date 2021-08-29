@@ -10,4 +10,4 @@ venv/
 .env
 tmp/crashreport.txt
 tmp/crashreport.py
-
+images/
