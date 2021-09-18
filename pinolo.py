@@ -14,7 +14,8 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QTableWidgetItem
 from client import *
 from utilites import *
-from queue import Queue
+from multiprocessing import Process
+import playsound
 
 PATH = {"REQUIREMENTS": "/requirements_client.txt",
 
@@ -23,6 +24,8 @@ PATH = {"REQUIREMENTS": "/requirements_client.txt",
         "CANNOLOUI": "/assets/qt/cannolo_select.ui",
 
         "ICON": "/assets/icon.png",
+
+        "VAPORWAVE_AUDIO": "/assets/vaporwave_theme.mp3",
 
         "ASD": "/assets/asd/asd.gif",
         "ASDVAP": "/assets/asd/asdvap.gif",
@@ -69,14 +72,15 @@ class Ui(QtWidgets.QMainWindow):
         super(Ui, self).__init__()
         uic.loadUi(PATH["UI"], self)
         self.app = app
-        self.host = None
-        self.port = None
+        self.host = "127.0.0.1"
+        self.port = 1030
         self.remoteMode = False
         self.client: ReactorThread
         self.client = None
         self.manual_cannolo = False
         self.selected_drive = None
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
+        self.audio_process = Process(target=playsound.playsound, args=('assets/vaporwave_theme.mp3',))
 
         """ Defining all items in GUI """
         self.globalTab = self.findChild(QtWidgets.QTabWidget, 'globalTab')
@@ -280,7 +284,13 @@ class Ui(QtWidgets.QMainWindow):
                 self.host = self.settings.value("remoteIp")
                 self.port = int(self.settings.value("remotePort"))
             except ValueError:
-                self.port = None
+                if self.host is None:
+                    self.host = "127.0.0.1"
+                self.port = 1030
+            except TypeError:
+                if self.host is None:
+                    self.host = "127.0.0.1"
+                self.port = 1030
 
     def setup(self):
         self.set_remote_mode()
@@ -598,6 +608,14 @@ class Ui(QtWidgets.QMainWindow):
 
     def set_theme(self):
         theme = self.themeSelector.currentText()
+        if theme == "Vaporwave":
+            self.audio_process = Process(target=playsound.playsound, args=('assets/vaporwave_theme.mp3',))
+            self.audio_process.start()
+        else:
+            try:
+                self.audio_process.terminate()
+            except:
+                print("No audio")
         if theme == "Dark":
             with open(PATH["DARKTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
@@ -787,8 +805,11 @@ class Ui(QtWidgets.QMainWindow):
         self.settings.setValue("remotePort", self.portInput.text())
         self.settings.setValue("cannoloDir", self.directoryText.text())
         self.settings.setValue("theme", self.themeSelector.currentText())
-        # if not self.remoteMode:
         self.client.stop(self.remoteMode)
+        try:
+            self.audio_process.terminate()
+        except:
+            print("No audio")
 
 
 class LocalServer(QThread):
