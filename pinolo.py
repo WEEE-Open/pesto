@@ -5,17 +5,12 @@ Created on Fri Jul 30 10:54:18 2021
 
 @author: il_palmi
 """
-import sys
-import traceback
-from typing import Union
-from PyQt5 import uic
-from PyQt5.QtGui import QIcon, QMovie
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QTableWidgetItem
 from client import *
 from utilites import *
+from typing import Union
+import sys
+import traceback
 from multiprocessing import Process
-import playsound
 
 PATH = {"REQUIREMENTS": "/requirements_client.txt",
 
@@ -65,6 +60,19 @@ CURRENT_PLATFORM = sys.platform
 
 initialize_path(CURRENT_PLATFORM, PATH)
 
+try:
+    from PyQt5 import uic
+    from PyQt5.QtGui import QIcon, QMovie
+    from PyQt5.QtCore import Qt
+    from PyQt5.QtWidgets import QTableWidgetItem
+    import playsound
+except ModuleNotFoundError:
+    check_requirements(PATH["REQUIREMENTS"])
+    from PyQt5 import uic
+    from PyQt5.QtGui import QIcon, QMovie
+    from PyQt5.QtCore import Qt
+    from PyQt5.QtWidgets import QTableWidgetItem
+    import playsound
 
 # UI class
 class Ui(QtWidgets.QMainWindow):
@@ -841,7 +849,6 @@ class LocalServer(QThread):
 def main():
     # noinspection PyBroadException
     try:
-        check_requirements(PATH["REQUIREMENTS"])
         app = QtWidgets.QApplication(sys.argv)
         window = Ui(app)
         app.exec_()

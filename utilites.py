@@ -108,7 +108,8 @@ def linux_path(path):
 
 
 def check_requirements(requirements_path):
-    subprocess.Popen(["pip", "install", "-r", requirements_path, "--quiet"])
+    p = subprocess.Popen(["pip", "install", "-r", requirements_path, "--quiet"])
+    p.wait()
 
 
 def parse_smartctl_output(smartctl) -> dict:
