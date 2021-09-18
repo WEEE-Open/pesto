@@ -51,7 +51,8 @@ class Disk:
                 if one_disk.get("path") == self._path:
                     self._lsblk["mountpoint"] = one_disk.get("mountpoint", [])
                     self._mountpoint_map = self._lsblk.get("mountpoint_map", {})
-                    del self._lsblk["mountpoint_map"]
+                    if "mountpoint_map" in self._lsblk:
+                        del self._lsblk["mountpoint_map"]
 
     def get_mountpoints_map(self) -> dict:
         # Probably pointless lock
