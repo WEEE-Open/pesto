@@ -144,7 +144,9 @@ class Disk:
 
     def _get_item(self):
         if self._tarallo and self._code:
-            self._item = self._tarallo.get_item(self._code, 0)
+            # Nothing to do, only the code is used at the moment
+            pass
+            # self._item = self._tarallo.get_item(self._code, 0)
         else:
             self._item = None
 
