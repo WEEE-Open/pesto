@@ -109,6 +109,19 @@ class Disk:
             return True
         return False
 
+    def update_erase(self, erased: bool, all_blocks_ok: Optional[bool]) -> bool:
+        data = {}
+        # Can be True, False or None
+        if all_blocks_ok is not None:
+            data["surface-scan"] = "pass" if all_blocks_ok else "fail"
+        if erased:
+            data["data-erased"] = "yes"
+
+        if self._tarallo and self._code:
+            self._tarallo.update_item_features(self._code, data)
+            return True
+        return False
+
     def _get_code(self, stop_on_error: bool = True):
         if not self._tarallo:
             if TEST_MODE:
@@ -321,9 +334,10 @@ class CommandRunner(threading.Thread):
             threading.Event().wait(2)
             self._queued_command.notify_percentage(99, "3 errors")
             threading.Event().wait(2)
-            self._queued_command.notify_finish("Finished with 3 errors")
+            final_message = "Finished with 3 errors"
 
-            update_disks_if_needed(self)
+            completed = True
+            all_ok = False
         else:
 
             # TODO: should it mark the disk as not erased on tarallo?
@@ -375,26 +389,40 @@ class CommandRunner(threading.Thread):
             exitcode = pipe.wait()
 
             if errors <= -1:
+                all_ok = None
                 errors_print = "an unknown amount of"
             elif errors == 0:
+                all_ok = True
                 errors_print = "no"
             else:
+                all_ok = False
                 errors_print = str(errors)
             final_message = f"Finished with {errors_print} errors"
 
             if exitcode == 0:
-                self._queued_command.notify_finish(final_message)
+                # self._queued_command.notify_finish(final_message)
+                completed = True
             else:
                 self._queued_command.notify_error()
                 final_message += f" and badblocks exited with status {exitcode}"
-                self._queued_command.notify_finish(final_message)
+                # self._queued_command.notify_finish(final_message)
+                completed = False
 
             # print(pipe.stdout.readline().decode('utf-8'))
             # print(pipe.stderr.readline().decode('utf-8'))
 
-            with disks_lock:
-                update_disks_if_needed(self)
-                # TODO: upload to tarallo
+        with disks_lock:
+            update_disks_if_needed(self)
+            disk_ref = disks[dev]
+
+        # noinspection PyBroadException
+        try:
+            disk_ref.update_erase(completed, all_ok)
+        except BaseException as e:
+            final_message = f"Error during upload. {final_message}"
+            self._queued_command.notify_error(final_message)
+            logging.warning(f"[{self._the_id}] Can't update badblocks results of {dev} on tarallo", exc_info=e)
+        self._queued_command.notify_finish(final_message)
 
     def ping(self, _cmd: str, _nothing: str):
         self.send_msg("pong", None)
