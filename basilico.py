@@ -87,6 +87,9 @@ class Disk:
                 next_in_line: CommandRunner = self._commands_queue[0]
                 if not next_in_line.is_alive():
                     next_in_line.start()
+            else:
+                if cmd_runner.get_cmd() != 'queued_sleep':
+                    cmd_runner.call_hdparm_for_sleep(self._path)
 
     def get_path(self):
         return self._path
@@ -524,15 +527,24 @@ class CommandRunner(threading.Thread):
 
     def sleep(self, _cmd: str, dev: str):
         self._queued_command.notify_start("Calling hdparm")
+        exitcode = self.call_hdparm_for_sleep(dev)
+        if exitcode == 0:
+            self._queued_command.notify_finish("Good night!")
+        else:
+            self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
+
+    def call_hdparm_for_sleep(self, dev):
+        if TEST_MODE:
+            logging.debug(f"Fake putting {dev} to sleep")
+            return 0
+        logging.debug(f"Putting {dev} to sleep")
         if CURRENT_OS == 'win32':
             res = subprocess.Popen(('hdparm', '-Y', dev), shell=True)
         else:
             res = subprocess.Popen(('sudo', 'hdparm', '-Y', dev), )
         exitcode = res.wait()
-        if exitcode == 0:
-            self._queued_command.notify_finish("Good night!")
-        else:
-            self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
+        logging.debug(f"hdparm for {dev} returned {str(exitcode)}")
+        return exitcode
 
     def get_smartctl(self, cmd: str, args: str):
         params = self._get_smartctl(args, False)
