@@ -617,8 +617,13 @@ class Ui(QtWidgets.QMainWindow):
     def set_theme(self):
         theme = self.themeSelector.currentText()
         if theme == "Vaporwave":
-            self.audio_process = Process(target=playsound.playsound, args=('assets/vaporwave_theme.mp3',))
-            self.audio_process.start()
+            try:
+                f = open('assets/vaporwave_theme.mp3')
+                f.close()
+                self.audio_process = Process(target=playsound.playsound, args=('assets/vaporwave_theme.mp3',))
+                self.audio_process.start()
+            except IOError:
+                self.statusBar().showMessage("assets/vaporwave_theme.mp3 not found.")
         else:
             try:
                 self.audio_process.terminate()
