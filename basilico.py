@@ -382,7 +382,7 @@ class CommandRunner(threading.Thread):
 
             # TODO: should it mark the disk as not erased on tarallo?
 
-            pipe = subprocess.Popen(('sudo', '-n', 'badblocks', '-s', '-w', '-t', '0x00', dev),
+            pipe = subprocess.Popen(('sudo', '-n', 'badblocks', '-w', '-s', '-p', '0', '-t', '0x00', '-b', '4096', dev),
                                     stderr=subprocess.PIPE)  # , stdout=subprocess.PIPE)
 
             # TODO: restore this code and kill badblocks if it's too slow (the disk is probably broken)
