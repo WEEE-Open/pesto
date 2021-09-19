@@ -4,7 +4,7 @@ import subprocess
 import sys
 import os
 from collections import deque
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Set, List
 from pytarallo import Tarallo, Errors
 from dotenv import load_dotenv
 from io import StringIO
@@ -1107,16 +1107,16 @@ def get_disks_linux(path: Optional[str] = None) -> list:
 
 TARALLO = None
 
-clients: dict[int, TurboProtocol] = {}
+clients: Dict[int, TurboProtocol] = {}
 clients_lock = threading.Lock()
 
-disks: dict[str, Disk] = {}
+disks: Dict[str, Disk] = {}
 disks_lock = threading.RLock()
 
-running_commands: set[CommandRunner] = set()
+running_commands: Set[CommandRunner] = set()
 running_commands_lock = threading.Lock()
 
-queued_commands: list[QueuedCommand] = []
+queued_commands: List[QueuedCommand] = []
 queued_commands_lock = threading.Lock()
 
 
