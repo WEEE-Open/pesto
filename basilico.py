@@ -5,7 +5,7 @@ import sys
 import os
 from collections import deque
 from typing import Optional, Callable
-from pytarallo import Tarallo
+from pytarallo import Tarallo, Errors
 from dotenv import load_dotenv
 from io import StringIO
 from twisted.internet import reactor, protocol
@@ -151,23 +151,32 @@ class Disk:
         if sn.startswith('WD-'):
             sn = sn[3:]
 
-        codes = self._tarallo.get_codes_by_feature("sn", sn)
-        if len(codes) <= 0:
-            self._code = None
-            logging.debug(f"Disk {sn} not found in tarallo")
-        elif len(codes) == 1:
-            self._code = codes[0]
-            logging.debug(f"Disk {sn} found as {self._code}")
-        else:
+        try:
+            codes = self._tarallo.get_codes_by_feature("sn", sn)
+            if len(codes) <= 0:
+                self._code = None
+                logging.debug(f"Disk {sn} not found in tarallo")
+            elif len(codes) == 1:
+                self._code = codes[0]
+                logging.debug(f"Disk {sn} found as {self._code}")
+            else:
+                self._code = None
+                if stop_on_error:
+                    raise ErrorThatCanBeManuallyFixed(f"Duplicate codes for {self._path}: {' '.join(codes)}, S/N is {sn}")
+        except Errors.NoInternetConnectionError:
             self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(f"Duplicate codes for {self._path}: {' '.join(codes)}, S/N is {sn}")
+                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed, connection error (are you connected to the Internet?)")
+        except (Errors.ValidationError, RuntimeError) as e:
+            logging.warning(f"Tarallo lookup failed unexpectedly for disk with S/N {sn}", exc_info=e)
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed, more info has been logged on the server")
 
     def _get_item(self):
         if self._tarallo and self._code:
-            # Nothing to do, only the code is used at the moment
-            pass
+            # Nothing to do, only the code is used at the moment. Add a try-except if you uncomment.
             # self._item = self._tarallo.get_item(self._code, 0)
+            pass
         else:
             self._item = None
 
@@ -870,6 +879,7 @@ def update_disks_if_needed(this_thread: Optional[CommandRunner], send: bool = Tr
             if add:
                 # noinspection PyBroadException
                 try:
+                    global TARALLO
                     disks[path] = Disk(lsblk, TARALLO)
                     changes = True
                 except BaseException as e:
@@ -909,6 +919,7 @@ def scan_for_disks():
                 continue
             # noinspection PyBroadException
             try:
+                global TARALLO
                 disks[path] = Disk(disk_lsblk, TARALLO)
             except BaseException as e:
                 logging.warning("Exception while scanning for disks, skipping", exc_info=e)
