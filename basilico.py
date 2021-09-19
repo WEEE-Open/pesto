@@ -50,9 +50,11 @@ class Disk:
             for one_disk in lsblk2:
                 if one_disk.get("path") == self._path:
                     self._lsblk["mountpoint"] = one_disk.get("mountpoint", [])
-                    self._mountpoint_map = self._lsblk.get("mountpoint_map", {})
-                    if "mountpoint_map" in self._lsblk:
-                        del self._lsblk["mountpoint_map"]
+                    self._mountpoint_map = one_disk.get("mountpoint_map", {})
+                    # This is not copied over again
+                    # if "mountpoint_map" in self._lsblk:
+                    #     del self._lsblk["mountpoint_map"]
+                    break
 
     def get_mountpoints_map(self) -> dict:
         # Probably pointless lock
@@ -101,6 +103,12 @@ class Disk:
     def serialize_disk(self):
         result = self._lsblk
         result["code"] = self._code
+        critical = False
+        for mountpoint in self._lsblk["mountpoint"]:
+            if mountpoint != "[SWAP]":
+                critical = True
+                break
+        result["has_critical_mounts"] = critical
         return result
 
     def update_status(self, status: str) -> bool:
@@ -1052,7 +1060,9 @@ def get_disks_linux(path: Optional[str] = None) -> list:
             del el["children"]
         if "name" in el:
             del el["name"]
+        # List of partition names (/dev/sda1) to filesystem directories
         el["mountpoint_map"] = mounts
+        # List of filesystem directories
         el["mountpoint"] = list(mounts.values())
 
     return result
