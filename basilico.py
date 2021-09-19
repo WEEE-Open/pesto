@@ -251,6 +251,7 @@ class CommandRunner(threading.Thread):
             "queued_sleep": self.sleep,
             "get_disks": self.get_disks,
             "ping": self.ping,
+            "close_at_end": self.close_at_end,
             "get_queue": self.get_queue,
             "remove": self.remove_from_queue,
             "remove_all": self.remove_from_queue,
@@ -426,6 +427,10 @@ class CommandRunner(threading.Thread):
 
     def ping(self, _cmd: str, _nothing: str):
         self.send_msg("pong", None)
+
+    def close_at_end(self, _cmd: str, _nothing: str):
+        # TODO: implement (how?)
+        pass
 
     def cannolo(self, _cmd: str, dev_and_iso: str):
         parts: list[Optional[str]] = dev_and_iso.split(' ', 1)

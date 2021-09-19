@@ -7,7 +7,7 @@ labeled.csv
 labeled_*.csv
 .~lock.*
 venv/
-.env
+bak.env
 tmp/crashreport.txt
 tmp/crashreport.py
 images/

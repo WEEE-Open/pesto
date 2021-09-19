@@ -462,8 +462,8 @@ class Ui(QtWidgets.QMainWindow):
         #     self.remoteRadioBtn.setChecked(True)
         #     self.localRadioBtn.setCheckable(False)
         if self.localRadioBtn.isChecked():
-            # if self.remoteMode:
-            #     self.client.send("do_not_close_at_end")
+            if not self.remoteMode:
+                self.client.send("close_at_end")
             self.remoteMode = False
             self.settings.setValue("latestHost", self.host)
             self.settings.setValue("latestPort", self.port)
