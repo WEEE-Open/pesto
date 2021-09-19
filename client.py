@@ -31,11 +31,14 @@ class Client(LineOnlyReceiver):
             return
 
     def send_msg(self, msg: str):
-        if msg == "queued_close_at_end":
-            self.sendLine(msg.encode("utf-8"))
-            self.disconnect()
+        if self is None:
+            print("CLIENT: Cannot send message to server. No connection.")
         else:
-            self.sendLine(msg.encode("utf-8"))
+            if msg == "queued_close_at_end":
+                self.sendLine(msg.encode("utf-8"))
+                self.disconnect()
+            else:
+                self.sendLine(msg.encode("utf-8"))
 
     def connectionMade(self):
         print("CLIENT: Connected to server.")
@@ -128,6 +131,7 @@ class ReactorThread(QThread):
     def send(self, msg: str):
         # noinspection PyUnresolvedReferences
         self.reactor.callFromThread(Client.send_msg, receiver, msg)
+
 
 
 def main():

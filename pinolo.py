@@ -5,16 +5,21 @@ Created on Fri Jul 30 10:54:18 2021
 
 @author: il_palmi
 """
+import os
+
 from client import *
 from utilites import *
 from typing import Union
+from multiprocessing import Process
+from dotenv import load_dotenv
 import sys
 import traceback
-from multiprocessing import Process
 
 PATH = {"REQUIREMENTS": "/requirements_client.txt",
+        "ENV": "/.env",
 
         "UI": "/assets/qt/interface.ui",
+        "UI_TEST": "/assets/qt/interface_test.ui",
         "INFOUI": "/assets/qt/info.ui",
         "CANNOLOUI": "/assets/qt/cannolo_select.ui",
 
@@ -78,7 +83,33 @@ except ModuleNotFoundError:
 class Ui(QtWidgets.QMainWindow):
     def __init__(self, app: QtWidgets.QApplication) -> None:
         super(Ui, self).__init__()
-        uic.loadUi(PATH["UI"], self)
+        asd = os.getenv('TEST_MODE')
+        if os.getenv('TEST_MODE') == '1':
+            uic.loadUi(PATH["UI_TEST"], self)
+            self.testDiskTable = self.findChild(QtWidgets.QTableWidget, 'testDiskTable')
+            self.testDiskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+            self.testDiskTable.horizontalHeader().setStretchLastSection(True)
+            self.testDiskTable.setColumnWidth(0, 65)
+            self.testDiskTable.setColumnWidth(1, 65)
+            self.testDiskTable.setColumnWidth(2, 65)
+            self.testDiskTable.horizontalHeader().setStretchLastSection(True)
+            self.testDiskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
+            self.testRefreshBtn = self.findChild(QtWidgets.QPushButton, 'testRefreshBtn')
+            self.testRefreshBtn.clicked.connect(self.refresh)
+            self.testBadblocksBtn = self.findChild(QtWidgets.QPushButton, 'testBadblocksBtn')
+            self.testBadblocksBtn.clicked.connect(self.test_badblocks)
+            self.testSmartctlBtn = self.findChild(QtWidgets.QPushButton, 'testSmartctlBtn')
+            self.testSmartctlBtn.clicked.connect(self.test_smartctl)
+            self.testCannoloBtn = self.findChild(QtWidgets.QPushButton, 'testCannoloBtn')
+            self.testCannoloBtn.clicked.connect(self.test_cannolo)
+            self.testSleepBtn = self.findChild(QtWidgets.QPushButton, 'testSleepBtn')
+            self.testSleepBtn.clicked.connect(self.test_sleep)
+            self.testStdProcBtn = self.findChild(QtWidgets.QPushButton, 'testStdProcBtn')
+            self.testStdProcBtn.clicked.connect(self.test_std_proc)
+            self.testStdProcNoCannoloBtn = self.findChild(QtWidgets.QPushButton, 'testStdProcNoCannoloBtn')
+            self.testStdProcNoCannoloBtn.clicked.connect(self.test_std_proc_no_cannolo)
+        else:
+            uic.loadUi(PATH["UI"], self)
         self.app = app
         self.host = "127.0.0.1"
         self.port = 1030
@@ -316,6 +347,52 @@ class Ui(QtWidgets.QMainWindow):
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
+
+    def test_badblocks(self):
+        print("GUI_TEST: queued_badblocks")
+        try:
+            self.client.send(f"queued_badblocks {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
+        except BaseException:
+            print("GUI_TEST: Error in test_badblocks test.")
+
+    def test_cannolo(self):
+        print("GUI_TEST: queued_cannolo")
+        try:
+            self.client.send(f"queued_cannolo {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
+        except BaseException:
+            print("GUI_TEST: Error in cannolo test.")
+
+    def test_sleep(self):
+        print("GUI_TEST: queued_sleep")
+        try:
+            self.client.send(f"queued_sleep {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
+        except BaseException:
+            print("GUI_TEST: Error in sleep test.")
+
+    def test_smartctl(self):
+        print("GUI_TEST: queued_smartctl")
+        try:
+            self.client.send(f"queued_smartctl {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
+        except BaseException:
+            print("GUI_TEST: Error in smartctl test.")
+
+    def test_load_to_tarallo(self):
+        print("GUI_TEST: queued_load_to_tarallo")
+        try:
+            self.client.send(f"queued_load_to_tarallo {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
+        except BaseException:
+            print("GUI_TEST: Error in load to tarallo test.")
+
+    def test_std_proc(self, cannolo_flag=True):
+        self.test_badblocks()
+        self.test_smartctl()
+        if cannolo_flag:
+            self.test_cannolo()
+        self.test_load_to_tarallo()
+        self.test_sleep()
+
+    def test_std_proc_no_cannolo(self):
+        self.test_std_proc(cannolo_flag=False)
 
     def deselect(self):
         self.queueTable.clearSelection()
@@ -760,12 +837,17 @@ class Ui(QtWidgets.QMainWindow):
                     continue
                 rows += 1
                 self.diskTable.setRowCount(rows)
+                self.testDiskTable.setRowCount(rows)
                 if sys.platform == 'win32':
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem("Disk " + d["path"]))
+                    self.testDiskTable.setItem(rows - 1, 0, QTableWidgetItem("Disk " + d["path"]))
                 else:
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
+                    self.testDiskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
                 self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
                 self.diskTable.setItem(rows - 1, 2, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
+                self.testDiskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
+                self.testDiskTable.setItem(rows - 1, 2, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
 
         elif cmd == 'smartctl' or cmd == 'queued_smartctl':
             text = ("Smartctl output:\n " + params["output"]).splitlines()
@@ -854,6 +936,7 @@ class LocalServer(QThread):
 def main():
     # noinspection PyBroadException
     try:
+        load_dotenv(PATH["ENV"])
         app = QtWidgets.QApplication(sys.argv)
         window = Ui(app)
         app.exec_()
