@@ -3,6 +3,7 @@ import json
 import subprocess
 import sys
 import os
+import time
 from collections import deque
 from typing import Optional, Callable, Dict, Set, List
 from pytarallo import Tarallo, Errors
@@ -67,6 +68,10 @@ class Disk:
 
     def compare_composite_id(self, lsblk_other: dict):
         return self._composite_id == self.make_composite_id(lsblk_other)
+
+    def queue_is_empty(self):
+        with self._queue_lock:
+            return len(self._commands_queue) == 0
 
     def enqueue(self, cmd_runner):
         cmd_runner: CommandRunner
@@ -462,9 +467,17 @@ class CommandRunner(threading.Thread):
     def ping(self, _cmd: str, _nothing: str):
         self.send_msg("pong", None)
 
+    # noinspection PyMethodMayBeStatic
     def close_at_end(self, _cmd: str, _nothing: str):
-        # TODO: implement (how?)
-        pass
+        logging.info("Server will close at end")
+        with CLOSE_AT_END_LOCK:
+            global CLOSE_AT_END
+            # Do not start the timer twice
+            if CLOSE_AT_END:
+                return
+            CLOSE_AT_END = True
+        # noinspection PyUnresolvedReferences
+        reactor.callFromThread(reactor.callLater, CLOSE_AT_END_TIMER, try_stop_at_end)
 
     def cannolo(self, _cmd: str, dev_and_iso: str):
         parts: list[Optional[str]] = dev_and_iso.split(' ', 1)
@@ -1007,6 +1020,10 @@ def load_settings():
 
     logging.basicConfig(format='%(message)s', level=getattr(logging, os.getenv("LOGLEVEL").upper()))
 
+    if os.getenv('CLOSE_AT_END_TIMER') is not None:
+        global CLOSE_AT_END_TIMER
+        CLOSE_AT_END_TIMER = int(os.getenv('CLOSE_AT_END_TIMER'))
+
     url = os.getenv('TARALLO_URL') or logging.warning('TARALLO_URL is not set, tarallo will be unavailable')
     token = os.getenv('TARALLO_TOKEN') or logging.warning('TARALLO_TOKEN is not set, tarallo will be unavailable')
 
@@ -1105,7 +1122,31 @@ def get_disks_linux(path: Optional[str] = None) -> list:
     return result
 
 
+def try_stop_at_end():
+    logging.debug(time.time())
+    if CLOSE_AT_END:
+        with clients_lock:
+            if len(clients) <= 0:
+                with queued_commands_lock:
+                    with running_commands_lock:
+                        if len(running_commands) <= 0:
+                            empty = True
+                            for path in disks:
+                                empty = disks[path].queue_is_empty()
+                                if not empty:
+                                    break
+                            if empty:
+                                logging.debug("CLOSE_AT_END met all the conditions, stopping reactor")
+                                # noinspection PyUnresolvedReferences
+                                reactor.stop()
+        # noinspection PyUnresolvedReferences
+        reactor.callLater(CLOSE_AT_END_TIMER, try_stop_at_end)
+        
+
 TARALLO = None
+CLOSE_AT_END = False
+CLOSE_AT_END_LOCK = threading.Lock()
+CLOSE_AT_END_TIMER = 5
 
 clients: Dict[int, TurboProtocol] = {}
 clients_lock = threading.Lock()
