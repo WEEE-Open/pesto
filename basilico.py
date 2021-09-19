@@ -169,11 +169,25 @@ class Disk:
         except Errors.NoInternetConnectionError:
             self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed, connection error (are you connected to the Internet?)")
-        except (Errors.ValidationError, RuntimeError) as e:
-            logging.warning(f"Tarallo lookup failed unexpectedly for disk with S/N {sn}", exc_info=e)
+                raise ErrorThatCanBeManuallyFixed(
+                    f"Tarallo lookup for disk with S/N {sn} failed due to a connection error")
+        except Errors.ServerError:
+            self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed, more info has been logged on the server")
+                raise ErrorThatCanBeManuallyFixed(
+                    f"Tarallo lookup for disk with S/N {sn} failed due to server error, try again later")
+        except Errors.AuthenticationError:
+            self._code = None
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(
+                    f"Tarallo lookup for disk with S/N {sn} failed due to authentication error, check the token")
+        except (Errors.ValidationError, RuntimeError) as e:
+            self._code = None
+            logging.warning(
+                f"Tarallo lookup failed unexpectedly for disk with S/N {sn}", exc_info=e)
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(
+                    f"Tarallo lookup for disk with S/N {sn} failed, more info has been logged on the server")
 
     def _get_item(self):
         if self._tarallo and self._code:
