@@ -592,6 +592,8 @@ class Ui(QtWidgets.QMainWindow):
                     label = "Smart check"
                 elif mode == 'queued_cannolo':
                     label = "Cannolo"
+                elif mode == 'queued_sleep':
+                    label = "Sleep"
                 else:
                     label = "Unknown"
             elif entry == "Disk":  # DISK
