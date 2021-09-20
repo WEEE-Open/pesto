@@ -95,6 +95,7 @@ class Ui(QtWidgets.QMainWindow):
             self.testDiskTable.setColumnWidth(2, 65)
             self.testDiskTable.horizontalHeader().setStretchLastSection(True)
             self.testDiskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
+            self.testDiskTable.cellClicked.connect(self.greyout_buttons)
             self.testRefreshBtn = self.findChild(QtWidgets.QPushButton, 'testRefreshBtn')
             self.testRefreshBtn.clicked.connect(self.refresh)
             self.testBadblocksBtn = self.findChild(QtWidgets.QPushButton, 'testBadblocksBtn')
@@ -119,6 +120,7 @@ class Ui(QtWidgets.QMainWindow):
         self.client = None
         self.manual_cannolo = False
         self.selected_drive = None
+        self.critical_mounts = []
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
         self.audio_process = Process(target=playsound.playsound, args=('assets/vaporwave_theme.mp3',))
 
@@ -198,6 +200,7 @@ class Ui(QtWidgets.QMainWindow):
         self.diskTable.setColumnWidth(2, 65)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
         self.diskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
+        self.diskTable.cellClicked.connect(self.greyout_buttons)
 
         # queue table
         self.queueTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
@@ -242,6 +245,7 @@ class Ui(QtWidgets.QMainWindow):
 
         # tarallo button
         self.taralloButton.clicked.connect(self.load_to_tarallo)
+        self.taralloButton.setEnabled(False)
 
         # text field
         # self.textField.setReadOnly(True)
@@ -628,6 +632,35 @@ class Ui(QtWidgets.QMainWindow):
                 widget.setLayout(layout)
                 self.queueTable.setCellWidget(row, idx, widget)
 
+    def greyout_buttons(self):
+        self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+        if self.selected_drive is not None:
+            self.selected_drive = self.selected_drive.text().lstrip("Disk ")
+            if self.selected_drive in self.critical_mounts:
+                self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
+                self.eraseButton.setEnabled(False)
+                self.stdProcedureButton.setEnabled(False)
+                self.cannoloButton.setEnabled(False)
+            else:
+                self.eraseButton.setEnabled(True)
+                self.stdProcedureButton.setEnabled(True)
+                self.cannoloButton.setEnabled(True)
+
+        self.selected_drive = self.testDiskTable.item(self.testDiskTable.currentRow(), 0)
+        if self.selected_drive is not None:
+            self.selected_drive = self.selected_drive.text().lstrip("Disk ")
+            if self.selected_drive in self.critical_mounts:
+                self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
+                self.testBadblocksBtn.setEnabled(False)
+                self.testCannoloBtn.setEnabled(False)
+                self.testStdProcBtn.setEnabled(False)
+                self.testStdProcNoCannoloBtn.setEnabled(False)
+            else:
+                self.testBadblocksBtn.setEnabled(True)
+                self.testCannoloBtn.setEnabled(True)
+                self.testStdProcBtn.setEnabled(True)
+                self.testStdProcNoCannoloBtn.setEnabled(True)
+            
     def save_config(self):
         ip = self.hostInput.text()
         port = self.portInput.text()
@@ -836,8 +869,8 @@ class Ui(QtWidgets.QMainWindow):
             rows = 0
             for d in drives:
                 d: dict
-                if "[BOOT]" in d["mountpoint"]:
-                    continue
+                # if "[BOOT]" in d["mountpoint"]:
+                #     continue
                 rows += 1
                 self.diskTable.setRowCount(rows)
                 self.testDiskTable.setRowCount(rows)
@@ -851,6 +884,9 @@ class Ui(QtWidgets.QMainWindow):
                 self.diskTable.setItem(rows - 1, 2, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
                 self.testDiskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
                 self.testDiskTable.setItem(rows - 1, 2, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
+                if d["has_critical_mounts"]:
+                    self.critical_mounts.append(d["path"])
+                    print(self.critical_mounts)
 
         elif cmd == 'smartctl' or cmd == 'queued_smartctl':
             text = ("Smartctl output:\n " + params["output"]).splitlines()
