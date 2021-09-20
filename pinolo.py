@@ -79,6 +79,7 @@ except ModuleNotFoundError:
     from PyQt5.QtWidgets import QTableWidgetItem
     import playsound
 
+
 # UI class
 class Ui(QtWidgets.QMainWindow):
     def __init__(self, app: QtWidgets.QApplication) -> None:
@@ -857,8 +858,9 @@ class Ui(QtWidgets.QMainWindow):
                 if self.smartTabs.tabText(tab) == params["disk"]:
                     message= "Il tab per il dosco esiste già asd.\nVuoi sovrascrivere l'output?"
                     if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
-                        for line in text:
-                            self.smartTabs.text_boxes[tab].append(line)
+                        self.smartTabs.removeTab(tab)
+                        self.smartTabs.add_tab(params["disk"], params["status"], params["updated"], text)
+                        break
                 elif tab == tab_count:
                         self.smartTabs.add_tab(params["disk"], params["status"], params["updated"], text)
 
