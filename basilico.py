@@ -3,8 +3,9 @@ import json
 import subprocess
 import sys
 import os
+import time
 from collections import deque
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Set, List
 from pytarallo import Tarallo, Errors
 from dotenv import load_dotenv
 from io import StringIO
@@ -68,6 +69,10 @@ class Disk:
     def compare_composite_id(self, lsblk_other: dict):
         return self._composite_id == self.make_composite_id(lsblk_other)
 
+    def queue_is_empty(self):
+        with self._queue_lock:
+            return len(self._commands_queue) == 0
+
     def enqueue(self, cmd_runner):
         cmd_runner: CommandRunner
         with self._queue_lock:
@@ -87,6 +92,9 @@ class Disk:
                 next_in_line: CommandRunner = self._commands_queue[0]
                 if not next_in_line.is_alive():
                     next_in_line.start()
+            else:
+                if cmd_runner.get_cmd() != 'queued_sleep':
+                    cmd_runner.call_hdparm_for_sleep(self._path)
 
     def get_path(self):
         return self._path
@@ -166,11 +174,25 @@ class Disk:
         except Errors.NoInternetConnectionError:
             self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed, connection error (are you connected to the Internet?)")
-        except (Errors.ValidationError, RuntimeError) as e:
-            logging.warning(f"Tarallo lookup failed unexpectedly for disk with S/N {sn}", exc_info=e)
+                raise ErrorThatCanBeManuallyFixed(
+                    f"Tarallo lookup for disk with S/N {sn} failed due to a connection error")
+        except Errors.ServerError:
+            self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed, more info has been logged on the server")
+                raise ErrorThatCanBeManuallyFixed(
+                    f"Tarallo lookup for disk with S/N {sn} failed due to server error, try again later")
+        except Errors.AuthenticationError:
+            self._code = None
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(
+                    f"Tarallo lookup for disk with S/N {sn} failed due to authentication error, check the token")
+        except (Errors.ValidationError, RuntimeError) as e:
+            self._code = None
+            logging.warning(
+                f"Tarallo lookup failed unexpectedly for disk with S/N {sn}", exc_info=e)
+            if stop_on_error:
+                raise ErrorThatCanBeManuallyFixed(
+                    f"Tarallo lookup for disk with S/N {sn} failed, more info has been logged on the server")
 
     def _get_item(self):
         if self._tarallo and self._code:
@@ -360,7 +382,7 @@ class CommandRunner(threading.Thread):
 
             # TODO: should it mark the disk as not erased on tarallo?
 
-            pipe = subprocess.Popen(('sudo', '-n', 'badblocks', '-s', '-w', '-t', '0x00', dev),
+            pipe = subprocess.Popen(('sudo', '-n', 'badblocks', '-w', '-s', '-p', '0', '-t', '0x00', '-b', '4096', dev),
                                     stderr=subprocess.PIPE)  # , stdout=subprocess.PIPE)
 
             # TODO: restore this code and kill badblocks if it's too slow (the disk is probably broken)
@@ -445,9 +467,17 @@ class CommandRunner(threading.Thread):
     def ping(self, _cmd: str, _nothing: str):
         self.send_msg("pong", None)
 
+    # noinspection PyMethodMayBeStatic
     def close_at_end(self, _cmd: str, _nothing: str):
-        # TODO: implement (how?)
-        pass
+        logging.info("Server will close at end")
+        with CLOSE_AT_END_LOCK:
+            global CLOSE_AT_END
+            # Do not start the timer twice
+            if CLOSE_AT_END:
+                return
+            CLOSE_AT_END = True
+        # noinspection PyUnresolvedReferences
+        reactor.callFromThread(reactor.callLater, CLOSE_AT_END_TIMER, try_stop_at_end)
 
     def cannolo(self, _cmd: str, dev_and_iso: str):
         parts: list[Optional[str]] = dev_and_iso.split(' ', 1)
@@ -524,15 +554,24 @@ class CommandRunner(threading.Thread):
 
     def sleep(self, _cmd: str, dev: str):
         self._queued_command.notify_start("Calling hdparm")
+        exitcode = self.call_hdparm_for_sleep(dev)
+        if exitcode == 0:
+            self._queued_command.notify_finish("Good night!")
+        else:
+            self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
+
+    def call_hdparm_for_sleep(self, dev):
+        if TEST_MODE:
+            logging.debug(f"Fake putting {dev} to sleep")
+            return 0
+        logging.debug(f"Putting {dev} to sleep")
         if CURRENT_OS == 'win32':
             res = subprocess.Popen(('hdparm', '-Y', dev), shell=True)
         else:
             res = subprocess.Popen(('sudo', 'hdparm', '-Y', dev), )
         exitcode = res.wait()
-        if exitcode == 0:
-            self._queued_command.notify_finish("Good night!")
-        else:
-            self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
+        logging.debug(f"hdparm for {dev} returned {str(exitcode)}")
+        return exitcode
 
     def get_smartctl(self, cmd: str, args: str):
         params = self._get_smartctl(args, False)
@@ -981,6 +1020,10 @@ def load_settings():
 
     logging.basicConfig(format='%(message)s', level=getattr(logging, os.getenv("LOGLEVEL").upper()))
 
+    if os.getenv('CLOSE_AT_END_TIMER') is not None:
+        global CLOSE_AT_END_TIMER
+        CLOSE_AT_END_TIMER = int(os.getenv('CLOSE_AT_END_TIMER'))
+
     url = os.getenv('TARALLO_URL') or logging.warning('TARALLO_URL is not set, tarallo will be unavailable')
     token = os.getenv('TARALLO_TOKEN') or logging.warning('TARALLO_TOKEN is not set, tarallo will be unavailable')
 
@@ -1079,18 +1122,42 @@ def get_disks_linux(path: Optional[str] = None) -> list:
     return result
 
 
-TARALLO = None
+def try_stop_at_end():
+    logging.debug(time.time())
+    if CLOSE_AT_END:
+        with clients_lock:
+            if len(clients) <= 0:
+                with queued_commands_lock:
+                    with running_commands_lock:
+                        if len(running_commands) <= 0:
+                            empty = True
+                            for path in disks:
+                                empty = disks[path].queue_is_empty()
+                                if not empty:
+                                    break
+                            if empty:
+                                logging.debug("CLOSE_AT_END met all the conditions, stopping reactor")
+                                # noinspection PyUnresolvedReferences
+                                reactor.stop()
+        # noinspection PyUnresolvedReferences
+        reactor.callLater(CLOSE_AT_END_TIMER, try_stop_at_end)
+        
 
-clients: dict[int, TurboProtocol] = {}
+TARALLO = None
+CLOSE_AT_END = False
+CLOSE_AT_END_LOCK = threading.Lock()
+CLOSE_AT_END_TIMER = 5
+
+clients: Dict[int, TurboProtocol] = {}
 clients_lock = threading.Lock()
 
-disks: dict[str, Disk] = {}
+disks: Dict[str, Disk] = {}
 disks_lock = threading.RLock()
 
-running_commands: set[CommandRunner] = set()
+running_commands: Set[CommandRunner] = set()
 running_commands_lock = threading.Lock()
 
-queued_commands: list[QueuedCommand] = []
+queued_commands: List[QueuedCommand] = []
 queued_commands_lock = threading.Lock()
 
 
