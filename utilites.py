@@ -1,10 +1,10 @@
 import re
 import subprocess
 import os
-from typing import Optional
-
-from PyQt5 import QtWidgets, QtGui, uic, QtCore
+import datetime
 import ctypes
+from typing import Optional
+from PyQt5 import QtWidgets, QtGui, uic, QtCore
 
 
 def critical_dialog(message, dialog_type):
@@ -333,6 +333,7 @@ class SmartTabs(QtWidgets.QTabWidget):
     def __init__(self):
         super().__init__()
         self.color = None
+        self.tabs = []
 
     def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list):
         widget = QtWidgets.QWidget()
@@ -347,12 +348,14 @@ class SmartTabs(QtWidgets.QTabWidget):
         textBox.append('\n'.join(text))
         if not status:
             status = "Errore deflagrante: impossibile determinare lo stato del disco."
-        label = QtWidgets.QLabel(f"{status}\nUploaded: {uploaded}")
+        nowtime = datetime.datetime.now()
+        label = QtWidgets.QLabel(f"Date: {nowtime.strftime('%H:%M:%S')}\nStatus: {status}\nUploaded: {uploaded}")
         label.setStyleSheet(f'color: {self.color}')
         layout.addWidget(label)
         layout.addWidget(textBox)
         widget.setLayout(layout)
         self.addTab(widget, drive)
+        self.tabs.append(widget)
 
     def set_style(self, style: str):
         tab_count = self.count()
