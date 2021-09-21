@@ -47,14 +47,14 @@
       <x>0</x>
       <y>0</y>
       <width>760</width>
-      <height>451</height>
+      <height>458</height>
      </rect>
     </property>
     <property name="styleSheet">
      <string notr="true"/>
     </property>
     <property name="currentIndex">
-     <number>2</number>
+     <number>0</number>
     </property>
     <widget class="QWidget" name="main_tab">
      <attribute name="title">
@@ -640,7 +640,7 @@
         <rect>
          <x>50</x>
          <y>20</y>
-         <width>50</width>
+         <width>60</width>
          <height>22</height>
         </rect>
        </property>
@@ -653,7 +653,7 @@
         <rect>
          <x>140</x>
          <y>20</y>
-         <width>60</width>
+         <width>80</width>
          <height>22</height>
         </rect>
        </property>

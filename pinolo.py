@@ -91,8 +91,8 @@ class Ui(QtWidgets.QMainWindow):
             self.testDiskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
             self.testDiskTable.horizontalHeader().setStretchLastSection(True)
             self.testDiskTable.setColumnWidth(0, 65)
-            self.testDiskTable.setColumnWidth(1, 65)
-            self.testDiskTable.setColumnWidth(2, 65)
+            self.testDiskTable.setColumnWidth(1, 70)
+            self.testDiskTable.setColumnWidth(2, 60)
             self.testDiskTable.horizontalHeader().setStretchLastSection(True)
             self.testDiskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
             self.testDiskTable.cellClicked.connect(self.greyout_buttons)
@@ -196,8 +196,8 @@ class Ui(QtWidgets.QMainWindow):
         self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
         self.diskTable.setColumnWidth(0, 65)
-        self.diskTable.setColumnWidth(1, 65)
-        self.diskTable.setColumnWidth(2, 65)
+        self.diskTable.setColumnWidth(1, 70)
+        self.diskTable.setColumnWidth(2, 60)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
         self.diskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
         self.diskTable.cellClicked.connect(self.greyout_buttons)
@@ -497,13 +497,11 @@ class Ui(QtWidgets.QMainWindow):
             else:
                 self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if not std:
-                message = "Do you want to load a fresh system installation in disk " + self.selected_drive + "?"
-                if warning_dialog(message, dialog_type='yes_no') != QtWidgets.QMessageBox.Yes:
-                    return
                 self.client.send(f"list_iso {directory}")
                 self.manual_cannolo = True
                 return
-            self.client.send(f"queued_cannolo {self.selected_drive}")
+            print(f"GUI: Sending cannolo to {self.selected_drive} with {self.directoryText.text()}")
+            self.client.send(f"queued_cannolo {self.selected_drive} {self.directoryText.text()}")
 
         except BaseException:
             print("GUI: Error in cannolo function.")
@@ -720,12 +718,12 @@ class Ui(QtWidgets.QMainWindow):
 
     def set_default_cannolo(self, directory: str, img: str):
         if self.set_default_cannolo:
-            self.directoryectoryText.setText(directory)
             self.statusBar().showMessage(f"Default cannolo image set as {img}.iso")
+            self.directoryText.setText(directory)
 
     def use_cannolo_img(self, directory: str, img: str):
         self.statusBar().showMessage(f"Sending cannolo to {self.selected_drive} with {img}")
-        self.client.send(f"queued_cannolo {self.selected_drive}")
+        self.client.send(f"queued_cannolo {self.selected_drive} {img}")
 
     def set_theme(self):
         theme = self.themeSelector.currentText()
