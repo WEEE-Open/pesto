@@ -84,7 +84,6 @@ except ModuleNotFoundError:
 class Ui(QtWidgets.QMainWindow):
     def __init__(self, app: QtWidgets.QApplication) -> None:
         super(Ui, self).__init__()
-        asd = os.getenv('TEST_MODE')
         if os.getenv('TEST_MODE') == '1':
             uic.loadUi(PATH["UI_TEST"], self)
             self.testDiskTable = self.findChild(QtWidgets.QTableWidget, 'testDiskTable')
@@ -644,21 +643,24 @@ class Ui(QtWidgets.QMainWindow):
                 self.stdProcedureButton.setEnabled(True)
                 self.cannoloButton.setEnabled(True)
 
-        self.selected_drive = self.testDiskTable.item(self.testDiskTable.currentRow(), 0)
-        if self.selected_drive is not None:
-            self.selected_drive = self.selected_drive.text().lstrip("Disk ")
-            if self.selected_drive in self.critical_mounts:
-                self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
-                self.testBadblocksBtn.setEnabled(False)
-                self.testCannoloBtn.setEnabled(False)
-                self.testStdProcBtn.setEnabled(False)
-                self.testStdProcNoCannoloBtn.setEnabled(False)
-            else:
-                self.testBadblocksBtn.setEnabled(True)
-                self.testCannoloBtn.setEnabled(True)
-                self.testStdProcBtn.setEnabled(True)
-                self.testStdProcNoCannoloBtn.setEnabled(True)
-            
+        try:
+            self.selected_drive = self.testDiskTable.item(self.testDiskTable.currentRow(), 0)
+            if self.selected_drive is not None:
+                self.selected_drive = self.selected_drive.text().lstrip("Disk ")
+                if self.selected_drive in self.critical_mounts:
+                    self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
+                    self.testBadblocksBtn.setEnabled(False)
+                    self.testCannoloBtn.setEnabled(False)
+                    self.testStdProcBtn.setEnabled(False)
+                    self.testStdProcNoCannoloBtn.setEnabled(False)
+                else:
+                    self.testBadblocksBtn.setEnabled(True)
+                    self.testCannoloBtn.setEnabled(True)
+                    self.testStdProcBtn.setEnabled(True)
+                    self.testStdProcNoCannoloBtn.setEnabled(True)
+        except Exception as exc:
+            print(exc.args)
+
     def save_config(self):
         ip = self.hostInput.text()
         port = self.portInput.text()
@@ -871,17 +873,29 @@ class Ui(QtWidgets.QMainWindow):
                 #     continue
                 rows += 1
                 self.diskTable.setRowCount(rows)
-                self.testDiskTable.setRowCount(rows)
+                try:
+                    self.testDiskTable.setRowCount(rows)
+                except AttributeError:
+                    print("Test mode disabled: testDiskTable not loaded.")
                 if sys.platform == 'win32':
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem("Disk " + d["path"]))
-                    self.testDiskTable.setItem(rows - 1, 0, QTableWidgetItem("Disk " + d["path"]))
+                    try:
+                        self.testDiskTable.setItem(rows - 1, 0, QTableWidgetItem("Disk " + d["path"]))
+                    except:
+                        pass
                 else:
                     self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
-                    self.testDiskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
+                    try:
+                        self.testDiskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
+                    except:
+                        pass
                 self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
                 self.diskTable.setItem(rows - 1, 2, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
-                self.testDiskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
-                self.testDiskTable.setItem(rows - 1, 2, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
+                try:
+                    self.testDiskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
+                    self.testDiskTable.setItem(rows - 1, 2, QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"))
+                except:
+                    pass
                 if d["has_critical_mounts"]:
                     self.critical_mounts.append(d["path"])
                     print(self.critical_mounts)
