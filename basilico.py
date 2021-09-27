@@ -611,11 +611,25 @@ class CommandRunner(threading.Thread):
             if queued:
                 if not status:
                     self._queued_command.notify_error("Error while parsing smartctl status")
-                    return
+                    return {
+                        "disk": dev,
+                        "status": status,
+                        "updated": updated,
+                        "exitcode": exitcode,
+                        "output": output,
+                        "stderr": stderr,
+                    }
         else:
             if queued:
                 self._queued_command.notify_error("smartctl failed")
-                return
+            return {
+                "disk": dev,
+                "status": status,
+                "updated": updated,
+                "exitcode": exitcode,
+                "output": output,
+                "stderr": stderr,
+            }
 
         if queued and status:
             self._queued_command.notify_percentage(50.0, "Updating tarallo if needed")
