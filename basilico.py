@@ -112,10 +112,11 @@ class Disk:
         result = self._lsblk
         result["code"] = self._code
         critical = False
-        for mountpoint in self._lsblk["mountpoint"]:
-            if mountpoint != "[SWAP]":
-                critical = True
-                break
+        if not TEST_MODE:
+            for mountpoint in self._lsblk["mountpoint"]:
+                if mountpoint != "[SWAP]":
+                    critical = True
+                    break
         result["has_critical_mounts"] = critical
         return result
 
@@ -528,6 +529,8 @@ class CommandRunner(threading.Thread):
         update_disks_if_needed(self)
 
     def _unswap(self) -> bool:
+        if TEST_MODE:
+            return True
         self._queued_command.disk.update_mountpoints()
         mountpoints = self._queued_command.disk.get_mountpoints_map()
         unswap_them = []
