@@ -20,11 +20,11 @@ receiver = None
 
 
 class Client(LineOnlyReceiver):
-    """ Qui arrivano i comandi (comunicazione) """
+    """Qui arrivano i comandi (comunicazione)"""
 
     def lineReceived(self, line):
         try:
-            line = line.decode('utf-8')
+            line = line.decode("utf-8")
             self.factory.update_gui(line)
         except UnicodeDecodeError:
             print(f"CLIENT: Oh no, UnicodeDecodeError!")
@@ -57,12 +57,15 @@ class Client(LineOnlyReceiver):
 
 
 class ClientFactory(protocol.ClientFactory):
-    """ Qui succedono le cose """
+    """Qui succedono le cose"""
+
     # TODO: write documentation
 
     protocol = Client
 
-    def __init__(self, update_event: QtCore.pyqtSignal, host: str, port: int, remoteMode: bool):
+    def __init__(
+        self, update_event: QtCore.pyqtSignal, host: str, port: int, remoteMode: bool
+    ):
         self.updateEvent = update_event
         self.host = host
         self.port = port
@@ -78,22 +81,22 @@ class ClientFactory(protocol.ClientFactory):
 
     def clientConnectionFailed(self, connector, reason):
         print(f"CLIENT: Connection failed. Reason: {reason}")
-        d = {"reason": str(reason).replace('\n', '')}
-        data = "connection_failed " + json.dumps(d, separators=(',', ':'), indent=None)
+        d = {"reason": str(reason).replace("\n", "")}
+        data = "connection_failed " + json.dumps(d, separators=(",", ":"), indent=None)
         self.update_gui(data)
 
     def update_gui(self, data):
         data: str
-        if data == 'connection_made':
+        if data == "connection_made":
             cmd = data
             args = json.dumps({"host": self.host, "port": str(self.port)})
         else:
-            parts = data.split(' ', 1)
+            parts = data.split(" ", 1)
             cmd = parts[0]
             if len(parts) > 1:
                 args = parts[1]
             else:
-                args = ''
+                args = ""
         self.updateEvent.emit(cmd, args)
 
 
@@ -106,7 +109,9 @@ class ReactorThread(QThread):
         self.port = port
         self.remoteMode = remoteMode
         self.protocol = Client
-        self.factory = ClientFactory(self.updateEvent, self.host, self.port, self.remoteMode)
+        self.factory = ClientFactory(
+            self.updateEvent, self.host, self.port, self.remoteMode
+        )
         self.reactor = reactor
 
     def run(self) -> None:
@@ -131,7 +136,6 @@ class ReactorThread(QThread):
     def send(self, msg: str):
         # noinspection PyUnresolvedReferences
         self.reactor.callFromThread(Client.send_msg, receiver, msg)
-
 
 
 def main():

@@ -24,11 +24,11 @@ def get_files(paths, quiet: bool, predict: bool):
     predictions = {"right": 0, "wrong": 0, "failed": 0}
 
     try:
-        with open('labeled_out.csv', 'r') as csvfile:
-            reader = csv.DictReader(csvfile, delimiter=',', quotechar='"')
+        with open("labeled_out.csv", "r") as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=",", quotechar='"')
             for row in reader:
-                if 'Notsmart_Serial_Number' in row and 'Status' in row:
-                    already_labeled[row['Notsmart_Serial_Number']] = row
+                if "Notsmart_Serial_Number" in row and "Status" in row:
+                    already_labeled[row["Notsmart_Serial_Number"]] = row
     except FileNotFoundError:
         print("No labeled_out.csv found")
 
@@ -38,7 +38,7 @@ def get_files(paths, quiet: bool, predict: bool):
         file: str
         if os.path.isdir(file):
             for filename in os.listdir(file):
-                filenames.append(file.rstrip('/') + '/' + filename)
+                filenames.append(file.rstrip("/") + "/" + filename)
         elif os.path.isfile(file):
             filenames.append(file)
         else:
@@ -47,7 +47,16 @@ def get_files(paths, quiet: bool, predict: bool):
 
     for filename in filenames:
         try:
-            parse_file(filename, results, serials, counter, already_labeled, quiet, predict, predictions)
+            parse_file(
+                filename,
+                results,
+                serials,
+                counter,
+                already_labeled,
+                quiet,
+                predict,
+                predictions,
+            )
             counter += 1
         except (KeyboardInterrupt, EOFError):
             break
@@ -66,36 +75,57 @@ def get_files(paths, quiet: bool, predict: bool):
     header_set = set()
     for result in results:
         for k in result:
-            if k != 'Status' and k not in header_set:
+            if k != "Status" and k not in header_set:
                 header_set.add(k)
                 header.append(k)
-    header_set.add('Status')
-    header.append('Status')
+    header_set.add("Status")
+    header.append("Status")
     print(header)
 
-    with open('labeled.csv', 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, fieldnames=header)
+    with open("labeled.csv", "w", newline="") as csvfile:
+        writer = csv.DictWriter(
+            csvfile,
+            delimiter=",",
+            quotechar='"',
+            quoting=csv.QUOTE_MINIMAL,
+            fieldnames=header,
+        )
         writer.writeheader()
 
         for result in results:
             writer.writerow(result)
 
-    print(f"Predictions: {predictions['right']} good, {predictions['wrong']} bad, {predictions['failed']} errors")
-    acc = float(predictions['right'])/(float(predictions['right'])+float(predictions['wrong']))*100
+    print(
+        f"Predictions: {predictions['right']} good, {predictions['wrong']} bad, {predictions['failed']} errors"
+    )
+    acc = (
+        float(predictions["right"])
+        / (float(predictions["right"]) + float(predictions["wrong"]))
+        * 100
+    )
     print(f"Accuracy: {acc:.2f} %")
 
     if errors:
         exit(1)
 
 
-def parse_file(filename: str, results: list, serials: set, counter: int, already_labeled: dict, quiet: bool, predict: bool, predictions: dict):
+def parse_file(
+    filename: str,
+    results: list,
+    serials: set,
+    counter: int,
+    already_labeled: dict,
+    quiet: bool,
+    predict: bool,
+    predictions: dict,
+):
     print(f"File {counter} - {filename}")
 
-    with open(filename, 'r') as f:
+    with open(filename, "r") as f:
         found = parse_smartctl_output(f)
         found_at_least_one = False
         for k in found:
-            if not k.startswith('Notsmart_'):
+            if not k.startswith("Notsmart_"):
                 found_at_least_one = True
                 break
 
@@ -130,7 +160,7 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
         print(f"Skipping empty disk\n")
         return
 
-    if not quiet or not found['Notsmart_Serial_Number'] in already_labeled:
+    if not quiet or not found["Notsmart_Serial_Number"] in already_labeled:
         for k in found:
             details = ""
             if k == "Total_LBAs_Written":
@@ -156,34 +186,34 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
     answered = False
     question = "Is it OK, SUS, OLD, FAIL or discard? [K,S,O,F,X] "
 
-    if found['Notsmart_Serial_Number'] in already_labeled:
-        old_labeled_row = already_labeled[found['Notsmart_Serial_Number']]
+    if found["Notsmart_Serial_Number"] in already_labeled:
+        old_labeled_row = already_labeled[found["Notsmart_Serial_Number"]]
         print(f"{question}{old_labeled_row['Status']} (already labeled)")
-        found['Status'] = old_labeled_row['Status']
+        found["Status"] = old_labeled_row["Status"]
         results.append(found)
         answered = True
-        del already_labeled[found['Notsmart_Serial_Number']]
+        del already_labeled[found["Notsmart_Serial_Number"]]
 
     while not answered:
         r = input(question)
         r = r.lower()
-        if r == 'k' or r == 'y':
-            found['Status'] = 'OK'
+        if r == "k" or r == "y":
+            found["Status"] = "OK"
             results.append(found)
             answered = True
-        elif r == 'o':
-            found['Status'] = 'OLD'
+        elif r == "o":
+            found["Status"] = "OLD"
             results.append(found)
             answered = True
-        elif r == 'f':
-            found['Status'] = 'FAIL'
+        elif r == "f":
+            found["Status"] = "FAIL"
             results.append(found)
             answered = True
-        elif r == 's':
-            found['Status'] = 'SUS'
+        elif r == "s":
+            found["Status"] = "SUS"
             results.append(found)
             answered = True
-        elif r == 'x':
+        elif r == "x":
             answered = True
     if predict:
         prediction_formatted = "Unknown"
@@ -192,7 +222,7 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
         else:
             prediction_formatted = prediction.upper()
 
-        if prediction_formatted == found['Status']:
+        if prediction_formatted == found["Status"]:
             comment = f"{GREEN_REVERSE}right :){END_ESCAPE}"
             predictions["right"] += 1
         else:
@@ -202,11 +232,15 @@ def parse_file(filename: str, results: list, serials: set, counter: int, already
     print()
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Classify SMART data manually. Now.')
-    parser.add_argument('files', nargs='+', type=str, help="Path to smartctl saved files")
-    parser.add_argument('-q', '--quiet', action='store_true', help="Be quiet about already labeled data")
-    parser.add_argument('-t', '--test', action='store_true', help="How am I mining?")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Classify SMART data manually. Now.")
+    parser.add_argument(
+        "files", nargs="+", type=str, help="Path to smartctl saved files"
+    )
+    parser.add_argument(
+        "-q", "--quiet", action="store_true", help="Be quiet about already labeled data"
+    )
+    parser.add_argument("-t", "--test", action="store_true", help="How am I mining?")
     args = parser.parse_args()
 
     get_files(args.files, args.quiet, args.test)

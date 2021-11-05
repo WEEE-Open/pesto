@@ -36,17 +36,23 @@ def info_dialog(message):
 
 def warning_dialog(message: str, dialog_type: str):
     if dialog_type == "yes_no":
-        dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
+        dialog = QtWidgets.QMessageBox(
+            QtWidgets.QMessageBox.Warning, "Warning", message
+        )
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
         return dialog.exec_()
     elif dialog_type == "ok":
-        dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
+        dialog = QtWidgets.QMessageBox(
+            QtWidgets.QMessageBox.Warning, "Warning", message
+        )
         dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
         return dialog.exec_()
     elif dialog_type == "yes_no_chk":
-        dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
+        dialog = QtWidgets.QMessageBox(
+            QtWidgets.QMessageBox.Warning, "Warning", message
+        )
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
@@ -66,17 +72,17 @@ class CannoloDialog(QtWidgets.QDialog):
         self.files = []
         uic.loadUi(self.path["CANNOLOUI"], self)
 
-        self.label = self.findChild(QtWidgets.QLabel, 'dialogLabel')
-        self.isoList = self.findChild(QtWidgets.QListWidget, 'isoList')
+        self.label = self.findChild(QtWidgets.QLabel, "dialogLabel")
+        self.isoList = self.findChild(QtWidgets.QListWidget, "isoList")
         for img in self.images:
             img = img.rsplit("/", 1)[1]
             img = img.rsplit(".")
-            if img[1] == 'iso':
+            if img[1] == "iso":
                 self.files.append(img[0])
         self.isoList.addItems(self.files)
-        self.selectButton = self.findChild(QtWidgets.QPushButton, 'selectButton')
+        self.selectButton = self.findChild(QtWidgets.QPushButton, "selectButton")
         self.selectButton.clicked.connect(self.select)
-        self.cancelButton = self.findChild(QtWidgets.QPushButton, 'cancelButton')
+        self.cancelButton = self.findChild(QtWidgets.QPushButton, "cancelButton")
         self.cancelButton.clicked.connect(self.close)
         self.show()
 
@@ -94,8 +100,8 @@ class CannoloDialog(QtWidgets.QDialog):
 def win_path(path):
     new_path = r""
     for char in path:
-        if char == '/':
-            new_path += '\\'
+        if char == "/":
+            new_path += "\\"
         else:
             new_path += char
     new_path = os.path.dirname(os.path.realpath(__file__)) + new_path
@@ -138,31 +144,36 @@ def parse_smartctl_output(smartctl) -> dict:
             errors_section = True
             continue
         if info_section:
-            if 'Model Family: ' in line:
-                val = line.split(':', 2)[1].strip()
-                found["Notsmart_Brand"] = val.split(' ', 1)[0]
+            if "Model Family: " in line:
+                val = line.split(":", 2)[1].strip()
+                found["Notsmart_Brand"] = val.split(" ", 1)[0]
                 found["Notsmart_Model_Family"] = val.strip()
                 # Title case for UPPERCASE BRANDS (except IBM)
-                if found["Notsmart_Brand"].isupper() and len(found["Notsmart_Brand"]) > 3:
+                if (
+                    found["Notsmart_Brand"].isupper()
+                    and len(found["Notsmart_Brand"]) > 3
+                ):
                     found["Notsmart_Brand"] = found["Notsmart_Brand"].title()
-            elif 'Serial Number:' in line:
-                val = line.split('Serial Number:', 2)[1]
+            elif "Serial Number:" in line:
+                val = line.split("Serial Number:", 2)[1]
                 found["Notsmart_Serial_Number"] = val.strip()
 
                 # The WorkarounD:
-                if found["Notsmart_Serial_Number"].startswith('WD-'):
-                    found["Notsmart_Serial_Number"] = found["Notsmart_Serial_Number"][3:]
+                if found["Notsmart_Serial_Number"].startswith("WD-"):
+                    found["Notsmart_Serial_Number"] = found["Notsmart_Serial_Number"][
+                        3:
+                    ]
 
                 if len(found["Notsmart_Serial_Number"]) <= 0:
                     del found["Notsmart_Serial_Number"]
-            elif 'Rotation Rate:' in line:
-                val = line.split(':', 2)[1].strip()
+            elif "Rotation Rate:" in line:
+                val = line.split(":", 2)[1].strip()
                 if val.endswith("rpm"):
                     val = val[:-3].strip()
                 found["Notsmart_Rotation_Rate"] = val
             continue
         if data_section:
-            parts_test = line.strip().split(' ')
+            parts_test = line.strip().split(" ")
             try:
                 param_value = int(parts_test[0].strip())
             except ValueError:
@@ -175,7 +186,7 @@ def parse_smartctl_output(smartctl) -> dict:
                 if attr == "structures":
                     continue
                 # Skip bad parsing (matching *******, "Not tested:", 0 and other strings)
-                if len(re.sub('[a-zA-Z_]+', '', attr)) > 0:
+                if len(re.sub("[a-zA-Z_]+", "", attr)) > 0:
                     continue
 
                 if "FAILING_NOW" in line:
@@ -185,7 +196,7 @@ def parse_smartctl_output(smartctl) -> dict:
                 if len(val) <= 0:
                     continue
 
-                if 'h' in val and 'm' in val:
+                if "h" in val and "m" in val:
                     val = val.split("h")[0]
                     # noinspection PyBroadException
                     try:
@@ -194,10 +205,10 @@ def parse_smartctl_output(smartctl) -> dict:
                             val = str(int(val) + 1)
                     except BaseException:
                         pass
-                elif 'Temperature' in attr:
+                elif "Temperature" in attr:
                     continue
-                elif '/' in val:
-                    val.split('/')
+                elif "/" in val:
+                    val.split("/")
                     if len(val[0].rstrip()) > 0:
                         val = val[0]
                     elif len(val[1].rstrip()) > 0:
@@ -207,7 +218,7 @@ def parse_smartctl_output(smartctl) -> dict:
                 found[attr] = val.rstrip()
             continue
         if errors_section:
-            if 'Error: UNC' in line:
+            if "Error: UNC" in line:
                 errors += 1
         if errors > 0:
             found["Notsmart_Errors_UNC"] = errors
@@ -345,12 +356,14 @@ class SmartTabs(QtWidgets.QTabWidget):
         textBox.setFont(font)
         textBox.setFontPointSize(10)
         textBox.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
-        textBox.append('\n'.join(text))
+        textBox.append("\n".join(text))
         if not status:
             status = "Errore deflagrante: impossibile determinare lo stato del disco."
         nowtime = datetime.datetime.now()
-        label = QtWidgets.QLabel(f"Date: {nowtime.strftime('%H:%M:%S')}\nStatus: {status}\nUploaded: {uploaded}")
-        label.setStyleSheet(f'color: {self.color}')
+        label = QtWidgets.QLabel(
+            f"Date: {nowtime.strftime('%H:%M:%S')}\nStatus: {status}\nUploaded: {uploaded}"
+        )
+        label.setStyleSheet(f"color: {self.color}")
         layout.addWidget(label)
         layout.addWidget(textBox)
         widget.setLayout(layout)
@@ -360,24 +373,26 @@ class SmartTabs(QtWidgets.QTabWidget):
     def set_style(self, style: str):
         tab_count = self.count()
         if style == "WeeeOpen":
-            self.setStyleSheet("QTabBar::tab { background-color: rgba(0, 152, 58, 255); color: white; }")
+            self.setStyleSheet(
+                "QTabBar::tab { background-color: rgba(0, 152, 58, 255); color: white; }"
+            )
             for n in range(tab_count):
                 label = self.widget(n).findChild(QtWidgets.QLabel)
                 label.setStyleSheet("color: black")
-            self.color = 'black'
-        elif style == 'Dark':
+            self.color = "black"
+        elif style == "Dark":
             for n in range(tab_count):
                 label = self.widget(n).findChild(QtWidgets.QLabel)
                 label.setStyleSheet("color: white")
-            self.color = 'white'
-        elif style == 'Vaporwave':
+            self.color = "white"
+        elif style == "Vaporwave":
             for n in range(tab_count):
                 label = self.widget(n).findChild(QtWidgets.QLabel)
                 label.setStyleSheet("color: white")
-            self.color = 'white'
+            self.color = "white"
 
         else:
             for n in range(tab_count):
                 label = self.widget(n).findChild(QtWidgets.QLabel)
                 label.setStyleSheet("color: black")
-            self.color = 'black'
+            self.color = "black"
