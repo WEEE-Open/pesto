@@ -127,14 +127,25 @@ class Disk:
         return False
 
     def update_erase(self, erased: bool, all_blocks_ok: Optional[bool]) -> bool:
-        data = {}
-        # Can be True, False or None
-        if all_blocks_ok is not None:
-            data["surface-scan"] = "pass" if all_blocks_ok else "fail"
-        if erased:
-            data["data-erased"] = "yes"
-
         if self._tarallo and self._code:
+            data = {}
+            # Can be True, False or None
+            if all_blocks_ok is not None:
+                data["surface-scan"] = "pass" if all_blocks_ok else "fail"
+            if erased:
+                data["data-erased"] = "yes"
+                data["software"] = None
+
+            self._tarallo.update_item_features(self._code, data)
+            return True
+        return False
+
+    def update_software(self, software: str) -> bool:
+        if self._tarallo and self._code:
+            data = {
+                "software": software
+            }
+
             self._tarallo.update_item_features(self._code, data)
             return True
         return False
@@ -426,7 +437,8 @@ class CommandRunner(threading.Thread):
                         deleting = False
                     buffer += char
 
-            pipe.wait()
+            # TODO: was this needed? Why were we doing it twice?
+            # pipe.wait()
             exitcode = pipe.wait()
 
             if errors <= -1:
@@ -501,32 +513,54 @@ class CommandRunner(threading.Thread):
         if not go_ahead:
             return
 
+        success = True
+
         self._queued_command.notify_start("Cannoling")
-        # if not TEST_MODE:
-        # TODO: code from turbofresa goes here
-        self._queued_command.notify_percentage(10)
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(20)
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(30)
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(40)
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(50)
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(60)
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(70)
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(80)
-        threading.Event().wait(2)
-        self._queued_command.notify_percentage(90)
-        threading.Event().wait(2)
+        if TEST_MODE:
+            self._queued_command.notify_percentage(10)
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(20)
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(30)
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(40)
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(50)
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(60)
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(70)
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(80)
+            threading.Event().wait(2)
+            self._queued_command.notify_percentage(90)
+            threading.Event().wait(2)
+        else:
+            pipe = subprocess.Popen(('sudo', '-n', 'cannolo', iso, dev))  # stderr=subprocess.PIPE), stdout=subprocess.PIPE)
+            exitcode = pipe.wait()
+            if exitcode != 0:
+                self._queued_command.notify_error("cannolo returned " + str(exitcode))
+                success = False
 
-        pretty_iso = self._pretty_print_iso(iso)
-        self._queued_command.notify_finish(f"{pretty_iso} installed!")
+        if success:
+            with disks_lock:
+                update_disks_if_needed(self)
+                disk_ref = disks[dev]
 
-        update_disks_if_needed(self)
+            pretty_iso = self._pretty_print_iso(iso)
+            self._queued_command.notify_percentage(100.0, f"{pretty_iso} installed!")
+
+            final_message = f"{pretty_iso} installed, Tarallo updated"
+            # noinspection PyBroadException
+            try:
+                disk_ref.update_software(pretty_iso)
+            except BaseException as e:
+                final_message = f"{pretty_iso} installed, failed to update Tarallo"
+                self._queued_command.notify_error(f"{pretty_iso} installed, failed to update Tarallo")
+                logging.warning(f"[{self._the_id}] Can't update software of {dev} on tarallo", exc_info=e)
+            self._queued_command.notify_finish(final_message)
+        else:
+            self._queued_command.notify_finish()
 
     def _unswap(self) -> bool:
         if TEST_MODE:
