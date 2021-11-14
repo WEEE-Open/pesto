@@ -77,7 +77,7 @@ class CannoloDialog(QtWidgets.QDialog):
         for img in self.images:
             img = img.rsplit("/", 1)[1]
             img = img.rsplit(".")
-            if img[1] == "iso":
+            if img[1] == "iso" or img[1] == "img":
                 self.files.append(img[0])
         self.isoList.addItems(self.files)
         self.selectButton = self.findChild(QtWidgets.QPushButton, "selectButton")
