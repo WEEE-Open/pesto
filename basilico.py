@@ -448,8 +448,11 @@ class CommandRunner(threading.Thread):
             errors = -1
             deleting = False
             buffer = bytearray()
-            for char in iter(lambda: pipe.stderr.read(1), ""):
-                if char == b"\b":
+            for char in iter(lambda: pipe.stderr.read(1), b""):
+                if char == b"":
+                    if pipe.poll() is not None:
+                        break
+                elif char == b"\b":
                     if not deleting:
                         result = buffer.decode("utf-8")
                         errors_print = "?"
