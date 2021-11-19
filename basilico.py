@@ -709,10 +709,21 @@ class CommandRunner(threading.Thread):
             stderr = pipe.stderr.read().decode("utf-8")
         exitcode = pipe.wait()
 
+        smartctl_returned_valid = False
+        if exitcode == 0 or (CURRENT_OS == "win32" and exitcode == 4):
+            smartctl_returned_valid = True
+        else:
+            exitcode_bytes = exitcode.to_bytes(8, 'little')
+            if exitcode_bytes[0] == 1 or exitcode_bytes[1] == 1 or exitcode_bytes[2] == 1:
+                smartctl_returned_valid = False
+            else:
+                # TODO: parse remaining bits (https://github.com/WEEE-Open/pesto/issues/65)
+                smartctl_returned_valid = True
+
         updated = False
         status = None
 
-        if exitcode == 0 or (CURRENT_OS == "win32" and exitcode == 4):
+        if smartctl_returned_valid:
             status = get_smartctl_status(output)
             if queued:
                 if not status:
