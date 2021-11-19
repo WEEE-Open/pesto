@@ -713,8 +713,12 @@ class CommandRunner(threading.Thread):
         if exitcode == 0 or (CURRENT_OS == "win32" and exitcode == 4):
             smartctl_returned_valid = True
         else:
-            exitcode_bytes = exitcode.to_bytes(8, 'little')
-            if exitcode_bytes[0] == 1 or exitcode_bytes[1] == 1 or exitcode_bytes[2] == 1:
+            exitcode_bytes = exitcode.to_bytes(8, "little")
+            if (
+                exitcode_bytes[0] == 1
+                or exitcode_bytes[1] == 1
+                or exitcode_bytes[2] == 1
+            ):
                 smartctl_returned_valid = False
             else:
                 # TODO: parse remaining bits (https://github.com/WEEE-Open/pesto/issues/65)
