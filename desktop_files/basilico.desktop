@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Basilico
+Comment=Pesto server
+Path=/opt/pesto
+Exec=/opt/pesto/basilico.py
+Icon=/opt/pesto/assets/icon.png
+Terminal=true
+Categories=Accessories

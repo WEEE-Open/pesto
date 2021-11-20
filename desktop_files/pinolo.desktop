@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Pinolo
+Comment=Pesto client GUI
+Path=/opt/pesto
+Exec=/opt/pesto/run.sh
+Icon=/opt/pesto/assets/icon.png
+Terminal=false
+Categories=Accessories

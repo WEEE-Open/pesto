@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Uninstall PESTO
+Comment=Pesto uninstaller
+Path=/opt/pesto
+Exec=/opt/pesto/UNINSTALL.sh
+Icon=/opt/pesto/assets/icon.png
+Terminal=true
+Categories=System
