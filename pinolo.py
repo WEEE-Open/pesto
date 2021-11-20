@@ -20,7 +20,6 @@ import traceback
 import playsound
 
 
-
 PATH = {
     "REQUIREMENTS": "/requirements_client.txt",
     "ENV": "/.env",
@@ -175,7 +174,7 @@ class Ui(QtWidgets.QMainWindow):
         self.setup()
 
     def on_table_select(self, selected):
-        ''' This function set the queue table context menu buttons '''
+        """This function set the queue table context menu buttons"""
 
         sel = selected.count()
         if sel == 0:
@@ -188,8 +187,8 @@ class Ui(QtWidgets.QMainWindow):
             self.info_action.setEnabled(True)
 
     def set_items_functions(self):
-        ''' This function set the widget's function to the respective widget and
-         other widget's constraints '''
+        """This function set the widget's function to the respective widget and
+        other widget's constraints"""
 
         # set icon
         self.setWindowIcon(QIcon(PATH["ICON"]))
@@ -328,8 +327,8 @@ class Ui(QtWidgets.QMainWindow):
         self.themeSelector.currentTextChanged.connect(self.set_theme)
 
     def latest_conf(self):
-        ''' This function try to set the remote configuration used in the last
-         pinolo session '''
+        """This function try to set the remote configuration used in the last
+        pinolo session"""
 
         self.remoteMode = self.settings.value("remoteMode")
         if self.remoteMode == "False":
@@ -351,8 +350,8 @@ class Ui(QtWidgets.QMainWindow):
                 self.port = 1030
 
     def setup(self):
-        ''' This method must be called in the __init__ function of the Ui class
-        to initialize the pinolo session '''
+        """This method must be called in the __init__ function of the Ui class
+        to initialize the pinolo session"""
 
         self.set_remote_mode()
 
@@ -371,8 +370,8 @@ class Ui(QtWidgets.QMainWindow):
         self.client.start()
 
     def test_badblocks(self):
-        ''' This function send to the server a badblocks command.
-         Use it only in test context. '''
+        """This function send to the server a badblocks command.
+        Use it only in test context."""
 
         print("GUI_TEST: queued_badblocks")
         try:
@@ -383,8 +382,8 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI_TEST: Error in test_badblocks test.")
 
     def test_cannolo(self):
-        ''' This function send to the server a cannolo command.
-                 Use it only in test context. '''
+        """This function send to the server a cannolo command.
+        Use it only in test context."""
 
         print("GUI_TEST: queued_cannolo")
         try:
@@ -395,8 +394,8 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI_TEST: Error in cannolo test.")
 
     def test_sleep(self):
-        ''' This function send to the server a queued_sleep command.
-                 Use it only in test context. '''
+        """This function send to the server a queued_sleep command.
+        Use it only in test context."""
 
         print("GUI_TEST: queued_sleep")
         try:
@@ -407,8 +406,8 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI_TEST: Error in sleep test.")
 
     def test_smartctl(self):
-        ''' This function send to the server a queued_smart command.
-                 Use it only in test context. '''
+        """This function send to the server a queued_smart command.
+        Use it only in test context."""
 
         print("GUI_TEST: queued_smartctl")
         try:
@@ -419,8 +418,8 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI_TEST: Error in smartctl test.")
 
     def test_load_to_tarallo(self):
-        ''' This function send to the server a queued_load_to_tarallo command.
-                 Use it only in test context. '''
+        """This function send to the server a queued_load_to_tarallo command.
+        Use it only in test context."""
 
         print("GUI_TEST: queued_load_to_tarallo")
         try:
@@ -431,13 +430,13 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI_TEST: Error in load to tarallo test.")
 
     def test_std_proc(self, cannolo_flag=True):
-        ''' This function send to the server a list of test commands:
-                - queued_badblocks
-                - queued_smartctl
-                - queued_cannolo (if cannolo_flag is True)
-                - queued_load_to_tarallo
-                - queued_sleep
-            Use it only in test context. '''
+        """This function send to the server a list of test commands:
+            - queued_badblocks
+            - queued_smartctl
+            - queued_cannolo (if cannolo_flag is True)
+            - queued_load_to_tarallo
+            - queued_sleep
+        Use it only in test context."""
 
         self.test_badblocks()
         self.test_smartctl()
@@ -447,20 +446,20 @@ class Ui(QtWidgets.QMainWindow):
         self.test_sleep()
 
     def test_std_proc_no_cannolo(self):
-        ''' This function call the test_std_proc method, setting the cannolo_flag
-         as True. '''
+        """This function call the test_std_proc method, setting the cannolo_flag
+        as True."""
 
         self.test_std_proc(cannolo_flag=False)
 
     def deselect(self):
-        ''' This function clear the queue table active selection. '''
+        """This function clear the queue table active selection."""
 
         self.queueTable.clearSelection()
         self.queueTable.clearFocus()
 
     def queue_stop(self):
-        ''' This function set the "stop" button behaviour on the queue table
-         context menu. '''
+        """This function set the "stop" button behaviour on the queue table
+        context menu."""
 
         pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = "Do you want to stop the process?\nID: " + pid
@@ -469,8 +468,8 @@ class Ui(QtWidgets.QMainWindow):
         self.deselect()
 
     def queue_remove(self):
-        ''' This function set the "remove" button behaviour on the queue table
-                 context menu. '''
+        """This function set the "remove" button behaviour on the queue table
+        context menu."""
 
         pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = "With this action you will also stop the process (ID: " + pid + ")\n"
@@ -481,15 +480,15 @@ class Ui(QtWidgets.QMainWindow):
         self.deselect()
 
     def queue_clear(self):
-        ''' This function set the "remove all" button behaviour on the queue table
-                         context menu. '''
+        """This function set the "remove all" button behaviour on the queue table
+        context menu."""
 
         self.queueTable.setRowCount(0)
         self.client.send("remove_all")
 
     def queue_info(self):
-        ''' This function set the "info" button behaviour on the queue table
-                         context menu. '''
+        """This function set the "info" button behaviour on the queue table
+        context menu."""
 
         process = self.queueTable.item(self.queueTable.currentRow(), 1).text()
         message = ""
@@ -504,12 +503,12 @@ class Ui(QtWidgets.QMainWindow):
         self.deselect()
 
     def std_procedure(self):
-        ''' This function send to the server a sequence of commands:
-                - queued_badblocks
-                - queued_smartctl
-                - queued_cannolo (if the cannolo flag on the dialog is checked)
-                - queued_sleep
-        '''
+        """This function send to the server a sequence of commands:
+        - queued_badblocks
+        - queued_smartctl
+        - queued_cannolo (if the cannolo flag on the dialog is checked)
+        - queued_sleep
+        """
 
         message = "Do you want to wipe all disk's data and load a fresh system image?"
         dialog = warning_dialog(message, dialog_type="yes_no_chk")
@@ -521,8 +520,8 @@ class Ui(QtWidgets.QMainWindow):
             self.sleep()
 
     def erase(self, std=False):
-        ''' This function send to the server a queued_badblocks command.
-        If "std" is True it will skip the confirm dialog. '''
+        """This function send to the server a queued_badblocks command.
+        If "std" is True it will skip the confirm dialog."""
 
         # noinspection PyBroadException
         try:
@@ -548,8 +547,8 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI: Error in erase Function")
 
     def smart(self, std=False):
-        ''' This function send to the server a queued_smartctl command.
-                If "std" is True it will skip the "no drive selected" check. '''
+        """This function send to the server a queued_smartctl command.
+        If "std" is True it will skip the "no drive selected" check."""
 
         # noinspection PyBroadException
         try:
@@ -568,8 +567,8 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI: Error in smart function.")
 
     def cannolo(self, std=False):
-        ''' This function send to the server a queued_cannolo command.
-                If "std" is True it will skip the cannolo dialog. '''
+        """This function send to the server a queued_cannolo command.
+        If "std" is True it will skip the cannolo dialog."""
 
         # noinspection PyBroadException
         try:
@@ -598,8 +597,8 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI: Error in cannolo function.")
 
     def load_to_tarallo(self, std=False):
-        ''' This function send to the server a queued_upload_to_tarallo command.
-                If "std" is True it will skip the confirm dialog. '''
+        """This function send to the server a queued_upload_to_tarallo command.
+        If "std" is True it will skip the confirm dialog."""
 
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
         selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
@@ -618,8 +617,8 @@ class Ui(QtWidgets.QMainWindow):
         self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
 
     def sleep(self, std=False):
-        ''' This function send to the server a queued_sleep command.
-            If "std" is True it will skip the "no drive selected" check. '''
+        """This function send to the server a queued_sleep command.
+        If "std" is True it will skip the "no drive selected" check."""
 
         # noinspection PyBroadException
         try:
@@ -638,8 +637,8 @@ class Ui(QtWidgets.QMainWindow):
             print("GUI: Error in cannolo function.")
 
     def set_remote_mode(self):
-        ''' This function set all the parameters related to the client-server
-        communications and other UI-related behaviours. '''
+        """This function set all the parameters related to the client-server
+        communications and other UI-related behaviours."""
 
         if self.localRadioBtn.isChecked():
             if not self.remoteMode:
@@ -673,22 +672,22 @@ class Ui(QtWidgets.QMainWindow):
             )
 
     def refresh(self):
-        ''' This function read the host and port inputs in the settings
-        tab and try to reconnect to the server, refreshing the disk list. '''
+        """This function read the host and port inputs in the settings
+        tab and try to reconnect to the server, refreshing the disk list."""
 
         self.host = self.hostInput.text()
         self.port = int(self.portInput.text())
         self.client.reconnect(self.host, self.port)
 
     def restore(self):
-        ''' This function delete all the edits made in the host and port input
-        in the settings tab.'''
+        """This function delete all the edits made in the host and port input
+        in the settings tab."""
 
         self.hostInput.setText(self.host)
         self.portInput.setText(str(self.port))
 
     def update_queue(self, pid, drive, mode):
-        ''' This function update the queue table with the new entries. '''
+        """This function update the queue table with the new entries."""
 
         # self.queueTable.setRowCount(self.queueTable.rowCount() + 1)
         row = self.queueTable.rowCount()
@@ -755,7 +754,7 @@ class Ui(QtWidgets.QMainWindow):
                 self.queueTable.setCellWidget(row, idx, widget)
 
     def greyout_buttons(self):
-        ''' This function greys out some buttons when they must not be used. '''
+        """This function greys out some buttons when they must not be used."""
 
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
         if self.selected_drive is not None:
@@ -795,8 +794,8 @@ class Ui(QtWidgets.QMainWindow):
             print(exc.args)
 
     def save_config(self):
-        ''' This function saves the active host and port configuration in the qt settings
-        file, showing them in the recent ip list. '''
+        """This function saves the active host and port configuration in the qt settings
+        file, showing them in the recent ip list."""
 
         ip = self.hostInput.text()
         port = self.portInput.text()
@@ -812,8 +811,8 @@ class Ui(QtWidgets.QMainWindow):
             self.settings.setValue("saved-" + ip, [ip, port])
 
     def remove_config(self):
-        ''' This function removes the selected configuration in the recent
-         ip list in the settings tab.'''
+        """This function removes the selected configuration in the recent
+        ip list in the settings tab."""
 
         ip = self.ipList.currentItem().text()
         message = "Do you want to remove the selected configuration?"
@@ -824,8 +823,8 @@ class Ui(QtWidgets.QMainWindow):
                     self.settings.remove(key)
 
     def load_config(self):
-        ''' This function loads the selected configuration in the recent ip
-        list in the settings tab. '''
+        """This function loads the selected configuration in the recent ip
+        list in the settings tab."""
 
         ip = self.ipList.currentItem().text()
         for key in self.settings.childKeys():
@@ -836,8 +835,8 @@ class Ui(QtWidgets.QMainWindow):
                 self.portInput.setText(port)
 
     def default_config(self):
-        ''' This function removes all the data from the qt settings file.
-        Use with caution. '''
+        """This function removes all the data from the qt settings file.
+        Use with caution."""
 
         message = "Do you want to restore all settings to default?\nThis action is unrevocable."
         if critical_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
@@ -846,8 +845,8 @@ class Ui(QtWidgets.QMainWindow):
             self.setup()
 
     def find_image(self):
-        ''' This function opens a different dialog, depending if
-        the user is in local or remote mode, to search for a cannolo image. '''
+        """This function opens a different dialog, depending if
+        the user is in local or remote mode, to search for a cannolo image."""
 
         # noinspection PyBroadException
         try:
@@ -871,25 +870,25 @@ class Ui(QtWidgets.QMainWindow):
             print(f"GUI: Error in smart function [{ex}]")
 
     def set_default_cannolo(self, directory: str, img: str):
-        ''' This function set the default cannolo path in the settings tab. '''
+        """This function set the default cannolo path in the settings tab."""
 
         if self.set_default_cannolo:
             self.statusBar().showMessage(f"Default cannolo image set as {img}.iso")
             self.directoryText.setText(directory)
 
     def use_cannolo_img(self, directory: str, img: str):
-        ''' This function sends to the server a queued_cannolo with the selected drive
+        """This function sends to the server a queued_cannolo with the selected drive
         and the directory of the selected cannolo image. This is specific of the
-        non-standard procedure cannolo. '''
+        non-standard procedure cannolo."""
         self.statusBar().showMessage(
             f"Sending cannolo to {self.selected_drive} with {img}"
         )
         self.client.send(f"queued_cannolo {self.selected_drive} {directory}")
 
     def set_theme(self):
-        ''' This function gets the stylesheet of the theme and sets the widgets aspect.
+        """This function gets the stylesheet of the theme and sets the widgets aspect.
         Only for the Vaporwave theme, it will search a .mp3 file that will be played in background.
-        Just for the meme. asd'''
+        Just for the meme. asd"""
 
         theme = self.themeSelector.currentText()
         if theme == "Vaporwave":
@@ -966,7 +965,7 @@ class Ui(QtWidgets.QMainWindow):
         self.smartTabs.set_style(theme)
 
     def asd_gif_set(self, dir: str):
-        ''' This function sets the asd gif for the settings tab. '''
+        """This function sets the asd gif for the settings tab."""
 
         self.asdGif = QMovie(dir)
         self.asdGif.setScaledSize(
@@ -978,8 +977,8 @@ class Ui(QtWidgets.QMainWindow):
         self.asdlabel.setMovie(self.asdGif)
 
     def server_com(self, cmd: str, st2: str):
-        ''' This function tries to reconnect the client to the local server.
-        It will try to find out if the server is already running in background. '''
+        """This function tries to reconnect the client to the local server.
+        It will try to find out if the server is already running in background."""
 
         if cmd == "SERVER_READY":
             print("GUI: Local server loaded. Connecting...")
@@ -1177,9 +1176,9 @@ class Ui(QtWidgets.QMainWindow):
             warning_dialog(message, dialog_type="ok")
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
-        ''' This function is called when the window is closed.
+        """This function is called when the window is closed.
         It will save all the latest settings parameters into the QT settings file and
-        terminate all the active audio processes. '''
+        terminate all the active audio processes."""
 
         self.settings.setValue("remoteMode", str(self.remoteMode))
         self.settings.setValue("remoteIp", self.hostInput.text())
