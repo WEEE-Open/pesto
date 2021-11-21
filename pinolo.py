@@ -40,7 +40,7 @@ PATH = {
     "WARNING": "/assets/table/warning.png",
     "ERROR": "/assets/table/error.png",
     "STOP": "/assets/stop.png",
-    "WEEETXT": "/assets/weee_text.png",
+    "WEEE": "/assets/backgrounds/weee_logo.png",
     "SERVER": "/basilico.py",
     "DEFAULTTHEME": "/themes/defaultTheme.css",
     "DARKTHEME": "/themes/darkTheme.css",
@@ -948,8 +948,11 @@ class Ui(QtWidgets.QMainWindow):
             if CURRENT_PLATFORM == "win32":
                 with open(PATH["WEEEWINTHEME"]) as file:
                     self.app.setStyleSheet(file.read())
+            else:
+                with open(PATH["WEEETHEME"], "r") as file:
+                    self.app.setStyleSheet(file.read())
             self.backgroundLabel.clear()
-            self.backgroundLabel.setPixmap(QtGui.QPixmap(PATH["WEEETXT"]))
+            self.backgroundLabel.setPixmap(QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio))
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(25, 25))
             self.asd_gif_set(PATH["ASD"])

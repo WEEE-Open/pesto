@@ -1,11 +1,10 @@
 QMainWindow {
-    background-color: rgb(88, 88, 88);
+    background-color: #3c3d3b;
 }
 
 QComboBox {
-    background-color: rgba(255, 255, 0, 255);
-    color: deepskyblue;
-    font-weight: bold;
+    background-color: #00983a;
+    color: #3c3d3b;
 }
 
 QFrame {
@@ -23,7 +22,7 @@ QHeaderView {
 
 QHeaderView::section {
     background-color: rgba(255, 255, 255, 0);
-    color: deepskyblue;
+    color: #00983a;
     font-weight: bold;
     border: none;
 }
@@ -35,7 +34,7 @@ QLabel {
 
 QLineEdit {
     background-color: rgba(199, 199, 199, 120);
-    color: rgb(255, 255, 0);
+    color: black;
     border-color: rgb(188, 188, 188);
 }
 
@@ -48,9 +47,8 @@ QMessageBox {
 }
 
 QPushButton {
-    background-color: rgba(255, 255, 0, 255);
-    color: deepskyblue;
-    font-weight: bold;
+    background-color: #00983a;
+    color: #3c3d3b;
 }
 
 QProgressBar {
@@ -68,7 +66,7 @@ QTabBar::tab {
 QTabBar::tab:selected {
     background-color: rgba(255, 255, 255, 0);
     border: 1px solid rgba(255, 255, 255, 50);
-    border-top: 2px solid yellow;
+    border-top: 2px solid #00983a;
     border-bottom-color: rgba(0, 0, 0, 0); /* same as the pane color */
     border-top-left-radius: 2px;
     border-top-right-radius: 2px;

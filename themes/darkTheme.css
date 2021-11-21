@@ -51,19 +51,6 @@ QRadioButton {
     color: white;
 }
 
-QRadioButton::indicator {
-    width: 13px;
-    height: 13px;
-}
-
-QRadioButton::indicator::unchecked {
-    image: url(assets/radio/radio_unckd.png);
-}
-
-QRadioButton::indicator::checked {
-    image: url(assets/radio/radio_ckd.png);
-}
-
 QLineEdit {
     background-color: rgb(49, 52, 59);
     color: rgb(255, 255, 255);
