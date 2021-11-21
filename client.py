@@ -78,6 +78,7 @@ class ClientFactory(protocol.ClientFactory):
 
     def clientConnectionLost(self, connector, reason):
         print(f"CLIENT: Lost connection. Reason: {reason}")
+        self.update_gui("connection_lost")
 
     def clientConnectionFailed(self, connector, reason):
         print(f"CLIENT: Connection failed. Reason: {reason}")
@@ -90,6 +91,9 @@ class ClientFactory(protocol.ClientFactory):
         if data == "connection_made":
             cmd = data
             args = json.dumps({"host": self.host, "port": str(self.port)})
+        elif data == "connection_lost":
+            cmd = data
+            args = json.dumps({"connection_lost": True})
         else:
             parts = data.split(" ", 1)
             cmd = parts[0]

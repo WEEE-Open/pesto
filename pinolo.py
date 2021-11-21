@@ -594,7 +594,8 @@ class Ui(QtWidgets.QMainWindow):
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
         selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
         if selected_drive_id != "":
-            message = "The selected disk have alredy a TARALLO id."
+            message = "The selected disk doesn't have a TARALLO id.\n" \
+                      "No data will be uploaded to TARALLO."
             warning_dialog(message, dialog_type="ok")
             return
         if not std:
@@ -1128,12 +1129,14 @@ class Ui(QtWidgets.QMainWindow):
                 )
             warning_dialog(message, dialog_type="ok")
 
+        elif cmd == "connection_lost":
+            self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
+
         elif cmd == "connection_made":
             self.statusBar().showMessage(
                 f"Connected to {params['host']}:{params['port']}"
             )
 
-        # This is an example, the iso_list cmd does not exist now on server
         elif cmd == "list_iso":
             self.dialog = CannoloDialog(PATH, params)
             if self.manual_cannolo:
