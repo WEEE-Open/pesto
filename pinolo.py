@@ -42,14 +42,14 @@ PATH = {
     "STOP": "/assets/stop.png",
     "WEEETXT": "/assets/weee_text.png",
     "SERVER": "/basilico.py",
-    "DEFAULTTHEME": "/themes/defaultTheme.ssh",
-    "DARKTHEME": "/themes/darkTheme.ssh",
-    "VAPORTHEME": "/themes/vaporwaveTheme.ssh",
-    "ASDTHEME": "/themes/asdTheme.ssh",
-    "WEEETHEME": "/themes/weeeTheme.ssh",
-    "VAPORWINTHEME": "/themes/vaporwaveWinTheme.ssh",
-    "ASDWINTHEME": "/themes/asdWinTheme.ssh",
-    "WEEEWINTHEME": "/themes/weeeWinTheme.ssh",
+    "DEFAULTTHEME": "/themes/defaultTheme.css",
+    "DARKTHEME": "/themes/darkTheme.css",
+    "VAPORTHEME": "/themes/vaporwaveTheme.css",
+    "ASDTHEME": "/themes/asdTheme.css",
+    "WEEETHEME": "/themes/weeeTheme.css",
+    "VAPORWINTHEME": "/themes/vaporwaveWinTheme.css",
+    "ASDWINTHEME": "/themes/asdWinTheme.css",
+    "WEEEWINTHEME": "/themes/weeeWinTheme.css",
 }
 
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
