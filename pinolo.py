@@ -53,7 +53,7 @@ QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
 
 CURRENT_PLATFORM = sys.platform
 
-initialize_path(CURRENT_PLATFORM, PATH)
+absolute_path(PATH)
 
 
 # UI class
@@ -804,8 +804,10 @@ class Ui(QtWidgets.QMainWindow):
     def remove_config(self):
         """This function removes the selected configuration in the recent
         ip list in the settings tab."""
-
-        ip = self.ipList.currentItem().text()
+        try:
+            ip = self.ipList.currentItem().text()
+        except:
+            return
         message = "Do you want to remove the selected configuration?"
         if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
             for key in self.settings.childKeys():

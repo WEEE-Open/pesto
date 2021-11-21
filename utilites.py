@@ -97,22 +97,6 @@ class CannoloDialog(QtWidgets.QDialog):
         self.close()
 
 
-def win_path(path):
-    new_path = r""
-    for char in path:
-        if char == "/":
-            new_path += "\\"
-        else:
-            new_path += char
-    new_path = os.path.dirname(os.path.realpath(__file__)) + new_path
-    return new_path
-
-
-def linux_path(path):
-    new_path = os.path.dirname(os.path.realpath(__file__)) + path
-    return new_path
-
-
 def check_requirements(requirements_path):
     p = subprocess.Popen(["pip", "install", "-r", requirements_path, "--quiet"])
     p.wait()
@@ -330,14 +314,9 @@ def smartctl_get_status(smart: dict) -> str:
                     return "ok"
 
 
-def initialize_path(current_platform: str, big_path: {}):
-    if current_platform == "win32":
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("myappid")
-        for path in big_path:
-            big_path[path] = win_path(big_path[path])
-    else:
-        for path in big_path:
-            big_path[path] = linux_path(big_path[path])
+def absolute_path(big_path: {}):
+    for path in big_path:
+        big_path[path] = os.path.dirname(os.path.realpath(__file__)) + big_path[path]
 
 
 class SmartTabs(QtWidgets.QTabWidget):
