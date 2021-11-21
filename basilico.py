@@ -1278,9 +1278,9 @@ if __name__ == "__main__":
         import lockfile
 
         with daemon.DaemonContext(
-                pidfile=lockfile.FileLock(
-                    os.getenv("LOCKFILE_PATH", f"/var/run/{NAME}.pid")
-                )
+            pidfile=lockfile.FileLock(
+                os.getenv("LOCKFILE_PATH", f"/var/run/{NAME}.pid")
+            )
         ):
             main()
     else:
