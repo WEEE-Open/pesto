@@ -46,10 +46,7 @@ PATH = {
     "DARKTHEME": "/themes/darkTheme.css",
     "VAPORTHEME": "/themes/vaporwaveTheme.css",
     "ASDTHEME": "/themes/asdTheme.css",
-    "WEEETHEME": "/themes/weeeTheme.css",
-    "VAPORWINTHEME": "/themes/vaporwaveWinTheme.css",
-    "ASDWINTHEME": "/themes/asdWinTheme.css",
-    "WEEEWINTHEME": "/themes/weeeWinTheme.css",
+    "WEEETHEME": "/themes/weeeTheme.css"
 }
 
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
@@ -164,12 +161,6 @@ class Ui(QtWidgets.QMainWindow):
         self.set_items_functions()
         self.localServer = LocalServer()
         self.localServer.update.connect(self.server_com)
-        if CURRENT_PLATFORM == "win32":
-            if self.settings.value("win32ServerStartupDialog") != 1:
-                message = "Cannot run local server on windows machine."
-                if critical_dialog(message=message, dialog_type="ok_dna"):
-                    self.settings.setValue("win32ServerStartupDialog", 1)
-            self.app.setStyle("Windows")
         self.show()
         self.setup()
 
@@ -915,24 +906,16 @@ class Ui(QtWidgets.QMainWindow):
             self.asd_gif_set(PATH["ASD"])
             self.cannoloLabel.setStyleSheet("color: yellow")
         elif theme == "Vaporwave":
-            if CURRENT_PLATFORM == "win32":
-                with open(PATH["VAPORWINTHEME"]) as file:
-                    self.app.setStyleSheet(file.read())
-            else:
-                with open(PATH["VAPORTHEME"], "r") as file:
-                    self.app.setStyleSheet(file.read())
+            with open(PATH["VAPORTHEME"], "r") as file:
+                self.app.setStyleSheet(file.read())
             self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(50, 50))
             self.backgroundLabel.clear()
             self.asd_gif_set(PATH["ASDVAP"])
             self.cannoloLabel.setStyleSheet("color: rgb(252, 186, 3)")
         elif theme == "Asd":
-            if CURRENT_PLATFORM == "win32":
-                with open(PATH["ASDWINTHEME"]) as file:
-                    self.app.setStyleSheet(file.read())
-            else:
-                with open(PATH["ASDTHEME"], "r") as file:
-                    self.app.setStyleSheet(file.read())
+            with open(PATH["ASDTHEME"], "r") as file:
+                self.app.setStyleSheet(file.read())
             self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
             self.movie = QMovie(PATH["ASD"])
             self.movie.setScaledSize(
@@ -945,12 +928,8 @@ class Ui(QtWidgets.QMainWindow):
             self.asd_gif_set(PATH["ASD"])
             self.cannoloLabel.setStyleSheet("color: blue")
         elif theme == "WeeeOpen":
-            if CURRENT_PLATFORM == "win32":
-                with open(PATH["WEEEWINTHEME"]) as file:
-                    self.app.setStyleSheet(file.read())
-            else:
-                with open(PATH["WEEETHEME"], "r") as file:
-                    self.app.setStyleSheet(file.read())
+            with open(PATH["WEEETHEME"], "r") as file:
+                self.app.setStyleSheet(file.read())
             self.backgroundLabel.clear()
             self.backgroundLabel.setPixmap(
                 QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
@@ -1086,24 +1065,15 @@ class Ui(QtWidgets.QMainWindow):
                     self.testDiskTable.setRowCount(rows)
                 except AttributeError:
                     print("Test mode disabled: testDiskTable not loaded.")
-                if sys.platform == "win32":
-                    self.diskTable.setItem(
-                        rows - 1, 0, QTableWidgetItem("Disk " + d["path"])
+
+                self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
+                try:
+                    self.testDiskTable.setItem(
+                        rows - 1, 0, QTableWidgetItem(d["path"])
                     )
-                    try:
-                        self.testDiskTable.setItem(
-                            rows - 1, 0, QTableWidgetItem("Disk " + d["path"])
-                        )
-                    except:
-                        pass
-                else:
-                    self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
-                    try:
-                        self.testDiskTable.setItem(
-                            rows - 1, 0, QTableWidgetItem(d["path"])
-                        )
-                    except:
-                        pass
+                except:
+                    pass
+
                 self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
                 self.diskTable.setItem(
                     rows - 1,
