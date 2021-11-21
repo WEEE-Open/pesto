@@ -952,7 +952,9 @@ class Ui(QtWidgets.QMainWindow):
                 with open(PATH["WEEETHEME"], "r") as file:
                     self.app.setStyleSheet(file.read())
             self.backgroundLabel.clear()
-            self.backgroundLabel.setPixmap(QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio))
+            self.backgroundLabel.setPixmap(
+                QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
+            )
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(25, 25))
             self.asd_gif_set(PATH["ASD"])
