@@ -20,7 +20,6 @@ from utilites import smartctl_get_status, parse_smartctl_output
 NAME = "basilico"
 # Use env vars, do not change the value here
 TEST_MODE = False
-CURRENT_OS = sys.platform
 
 
 class Disk:
@@ -667,12 +666,9 @@ class CommandRunner(threading.Thread):
             logging.debug(f"Fake putting {dev} to sleep")
             return 0
         logging.debug(f"Putting {dev} to sleep")
-        if CURRENT_OS == "win32":
-            res = subprocess.Popen(("hdparm", "-Y", dev), shell=True)
-        else:
-            res = subprocess.Popen(
-                ("sudo", "hdparm", "-Y", dev),
-            )
+        res = subprocess.Popen(
+            ("sudo", "hdparm", "-Y", dev),
+        )
         exitcode = res.wait()
         logging.debug(f"hdparm for {dev} returned {str(exitcode)}")
         return exitcode
@@ -690,27 +686,17 @@ class CommandRunner(threading.Thread):
     def _get_smartctl(self, dev: str, queued: bool):
         if queued:
             self._queued_command.notify_start("Getting smarter")
-        if CURRENT_OS == "win32":
-            pipe = subprocess.Popen(
-                ("smartctl", "-a", f"/dev/pd{dev}"),
-                shell=True,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-            )
-            output = pipe.stdout.read().decode("utf-8")
-            stderr = pipe.stderr.read().decode("utf-16")
-        else:
-            pipe = subprocess.Popen(
-                ("sudo", "-n", "smartctl", "-a", dev),
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-            )
-            output = pipe.stdout.read().decode("utf-8")
-            stderr = pipe.stderr.read().decode("utf-8")
+        pipe = subprocess.Popen(
+            ("sudo", "-n", "smartctl", "-a", dev),
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
+        output = pipe.stdout.read().decode("utf-8")
+        stderr = pipe.stderr.read().decode("utf-8")
         exitcode = pipe.wait()
 
         smartctl_returned_valid = False
-        if exitcode == 0 or (CURRENT_OS == "win32" and exitcode == 4):
+        if exitcode == 0:
             smartctl_returned_valid = True
         else:
             exitcode_bytes = exitcode.to_bytes(8, "little")
@@ -1122,10 +1108,7 @@ def scan_for_disks():
 
 
 def get_disks(path: Optional[str] = None):
-    if CURRENT_OS == "win32":
-        disks_lsblk = get_disks_win()
-    else:
-        disks_lsblk = get_disks_linux(path)
+    disks_lsblk = get_disks_linux(path)
     return disks_lsblk
 
 
@@ -1197,51 +1180,6 @@ def load_settings():
     if url and token:
         global TARALLO
         TARALLO = Tarallo.Tarallo(url, token)
-
-
-def get_disks_win() -> list:
-    the_map = {
-        "DiskNumber": "path",
-        "Model": "model",
-        "SerialNumber": "serial",
-        "Size": "size",
-        # "": "hotplug",
-        # "": "rota",
-        # "IsBoot": "boot",
-    }
-
-    pipe = subprocess.Popen(
-        ["powershell", "Get-Disk", "|", "ConvertTo-Json"], stdout=subprocess.PIPE
-    )
-    output = pipe.stdout.read().decode("utf-8")
-    output = json.loads(output)
-    pipe.kill()
-    big_result = []
-
-    # If there's a single disk, Windows returns the disk dict directly, instead
-    # of a list with a single element
-    if "DiskNumber" in output:
-        output = [output]
-    for disk in output:
-        disk: dict
-        if disk["OperationalStatus"] == "No Media":
-            continue
-        result = {}
-        for k in the_map:
-            result[the_map[k]] = str(disk[k]).strip()
-
-        if "serial" in result:
-            if result["serial"].startswith("WD-"):
-                result["serial"] = result["serial"][3:]
-        result["mountpoint"] = []
-        if disk["IsBoot"]:
-            result["mountpoint_map"] = {str(disk["DiskNumber"]): "[BOOT]"}
-            result["mountpoint"].append("[BOOT]")
-        else:
-            result["mountpoint_map"] = {}
-            result["mountpoint"] = []
-        big_result.append(result)
-    return big_result
 
 
 def get_smartctl_status(smartctl_output: str) -> Optional[str]:
@@ -1335,18 +1273,15 @@ queued_commands_lock = threading.Lock()
 
 if __name__ == "__main__":
     load_settings()
-    if CURRENT_OS == "win32":
-        main()
-    else:
-        if bool(os.getenv("DAEMONIZE", False)):
-            import daemon
-            import lockfile
+    if bool(os.getenv("DAEMONIZE", False)):
+        import daemon
+        import lockfile
 
-            with daemon.DaemonContext(
+        with daemon.DaemonContext(
                 pidfile=lockfile.FileLock(
                     os.getenv("LOCKFILE_PATH", f"/var/run/{NAME}.pid")
                 )
-            ):
-                main()
-        else:
+        ):
             main()
+    else:
+        main()
