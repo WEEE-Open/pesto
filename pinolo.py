@@ -46,7 +46,7 @@ PATH = {
     "DARKTHEME": "/themes/darkTheme.css",
     "VAPORTHEME": "/themes/vaporwaveTheme.css",
     "ASDTHEME": "/themes/asdTheme.css",
-    "WEEETHEME": "/themes/weeeTheme.css"
+    "WEEETHEME": "/themes/weeeTheme.css",
 }
 
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
@@ -1068,9 +1068,7 @@ class Ui(QtWidgets.QMainWindow):
 
                 self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
                 try:
-                    self.testDiskTable.setItem(
-                        rows - 1, 0, QTableWidgetItem(d["path"])
-                    )
+                    self.testDiskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
                 except:
                     pass
 
