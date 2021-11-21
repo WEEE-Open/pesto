@@ -31,10 +31,10 @@ To install the client, open a terminal and execute the following commands:
 
 1. `git clone https://github.com/WEEE-Open/pesto.git`
 2. `cd pesto`
-3. In program folder: `./pinolo.py`
+3. In program folder: `./INSTALL.sh`
 
 PINOLO installs its dependencies automatically.  
-If you prefer to do it manually:
+If you need to do it manually:
 
 ```bash
 python -m venv venv
