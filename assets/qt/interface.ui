@@ -47,7 +47,7 @@
       <x>0</x>
       <y>0</y>
       <width>760</width>
-      <height>458</height>
+      <height>457</height>
      </rect>
     </property>
     <property name="styleSheet">
@@ -66,7 +66,7 @@
         <x>0</x>
         <y>0</y>
         <width>751</width>
-        <height>420</height>
+        <height>413</height>
        </rect>
       </property>
       <layout class="QHBoxLayout" name="mainLayout">
@@ -265,13 +265,6 @@
                </property>
               </widget>
              </item>
-             <item>
-              <widget class="QPushButton" name="taralloButton">
-               <property name="text">
-                <string>Carica sul TARALLO</string>
-               </property>
-              </widget>
-             </item>
             </layout>
            </item>
           </layout>
@@ -380,7 +373,7 @@
         <x>0</x>
         <y>0</y>
         <width>751</width>
-        <height>421</height>
+        <height>413</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="smartLayout"/>

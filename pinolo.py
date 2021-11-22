@@ -124,7 +124,6 @@ class Ui(QtWidgets.QMainWindow):
         self.eraseButton = self.findChild(QtWidgets.QPushButton, "eraseButton")
         self.smartButton = self.findChild(QtWidgets.QPushButton, "smartButton")
         self.cannoloButton = self.findChild(QtWidgets.QPushButton, "cannoloButton")
-        self.taralloButton = self.findChild(QtWidgets.QPushButton, "taralloButton")
         self.stdProcedureButton = self.findChild(QtWidgets.QPushButton, "stdProcButton")
         self.localRadioBtn = self.findChild(QtWidgets.QRadioButton, "localRadioBtn")
         self.remoteRadioBtn = self.findChild(QtWidgets.QRadioButton, "remoteRadioBtn")
@@ -141,6 +140,8 @@ class Ui(QtWidgets.QMainWindow):
         self.smartLayout = self.findChild(QtWidgets.QVBoxLayout, "smartLayout")
         self.smartTabs = SmartTabs()
         self.smartLayout.addWidget(self.smartTabs)
+        self.sleep_action = QtWidgets.QAction("Sleep", self)
+        self.uploadToTarallo_action = QtWidgets.QAction("Upload to TARALLO", self)
         self.stop_action = QtWidgets.QAction("Stop", self)
         self.remove_action = QtWidgets.QAction("Remove", self)
         self.remove_all_action = QtWidgets.QAction("Remove All", self)
@@ -170,11 +171,16 @@ class Ui(QtWidgets.QMainWindow):
             self.stop_action.setEnabled(False)
             self.remove_action.setEnabled(False)
             self.info_action.setEnabled(False)
+            self.sleep_action.setEnabled(False)
+            self.uploadToTarallo_action.setEnabled(False)
         else:
             self.stop_action.setEnabled(True)
             self.remove_action.setEnabled(True)
             self.info_action.setEnabled(True)
+            self.sleep_action.setEnabled(True)
+            self.uploadToTarallo_action.setEnabled(True)
 
+    # noinspection DuplicatedCode
     def set_items_functions(self):
         """This function set the widget's function to the respective widget and
         other widget's constraints"""
@@ -196,6 +202,15 @@ class Ui(QtWidgets.QMainWindow):
             QtWidgets.QHeaderView.Fixed
         )
         self.diskTable.cellClicked.connect(self.greyout_buttons)
+        self.diskTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.sleep_action.triggered.connect(self.sleep)
+        self.diskTable.addAction(self.sleep_action)
+        self.sleep_action.setEnabled(False)
+        self.uploadToTarallo_action.triggered.connect(self.upload_to_tarallo)
+        self.diskTable.addAction(self.uploadToTarallo_action)
+        self.uploadToTarallo_action.setEnabled(False)
+
+        self.diskTable.selectionModel().selectionChanged.connect(self.on_table_select)
 
         # queue table
         self.queueTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
@@ -239,10 +254,6 @@ class Ui(QtWidgets.QMainWindow):
 
         # standard procedure button
         self.stdProcedureButton.clicked.connect(self.std_procedure)
-
-        # tarallo button
-        self.taralloButton.clicked.connect(self.load_to_tarallo)
-        self.taralloButton.setEnabled(False)
 
         # text field
         # self.textField.setReadOnly(True)
@@ -584,7 +595,7 @@ class Ui(QtWidgets.QMainWindow):
         except BaseException:
             print("GUI: Error in cannolo function.")
 
-    def load_to_tarallo(self, std=False):
+    def upload_to_tarallo(self, std=False):
         """This function send to the server a queued_upload_to_tarallo command.
         If "std" is True it will skip the confirm dialog."""
 
