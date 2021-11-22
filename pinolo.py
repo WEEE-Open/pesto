@@ -506,7 +506,6 @@ class Ui(QtWidgets.QMainWindow):
             self.smart(std=True)
             if dialog[1]:
                 self.cannolo(std=True)
-            self.sleep()
 
     def erase(self, std=False):
         """This function send to the server a queued_badblocks command.
