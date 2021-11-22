@@ -138,7 +138,13 @@ class ReactorThread(QThread):
     def reconnect(self, host: str, port: int):
         # noinspection PyUnresolvedReferences
         self.reactor.callFromThread(
-            Client.disconnect, receiver, self.reactor, self.factory, host, port, isReconnection=True
+            Client.disconnect,
+            receiver,
+            self.reactor,
+            self.factory,
+            host,
+            port,
+            isReconnection=True,
         )
 
     def send(self, msg: str):
