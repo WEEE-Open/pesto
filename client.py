@@ -48,12 +48,16 @@ class Client(LineOnlyReceiver):
         self.send_msg("get_disks")
         self.send_msg("get_queue")
 
-    def disconnect(self):
+    def disconnect(self, reactor, host, port, isReconnection=False):
         try:
             self.transport.loseConnection()
+            if isReconnection:
+                reactor.connectTCP(host, port, self.factory)
         except builtins.AttributeError as ex:
             if "NoneType" in str(ex):
                 print("CLIENT: Trying to disconnect but no connection established.")
+                if isReconnection:
+                    reactor.connectTCP(host, port, self.factory)
 
 
 class ClientFactory(protocol.ClientFactory):
@@ -133,9 +137,7 @@ class ReactorThread(QThread):
 
     def reconnect(self, host: str, port: int):
         # noinspection PyUnresolvedReferences
-        self.reactor.callFromThread(Client.disconnect, receiver)
-        # noinspection PyUnresolvedReferences
-        self.reactor.connectTCP(host, port, self.factory)
+        self.reactor.callFromThread(Client.disconnect, receiver, self.reactor, host, port, isReconnection=True)
 
     def send(self, msg: str):
         # noinspection PyUnresolvedReferences

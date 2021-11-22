@@ -1131,6 +1131,8 @@ class Ui(QtWidgets.QMainWindow):
 
         elif cmd == "connection_lost":
             self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
+            self.queueTable.setRowCount(0)
+            self.diskTable.setRowCount(0)
 
         elif cmd == "connection_made":
             self.statusBar().showMessage(
