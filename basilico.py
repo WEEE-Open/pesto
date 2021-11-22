@@ -389,14 +389,16 @@ class CommandRunner(threading.Thread):
     def remove_all_from_queue(self, cmd: str, _unused: str):
         remove_completed = False
         remove_scheduled = False
-        if cmd == 'remove_completed':
+        if cmd == "remove_completed":
             remove_completed = True
-        elif cmd == 'remove_queued':
+        elif cmd == "remove_queued":
             remove_scheduled = True
         else:
             remove_completed = True
             remove_scheduled = True
-        logging.debug(f"remove_completed = {remove_completed}, remove_scheduled = {remove_scheduled}")
+        logging.debug(
+            f"remove_completed = {remove_completed}, remove_scheduled = {remove_scheduled}"
+        )
 
         with queued_commands_lock:
             with running_commands_lock:
@@ -408,7 +410,6 @@ class CommandRunner(threading.Thread):
                     else:
                         if remove_scheduled:
                             queued_commands.remove(the_command)
-
 
         return None
 
