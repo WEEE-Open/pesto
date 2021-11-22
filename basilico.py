@@ -259,6 +259,10 @@ class CommandRunner(threading.Thread):
             # Start immediately
             self.start()
 
+    # noinspection PyUnresolvedReferences
+    def started(self) -> bool:
+        return self._started.is_set()
+
     def get_cmd(self):
         return self._cmd
 
@@ -316,8 +320,10 @@ class CommandRunner(threading.Thread):
             "ping": self.ping,
             "close_at_end": self.close_at_end,
             "get_queue": self.get_queue,
-            "remove": self.remove_from_queue,
-            "remove_all": self.remove_from_queue,
+            "remove": self.remove_one_from_queue,
+            "remove_all": self.remove_all_from_queue,
+            "remove_completed": self.remove_all_from_queue,
+            "remove_queued": self.remove_all_from_queue,
             "list_iso": self.list_iso,
         }
         logging.debug(
@@ -380,15 +386,38 @@ class CommandRunner(threading.Thread):
         self.send_msg(cmd, files)
 
     # noinspection PyMethodMayBeStatic
-    def remove_from_queue(self, _cmd: str, queue_id: str):
-        if len(queue_id) == 0:
-            while len(queued_commands) > 0:
-                queued_commands[-1].delete_when_done()
+    def remove_all_from_queue(self, cmd: str, _unused: str):
+        remove_completed = False
+        remove_scheduled = False
+        if cmd == 'remove_completed':
+            remove_completed = True
+        elif cmd == 'remove_queued':
+            remove_scheduled = True
         else:
-            for the_cmd in queued_commands:
-                if the_cmd.id_is(queue_id):
-                    the_cmd.delete_when_done()
-                    break
+            remove_completed = True
+            remove_scheduled = True
+        logging.debug(f"remove_completed = {remove_completed}, remove_scheduled = {remove_scheduled}")
+
+        with queued_commands_lock:
+            with running_commands_lock:
+                for the_command in queued_commands:
+                    if the_command.command_runner.started():
+                        if the_command.command_runner.is_alive():
+                            if remove_completed:
+                                queued_commands.remove(the_command)
+                    else:
+                        if remove_scheduled:
+                            queued_commands.remove(the_command)
+
+
+        return None
+
+    # noinspection PyMethodMayBeStatic
+    def remove_one_from_queue(self, _cmd: str, queue_id: str):
+        for the_cmd in queued_commands:
+            if the_cmd.id_is(queue_id):
+                the_cmd.delete_when_done()
+                break
         return None
 
     def badblocks(self, _cmd: str, dev: str):
