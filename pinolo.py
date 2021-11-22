@@ -51,8 +51,6 @@ PATH = {
 
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
 
-CURRENT_PLATFORM = sys.platform
-
 absolute_path(PATH)
 
 
@@ -593,7 +591,7 @@ class Ui(QtWidgets.QMainWindow):
 
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
         selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
-        if selected_drive_id != "":
+        if selected_drive_id == "":
             message = (
                 "The selected disk doesn't have a TARALLO id.\n"
                 "No data will be uploaded to TARALLO."
