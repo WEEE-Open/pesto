@@ -537,7 +537,9 @@ class Ui(QtWidgets.QMainWindow):
         dialog = warning_dialog(message, dialog_type="yes_no_chk")
         if dialog[0] == QtWidgets.QMessageBox.Yes:
             self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
+            selected_drive_id = self.diskTable.item(
+                self.diskTable.currentRow(), 1
+            ).text()
             if selected_drive_id == "":
                 message = (
                     "The selected disk doesn't have a TARALLO id.\n"
@@ -1033,7 +1035,9 @@ class Ui(QtWidgets.QMainWindow):
                                 self.diskTable.item(disk_row, 0).setForeground(Qt.black)
                                 break
                         if queue_row == queue_rows:
-                            default_foreground = self.diskTable.item(disk_row, 1).foreground()
+                            default_foreground = self.diskTable.item(
+                                disk_row, 1
+                            ).foreground()
                             self.diskTable.item(disk_row, 0).setBackground(
                                 Qt.transparent
                             )
@@ -1218,7 +1222,7 @@ class Ui(QtWidgets.QMainWindow):
 
         elif cmd == "error":
             message = f"{params['message']}"
-            if 'command' in params:
+            if "command" in params:
                 message += f":\n{params['command']}"
             critical_dialog(message, dialog_type="ok")
 

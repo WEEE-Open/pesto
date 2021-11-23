@@ -35,9 +35,7 @@ def info_dialog(message):
 
 
 def warning_dialog(message: str, dialog_type: str):
-    dialog = QtWidgets.QMessageBox(
-            QtWidgets.QMessageBox.Warning, "Warning", message
-        )
+    dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
     if dialog_type == "yes_no":
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
