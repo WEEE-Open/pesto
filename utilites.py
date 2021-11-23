@@ -350,30 +350,3 @@ class SmartTabs(QtWidgets.QTabWidget):
         widget.setLayout(layout)
         self.addTab(widget, drive)
         self.tabs.append(widget)
-
-    def set_style(self, style: str):
-        tab_count = self.count()
-        if style == "WeeeOpen":
-            self.setStyleSheet(
-                "QTabBar::tab { background-color: rgba(0, 152, 58, 255); color: white; }"
-            )
-            for n in range(tab_count):
-                label = self.widget(n).findChild(QtWidgets.QLabel)
-                label.setStyleSheet("color: black")
-            self.color = "black"
-        elif style == "Dark":
-            for n in range(tab_count):
-                label = self.widget(n).findChild(QtWidgets.QLabel)
-                label.setStyleSheet("color: white")
-            self.color = "white"
-        elif style == "Vaporwave":
-            for n in range(tab_count):
-                label = self.widget(n).findChild(QtWidgets.QLabel)
-                label.setStyleSheet("color: white")
-            self.color = "white"
-
-        else:
-            for n in range(tab_count):
-                label = self.widget(n).findChild(QtWidgets.QLabel)
-                label.setStyleSheet("color: black")
-            self.color = "black"
