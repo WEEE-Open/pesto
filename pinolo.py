@@ -145,6 +145,8 @@ class Ui(QtWidgets.QMainWindow):
         self.stop_action = QtWidgets.QAction("Stop", self)
         self.remove_action = QtWidgets.QAction("Remove", self)
         self.remove_all_action = QtWidgets.QAction("Remove All", self)
+        self.remove_completed_action = QtWidgets.QAction("Remove Completed", self)
+        self.remove_queued_action = QtWidgets.QAction("Remove Queued", self)
         self.info_action = QtWidgets.QAction("Info", self)
         self.asdlabel = self.findChild(QtWidgets.QLabel, "asdLabel")
         self.asdGif = QMovie(PATH["ASD"])
@@ -234,6 +236,13 @@ class Ui(QtWidgets.QMainWindow):
         self.remove_all_action.triggered.connect(self.queue_clear)
         self.queueTable.addAction(self.remove_all_action)
         self.remove_all_action.setEnabled(True)
+        self.remove_completed_action.triggered.connect(self.queue_clear_completed)
+        self.queueTable.addAction(self.remove_completed_action)
+        self.remove_completed_action.setEnabled(True)
+        self.remove_queued_action.triggered.connect(self.queue_clear_queued)
+        self.queueTable.addAction(self.remove_queued_action)
+        self.remove_queued_action.setEnabled(True)
+
         self.info_action.triggered.connect(self.queue_info)
         self.queueTable.addAction(self.info_action)
         self.info_action.setEnabled(False)
@@ -485,6 +494,20 @@ class Ui(QtWidgets.QMainWindow):
 
         self.queueTable.setRowCount(0)
         self.client.send("remove_all")
+
+    def queue_clear_completed(self):
+            """This function set the "remove completed" button behaviour on the queue table
+            context menu."""
+
+            self.queueTable.setRowCount(0)
+            self.client.send("remove_completed")
+
+    def queue_clear_queued(self):
+            """This function set the "remove completed" button behaviour on the queue table
+            context menu."""
+
+            self.queueTable.setRowCount(0)
+            self.client.send("remove_queued")
 
     def queue_info(self):
         """This function set the "info" button behaviour on the queue table
@@ -959,7 +982,6 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIconSize(QtCore.QSize(25, 25))
             self.asd_gif_set(PATH["ASD"])
             self.cannoloLabel.setStyleSheet("color: blue")
-        self.smartTabs.set_style(theme)
 
     def asd_gif_set(self, dir: str):
         """This function sets the asd gif for the settings tab."""
@@ -983,6 +1005,27 @@ class Ui(QtWidgets.QMainWindow):
         elif cmd == "SERVER_ALREADY_UP":
             print("GUI: Local server already up. Reconnecting...")
             self.client.reconnect(self.host, self.port)
+
+    def check_disk_usage(self):
+        disks_rows = self.diskTable.rowCount()
+        queue_rows = self.queueTable.rowCount()
+        if queue_rows > 0 and disks_rows > 0:
+            for disk_row in range(disks_rows + 1):
+                disk_label = self.diskTable.item(disk_row, 0)
+                if disk_label is not None:
+                    disk_label = disk_label.text()
+                    for queue_row in range(queue_rows + 1):
+                        queue_disk_label = self.queueTable.item(queue_row, 2)
+                        queue_progress = self.queueTable.cellWidget(queue_row, 4)
+                        if queue_disk_label is not None and queue_progress is not None:
+                            queue_disk_label = queue_disk_label.text()
+                            queue_progress = queue_progress.findChild(QtWidgets.QProgressBar).value()
+                            if queue_disk_label == disk_label and queue_progress != 100:
+                                self.diskTable.item(disk_row, 0).setBackground(Qt.yellow)
+                                self.diskTable.item(disk_row, 0).setForeground(Qt.black)
+                                break
+                        if queue_row == queue_rows:
+                            self.diskTable.item(disk_row, 0).setBackground(Qt.transparent)
 
     def gui_update(self, cmd: str, params: str):
         """
@@ -1119,7 +1162,7 @@ class Ui(QtWidgets.QMainWindow):
                         self.smartTabs.add_tab(
                             params["disk"], params["status"], params["updated"], text
                         )
-                        break
+                    break
                 elif tab == tab_count:
                     self.smartTabs.add_tab(
                         params["disk"], params["status"], params["updated"], text
@@ -1166,6 +1209,8 @@ class Ui(QtWidgets.QMainWindow):
         elif cmd == "error_that_can_be_manually_fixed":
             message = params["message"]
             warning_dialog(message, dialog_type="ok")
+
+        self.check_disk_usage()
 
     def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
         """This function is called when the window is closed.
