@@ -1033,8 +1033,12 @@ class Ui(QtWidgets.QMainWindow):
                                 self.diskTable.item(disk_row, 0).setForeground(Qt.black)
                                 break
                         if queue_row == queue_rows:
+                            default_foreground = self.diskTable.item(disk_row, 1).foreground()
                             self.diskTable.item(disk_row, 0).setBackground(
                                 Qt.transparent
+                            )
+                            self.diskTable.item(disk_row, 0).setForeground(
+                                default_foreground
                             )
 
     def gui_update(self, cmd: str, params: str):
