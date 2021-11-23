@@ -496,18 +496,18 @@ class Ui(QtWidgets.QMainWindow):
         self.client.send("remove_all")
 
     def queue_clear_completed(self):
-            """This function set the "remove completed" button behaviour on the queue table
-            context menu."""
+        """This function set the "remove completed" button behaviour on the queue table
+        context menu."""
 
-            self.queueTable.setRowCount(0)
-            self.client.send("remove_completed")
+        self.queueTable.setRowCount(0)
+        self.client.send("remove_completed")
 
     def queue_clear_queued(self):
-            """This function set the "remove completed" button behaviour on the queue table
-            context menu."""
+        """This function set the "remove completed" button behaviour on the queue table
+        context menu."""
 
-            self.queueTable.setRowCount(0)
-            self.client.send("remove_queued")
+        self.queueTable.setRowCount(0)
+        self.client.send("remove_queued")
 
     def queue_info(self):
         """This function set the "info" button behaviour on the queue table
@@ -1019,13 +1019,19 @@ class Ui(QtWidgets.QMainWindow):
                         queue_progress = self.queueTable.cellWidget(queue_row, 4)
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
-                            queue_progress = queue_progress.findChild(QtWidgets.QProgressBar).value()
+                            queue_progress = queue_progress.findChild(
+                                QtWidgets.QProgressBar
+                            ).value()
                             if queue_disk_label == disk_label and queue_progress != 100:
-                                self.diskTable.item(disk_row, 0).setBackground(Qt.yellow)
+                                self.diskTable.item(disk_row, 0).setBackground(
+                                    Qt.yellow
+                                )
                                 self.diskTable.item(disk_row, 0).setForeground(Qt.black)
                                 break
                         if queue_row == queue_rows:
-                            self.diskTable.item(disk_row, 0).setBackground(Qt.transparent)
+                            self.diskTable.item(disk_row, 0).setBackground(
+                                Qt.transparent
+                            )
 
     def gui_update(self, cmd: str, params: str):
         """
