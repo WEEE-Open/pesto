@@ -536,6 +536,18 @@ class Ui(QtWidgets.QMainWindow):
         message = "Do you want to wipe all disk's data and load a fresh system image?"
         dialog = warning_dialog(message, dialog_type="yes_no_chk")
         if dialog[0] == QtWidgets.QMessageBox.Yes:
+            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+            selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
+            if selected_drive_id == "":
+                message = (
+                    "The selected disk doesn't have a TARALLO id.\n"
+                    "Would you like to create the item on TARALLO?"
+                )
+                dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
+                if dialog_result == QtWidgets.QMessageBox.Yes:
+                    self.upload_to_tarallo(std=True)
+                elif dialog_result == QtWidgets.QMessageBox.Cancel:
+                    return
             self.erase(std=True)
             self.smart(std=True)
             if dialog[1]:
@@ -623,14 +635,6 @@ class Ui(QtWidgets.QMainWindow):
         If "std" is True it will skip the confirm dialog."""
 
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-        selected_drive_id = self.diskTable.item(self.diskTable.currentRow(), 1).text()
-        if selected_drive_id == "":
-            message = (
-                "The selected disk doesn't have a TARALLO id.\n"
-                "No data will be uploaded to TARALLO."
-            )
-            warning_dialog(message, dialog_type="ok")
-            return
         if not std:
             message = "Do you want to load the disk informations into TARALLO?"
             if (

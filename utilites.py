@@ -35,24 +35,18 @@ def info_dialog(message):
 
 
 def warning_dialog(message: str, dialog_type: str):
-    if dialog_type == "yes_no":
-        dialog = QtWidgets.QMessageBox(
+    dialog = QtWidgets.QMessageBox(
             QtWidgets.QMessageBox.Warning, "Warning", message
         )
+    if dialog_type == "yes_no":
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
         return dialog.exec_()
     elif dialog_type == "ok":
-        dialog = QtWidgets.QMessageBox(
-            QtWidgets.QMessageBox.Warning, "Warning", message
-        )
         dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
         return dialog.exec_()
     elif dialog_type == "yes_no_chk":
-        dialog = QtWidgets.QMessageBox(
-            QtWidgets.QMessageBox.Warning, "Warning", message
-        )
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
@@ -60,6 +54,12 @@ def warning_dialog(message: str, dialog_type: str):
         dialog.setCheckBox(cb)
         result = [dialog.exec_(), True if cb.isChecked() else False]
         return result
+    elif dialog_type == "yes_no_cancel":
+        dialog.addButton(QtWidgets.QMessageBox.Yes)
+        dialog.addButton(QtWidgets.QMessageBox.No)
+        dialog.addButton(QtWidgets.QMessageBox.Cancel)
+        dialog.setDefaultButton(QtWidgets.QMessageBox.Cancel)
+        return dialog.exec_()
 
 
 class CannoloDialog(QtWidgets.QDialog):
