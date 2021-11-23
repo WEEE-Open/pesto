@@ -1217,7 +1217,9 @@ class Ui(QtWidgets.QMainWindow):
                 self.dialog.update.connect(self.set_default_cannolo)
 
         elif cmd == "error":
-            message = params["message"]
+            message = f"{params['message']}"
+            if 'command' in params:
+                message += f":\n{params['command']}"
             critical_dialog(message, dialog_type="ok")
 
         elif cmd == "error_that_can_be_manually_fixed":
