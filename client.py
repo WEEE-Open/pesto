@@ -48,7 +48,7 @@ class Client(LineOnlyReceiver):
         self.send_msg("get_disks")
         self.send_msg("get_queue")
 
-    def disconnect(self, reactor, factory, host, port, isReconnection=False):
+    def disconnect(self, reactor=None, factory=None, host=None, port=None, isReconnection=False):
         try:
             self.transport.loseConnection()
             if isReconnection:
