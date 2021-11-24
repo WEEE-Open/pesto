@@ -181,7 +181,7 @@
             </size>
            </property>
            <property name="text">
-            <string>Procedura standard</string>
+            <string>Standard procedure</string>
            </property>
           </widget>
          </item>
@@ -232,7 +232,7 @@
                 <cursorShape>ArrowCursor</cursorShape>
                </property>
                <property name="text">
-                <string>Pialla disco</string>
+                <string>Erase</string>
                </property>
               </widget>
              </item>
@@ -261,7 +261,7 @@
                 </size>
                </property>
                <property name="text">
-                <string>Cannola</string>
+                <string>Load system</string>
                </property>
               </widget>
              </item>
@@ -388,7 +388,7 @@
        <rect>
         <x>230</x>
         <y>10</y>
-        <width>171</width>
+        <width>220</width>
         <height>41</height>
        </rect>
       </property>
@@ -401,7 +401,7 @@
        <rect>
         <x>230</x>
         <y>70</y>
-        <width>171</width>
+        <width>220</width>
         <height>41</height>
        </rect>
       </property>
@@ -414,7 +414,7 @@
        <rect>
         <x>230</x>
         <y>130</y>
-        <width>171</width>
+        <width>220</width>
         <height>41</height>
        </rect>
       </property>
@@ -427,7 +427,7 @@
        <rect>
         <x>230</x>
         <y>190</y>
-        <width>171</width>
+        <width>220</width>
         <height>41</height>
        </rect>
       </property>
@@ -440,7 +440,7 @@
        <rect>
         <x>230</x>
         <y>250</y>
-        <width>171</width>
+        <width>220</width>
         <height>41</height>
        </rect>
       </property>
@@ -453,7 +453,7 @@
        <rect>
         <x>230</x>
         <y>310</y>
-        <width>171</width>
+        <width>220</width>
         <height>41</height>
        </rect>
       </property>
@@ -466,7 +466,7 @@
        <rect>
         <x>230</x>
         <y>370</y>
-        <width>171</width>
+        <width>220</width>
         <height>41</height>
        </rect>
       </property>
