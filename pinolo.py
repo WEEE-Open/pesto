@@ -297,7 +297,6 @@ class Ui(QtWidgets.QMainWindow):
         self.defaultButton.clicked.connect(self.default_config)
 
         # remove config button
-        self.defaultButton = self.findChild(QtWidgets.QPushButton, "removeButton")
         self.defaultButton.clicked.connect(self.remove_config)
 
         # save config button
