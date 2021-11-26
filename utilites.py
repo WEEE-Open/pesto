@@ -107,7 +107,7 @@ def parse_smartctl_output(smartctl) -> dict:
     info_section = False
     data_section = False
     errors_section = False
-    for line in smartctl:
+    for line in smartctl.split("\n"):
         line: str
         if "=== START OF INFORMATION SECTION ===" in line:
             info_section = True
