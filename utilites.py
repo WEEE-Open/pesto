@@ -2,7 +2,6 @@ import re
 import subprocess
 import os
 import datetime
-import ctypes
 from typing import Optional
 from PyQt5 import QtWidgets, QtGui, uic, QtCore
 
@@ -63,9 +62,9 @@ def warning_dialog(message: str, dialog_type: str):
 class CannoloDialog(QtWidgets.QDialog):
     update = QtCore.pyqtSignal(str, str, name="event")
 
-    def __init__(self, PATH, images: list):
+    def __init__(self, path, images: list):
         super(CannoloDialog, self).__init__()
-        self.path = PATH
+        self.path = path
         self.images = images
         self.files = []
         uic.loadUi(self.path["CANNOLOUI"], self)
@@ -89,9 +88,9 @@ class CannoloDialog(QtWidgets.QDialog):
             print("no cctf selected")
             return
         iso = self.isoList.currentItem().text()
-        for dir in self.images:
-            if iso in dir:
-                self.update.emit(dir, iso)
+        for iso_dir in self.images:
+            if iso in iso_dir:
+                self.update.emit(iso_dir, iso)
         self.close()
 
 
@@ -328,14 +327,14 @@ class SmartTabs(QtWidgets.QTabWidget):
     def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list):
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
-        textBox = QtWidgets.QTextEdit()
-        textBox.setReadOnly(True)
+        text_box = QtWidgets.QTextEdit()
+        text_box.setReadOnly(True)
         font = QtGui.QFont("Courier")
         font.setStyleHint(QtGui.QFont.TypeWriter)
-        textBox.setFont(font)
-        textBox.setFontPointSize(10)
-        textBox.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
-        textBox.append("\n".join(text))
+        text_box.setFont(font)
+        text_box.setFontPointSize(10)
+        text_box.setLineWrapMode(QtWidgets.QTextEdit.NoWrap)
+        text_box.append("\n".join(text))
         if not status:
             status = "Errore deflagrante: impossibile determinare lo stato del disco."
         nowtime = datetime.datetime.now()
@@ -344,7 +343,7 @@ class SmartTabs(QtWidgets.QTabWidget):
         )
         label.setStyleSheet(f"color: {self.color}")
         layout.addWidget(label)
-        layout.addWidget(textBox)
+        layout.addWidget(text_box)
         widget.setLayout(layout)
         self.addTab(widget, drive)
         self.tabs.append(widget)
