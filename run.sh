@@ -1,5 +1,5 @@
 #!/bin/bash
 
-source /opt/pesto/venv/bin/activate
-python /opt/pesto/pinolo.py
+source venv/bin/activate
+python pinolo.py
 deactivate
