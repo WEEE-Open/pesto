@@ -122,12 +122,11 @@ def parse_file(
     print(f"File {counter} - {filename}")
 
     with open(filename, "r") as f:
-        found = parse_smartctl_output(f)
-        found_at_least_one = False
-        for k in found:
-            if not k.startswith("Notsmart_"):
-                found_at_least_one = True
-                break
+        try:
+            found = parse_smartctl_output(f)
+            found_at_least_one = True
+        except RuntimeError:
+            found_at_least_one = False
 
     prediction = None
     if predict:
