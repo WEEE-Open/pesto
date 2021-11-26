@@ -447,9 +447,6 @@ class CommandRunner(threading.Thread):
             completed = True
             all_ok = False
         else:
-
-            # TODO: should it mark the disk as not erased on tarallo?
-
             pipe = subprocess.Popen(
                 (
                     "sudo",
@@ -466,6 +463,7 @@ class CommandRunner(threading.Thread):
                     dev,
                 ),
                 stderr=subprocess.PIPE,
+                env={"LC_ALL": "C"},
             )  # , stdout=subprocess.PIPE)
 
             # TODO: restore this code and kill badblocks if it's too slow (the disk is probably broken)
@@ -474,6 +472,7 @@ class CommandRunner(threading.Thread):
             # timeout = 60 * mins_per_gb * disk_gb
 
             percent = 0.0
+            reading_and_comparing = False
             errors = -1
             deleting = False
             buffer = bytearray()
@@ -486,10 +485,17 @@ class CommandRunner(threading.Thread):
                         result = buffer.decode("utf-8")
                         errors_print = "?"
 
+                        reading_and_comparing = reading_and_comparing or (
+                            "Reading and comparing" in result
+                        )
+
                         # If other messages are printed, ignore them
                         i = result.index("% done")
                         if i >= 0:
-                            percent = float(result[i - 6 : i])
+                            # /2 due to the 0x00 test + read & compare
+                            percent = float(result[i - 6 : i]) / 2
+                            if reading_and_comparing:
+                                percent += 50
                             i = result.index("(", i)
                             if i >= 0:
                                 # errors_str = result[i+1:].split(")", 1)[0]
