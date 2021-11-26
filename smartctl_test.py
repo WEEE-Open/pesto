@@ -9,5 +9,10 @@ if __name__ == "__main__":
 		exit(1)
 
 	with open(sys.argv[1], 'r') as f:
-		res = utilites.smartctl_get_status(utilites.parse_smartctl_output(f.read()))
-		print(res)
+		try:
+			res = utilites.smartctl_get_status(utilites.parse_smartctl_output(f.read()))
+			print(res)
+			exit(0)
+		except RuntimeError as e:
+			print("RuntimeError: " + str(e))
+			exit(2)

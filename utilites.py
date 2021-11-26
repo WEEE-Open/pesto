@@ -109,6 +109,7 @@ def parse_smartctl_output(smartctl) -> dict:
     errors_section = False
     for line in smartctl.split("\n"):
         line: str
+        line = line.rstrip()
         if "=== START OF INFORMATION SECTION ===" in line:
             info_section = True
             data_section = False
@@ -204,6 +205,15 @@ def parse_smartctl_output(smartctl) -> dict:
         if errors > 0:
             found["Notsmart_Errors_UNC"] = errors
         found["Notsmart_Failing_Now"] = failing_now
+
+    found_at_least_one = False
+    for k in found:
+        if not k.startswith("Notsmart_"):
+            found_at_least_one = True
+            break
+    if not found_at_least_one:
+        raise RuntimeError("smartctl parser failed")
+
     return found
 
 
