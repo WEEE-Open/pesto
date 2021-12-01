@@ -1,7 +1,3 @@
-QMainWindow {
-    border-image: url(assets/backgrounds/vaporwave.png);
-}
-
 QComboBox {
     background-color: rgba(77, 222, 182, 110);
     color: rgb(255, 255, 255);
@@ -16,6 +12,7 @@ QFrame {
 QGroupBox {
     background-color: rgba(206, 206, 206, 120);
     border-radius: 2px;
+    padding: 20px 3px 3px 3px;
 }
 
 QHeaderView {
