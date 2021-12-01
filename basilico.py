@@ -136,7 +136,7 @@ class Disk:
             if erased:
                 data["data-erased"] = "yes"
                 data["software"] = None
-            
+
             if len(data) > 0:
                 self._tarallo.update_item_features(self._code, data)
             return True
