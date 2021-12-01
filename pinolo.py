@@ -126,10 +126,9 @@ class Ui(QtWidgets.QMainWindow):
         self.backgroundLabel.resize(self.width(), self.height())
         self.backgroundLabel.setAlignment(Qt.AlignCenter)
 
-
         """ Defining all items in GUI """
         self.globalTab = self.findChild(QtWidgets.QTabWidget, "globalTab")
-        self.globalTab.move(0,0)
+        self.globalTab.move(0, 0)
         self.gif = QMovie(PATH["ASD"])
         self.diskTable = self.findChild(QtWidgets.QTableWidget, "tableWidget")
         self.queueTable = self.findChild(QtWidgets.QTableWidget, "queueTable")
@@ -182,19 +181,27 @@ class Ui(QtWidgets.QMainWindow):
         if self.backgroundLabel is None:
             return
 
-        self.globalTab.resize(self.centralWidget().width(), self.centralWidget().height())
-        self.backgroundLabel.resize(self.centralWidget().width(), self.centralWidget().height())
+        self.globalTab.resize(
+            self.centralWidget().width(), self.centralWidget().height()
+        )
+        self.backgroundLabel.resize(
+            self.centralWidget().width(), self.centralWidget().height()
+        )
 
         # Background image vaporwave theme scaling
         self.resize_bg()
 
     def resize_bg(self):
         if self.pixmapResizingNeeded:
-            aspectRatio = self.backgroundLabel.width()/self.backgroundLabel.height()
+            aspectRatio = self.backgroundLabel.width() / self.backgroundLabel.height()
             if aspectRatio > self.pixmapAspectRatio:
-                pixmap = self.pixmap.scaledToWidth(self.backgroundLabel.width(), Qt.SmoothTransformation)
+                pixmap = self.pixmap.scaledToWidth(
+                    self.backgroundLabel.width(), Qt.SmoothTransformation
+                )
             else:
-                pixmap = self.pixmap.scaledToHeight(self.backgroundLabel.height(), Qt.SmoothTransformation)
+                pixmap = self.pixmap.scaledToHeight(
+                    self.backgroundLabel.height(), Qt.SmoothTransformation
+                )
             self.backgroundLabel.setPixmap(pixmap)
 
     def on_table_select(self, selected):
@@ -974,7 +981,7 @@ class Ui(QtWidgets.QMainWindow):
                 self.audio_process.terminate()
             except:
                 print("No audio")
-                
+
         # Theme change
         if self.theme == "Dark":
             with open(PATH["DARKTHEME"], "r") as file:
@@ -991,7 +998,7 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIconSize(QtCore.QSize(50, 50))
             self.backgroundLabel.clear()
             self.pixmap = QtGui.QPixmap(PATH["VAPORWAVEBG"])
-            self.pixmapAspectRatio = self.pixmap.width()/self.pixmap.height()
+            self.pixmapAspectRatio = self.pixmap.width() / self.pixmap.height()
             self.backgroundLabel.setPixmap(self.pixmap)
             self.pixmapResizingNeeded = True
             self.resize_bg()
@@ -1012,7 +1019,7 @@ class Ui(QtWidgets.QMainWindow):
             self.asd_gif_set(PATH["ASD"])
             self.cannoloLabel.setStyleSheet("color: blue")
         elif self.theme == "WeeeOpen":
-            set_stylesheet(self.app, PATH['WEEETHEME'])
+            set_stylesheet(self.app, PATH["WEEETHEME"])
             self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
             self.backgroundLabel.clear()
             self.backgroundLabel.setPixmap(
