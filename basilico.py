@@ -713,7 +713,9 @@ class CommandRunner(threading.Thread):
         )
         exitcode = res.wait()
         if exitcode != 0:
-            logging.warning(f"[{self._the_id}] hdparm for {dev} returned {str(exitcode)}")
+            logging.warning(
+                f"[{self._the_id}] hdparm for {dev} returned {str(exitcode)}"
+            )
         return exitcode
 
     def get_smartctl(self, cmd: str, args: str):
