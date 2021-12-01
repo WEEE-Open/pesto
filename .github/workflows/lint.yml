@@ -28,3 +28,4 @@ jobs:
           black: true
           flake8: false
           auto_fix: true
+          git_email: "95386651+weee-open-bot@users.noreply.github.com"
