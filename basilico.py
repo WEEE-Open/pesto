@@ -705,12 +705,15 @@ class CommandRunner(threading.Thread):
         if TEST_MODE:
             logging.debug(f"Fake putting {dev} to sleep")
             return 0
-        logging.debug(f"Putting {dev} to sleep")
+        logging.debug(f"[{self._the_id}] Putting {dev} to sleep")
         res = subprocess.Popen(
             ("sudo", "hdparm", "-Y", dev),
+            stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
         )
         exitcode = res.wait()
-        logging.debug(f"hdparm for {dev} returned {str(exitcode)}")
+        if exitcode != 0:
+            logging.warning(f"[{self._the_id}] hdparm for {dev} returned {str(exitcode)}")
         return exitcode
 
     def get_smartctl(self, cmd: str, args: str):
