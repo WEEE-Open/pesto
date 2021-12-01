@@ -41,6 +41,7 @@ PATH = {
     "ERROR": "/assets/table/error.png",
     "STOP": "/assets/stop.png",
     "WEEE": "/assets/backgrounds/weee_logo.png",
+    "VAPORWAVEBG": "/assets/backgrounds/vaporwave.png",
     "SERVER": "/basilico.py",
     "DEFAULTTHEME": "/themes/defaultTheme.css",
     "DARKTHEME": "/themes/darkTheme.css",
@@ -109,14 +110,26 @@ class Ui(QtWidgets.QMainWindow):
         self.client = None
         self.manual_cannolo = False
         self.selected_drive = None
+        self.theme = None
+        self.pixmapAspectRatio = None
+        self.pixmap = None
+        self.pixmapResizingNeeded = None
         self.critical_mounts = []
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
         self.audio_process = Process(
             target=playsound.playsound, args=("assets/vaporwave_theme.mp3",)
         )
 
+        """ Setting up background label """
+        self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
+        self.backgroundLabel.move(0, 0)
+        self.backgroundLabel.resize(self.width(), self.height())
+        self.backgroundLabel.setAlignment(Qt.AlignCenter)
+
+
         """ Defining all items in GUI """
         self.globalTab = self.findChild(QtWidgets.QTabWidget, "globalTab")
+        self.globalTab.move(0,0)
         self.gif = QMovie(PATH["ASD"])
         self.diskTable = self.findChild(QtWidgets.QTableWidget, "tableWidget")
         self.queueTable = self.findChild(QtWidgets.QTableWidget, "queueTable")
@@ -164,6 +177,25 @@ class Ui(QtWidgets.QMainWindow):
         self.localServer.update.connect(self.server_com)
         self.show()
         self.setup()
+
+    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+        if self.backgroundLabel is None:
+            return
+
+        self.globalTab.resize(self.centralWidget().width(), self.centralWidget().height())
+        self.backgroundLabel.resize(self.centralWidget().width(), self.centralWidget().height())
+
+        # Background image vaporwave theme scaling
+        self.resize_bg()
+
+    def resize_bg(self):
+        if self.pixmapResizingNeeded:
+            aspectRatio = self.backgroundLabel.width()/self.backgroundLabel.height()
+            if aspectRatio > self.pixmapAspectRatio:
+                pixmap = self.pixmap.scaledToWidth(self.backgroundLabel.width(), Qt.SmoothTransformation)
+            else:
+                pixmap = self.pixmap.scaledToHeight(self.backgroundLabel.height(), Qt.SmoothTransformation)
+            self.backgroundLabel.setPixmap(pixmap)
 
     def on_table_select(self, selected):
         """This function set the queue table context menu buttons"""
@@ -922,8 +954,12 @@ class Ui(QtWidgets.QMainWindow):
         Only for the Vaporwave theme, it will search a .mp3 file that will be played in background.
         Just for the meme. asd"""
 
-        theme = self.themeSelector.currentText()
-        if theme == "Vaporwave":
+        self.pixmapResizingNeeded = False
+        self.pixmap = None
+        self.theme = self.themeSelector.currentText()
+
+        # Vaporwave audio search
+        if self.theme == "Vaporwave":
             try:
                 f = open("assets/vaporwave_theme.mp3")
                 f.close()
@@ -938,7 +974,9 @@ class Ui(QtWidgets.QMainWindow):
                 self.audio_process.terminate()
             except:
                 print("No audio")
-        if theme == "Dark":
+                
+        # Theme change
+        if self.theme == "Dark":
             with open(PATH["DARKTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
             self.reloadButton.setIcon(QIcon(PATH["WHITERELOAD"]))
@@ -946,18 +984,23 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIconSize(QtCore.QSize(25, 25))
             self.asd_gif_set(PATH["ASD"])
             self.cannoloLabel.setStyleSheet("color: yellow")
-        elif theme == "Vaporwave":
+        elif self.theme == "Vaporwave":
             with open(PATH["VAPORTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
             self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(50, 50))
             self.backgroundLabel.clear()
+            self.pixmap = QtGui.QPixmap(PATH["VAPORWAVEBG"])
+            self.pixmapAspectRatio = self.pixmap.width()/self.pixmap.height()
+            self.backgroundLabel.setPixmap(self.pixmap)
+            self.pixmapResizingNeeded = True
+            self.resize_bg()
             self.asd_gif_set(PATH["ASDVAP"])
             self.cannoloLabel.setStyleSheet("color: rgb(252, 186, 3)")
-        elif theme == "Asd":
+        elif self.theme == "Asd":
             with open(PATH["ASDTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
-            self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
+            # background asd gif setup
             self.movie = QMovie(PATH["ASD"])
             self.movie.setScaledSize(
                 QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio)
@@ -968,9 +1011,9 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIconSize(QtCore.QSize(25, 25))
             self.asd_gif_set(PATH["ASD"])
             self.cannoloLabel.setStyleSheet("color: blue")
-        elif theme == "WeeeOpen":
-            with open(PATH["WEEETHEME"], "r") as file:
-                self.app.setStyleSheet(file.read())
+        elif self.theme == "WeeeOpen":
+            set_stylesheet(self.app, PATH['WEEETHEME'])
+            self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
             self.backgroundLabel.clear()
             self.backgroundLabel.setPixmap(
                 QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
@@ -978,7 +1021,7 @@ class Ui(QtWidgets.QMainWindow):
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(25, 25))
             self.asd_gif_set(PATH["ASD"])
-        elif theme == "Default":
+        elif self.theme == "Default":
             self.app.setStyleSheet("")
             with open(PATH["DEFAULTTHEME"], "r") as file:
                 self.app.setStyleSheet(file.read())
