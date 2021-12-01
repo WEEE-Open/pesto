@@ -326,6 +326,11 @@ def absolute_path(big_path: {}):
         big_path[path] = os.path.dirname(os.path.realpath(__file__)) + big_path[path]
 
 
+def set_stylesheet(app, path):
+    with open(path, "r") as file:
+        app.setStyleSheet(file.read())
+
+
 class SmartTabs(QtWidgets.QTabWidget):
     def __init__(self):
         super().__init__()
