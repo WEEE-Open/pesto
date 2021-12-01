@@ -448,6 +448,9 @@ class CommandRunner(threading.Thread):
             completed = True
             all_ok = False
         else:
+            custom_env = os.environ.copy()
+            custom_env["LC_ALL"] = "C"
+
             pipe = subprocess.Popen(
                 (
                     "sudo",
@@ -464,7 +467,7 @@ class CommandRunner(threading.Thread):
                     dev,
                 ),
                 stderr=subprocess.PIPE,
-                env={"LC_ALL": "C"},
+                env=custom_env,
             )  # , stdout=subprocess.PIPE)
 
             # TODO: restore this code and kill badblocks if it's too slow (the disk is probably broken)
