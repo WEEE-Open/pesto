@@ -52,6 +52,8 @@ PATH = {
 
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
 
+PROGRESS_BAR_SCALE = 100
+
 absolute_path(PATH)
 
 
@@ -804,6 +806,7 @@ class Ui(QtWidgets.QMainWindow):
             elif entry == "Progress":  # PROGRESS
                 label = QtWidgets.QProgressBar()
                 label.setValue(0)
+                label.setMaximum(100 * PROGRESS_BAR_SCALE)
 
             if entry in ["ID", "Process", "Disk"]:
                 label = QTableWidgetItem(label)
@@ -1136,7 +1139,7 @@ class Ui(QtWidgets.QMainWindow):
                     QtWidgets.QProgressBar
                 )
                 status_cell = self.queueTable.cellWidget(row, 3)
-                progress_bar.setValue(int(param["percentage"]))
+                progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
                 if param["stale"]:
                     pass
                 elif param["stopped"]:
