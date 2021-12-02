@@ -52,6 +52,10 @@ PATH = {
 
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
 
+QUEUE_COMPLETED = "completed"
+QUEUE_PROGRESS = "progress"
+QUEUE_QUEUED = "queued"
+
 PROGRESS_BAR_SCALE = 100
 
 absolute_path(PATH)
@@ -539,14 +543,29 @@ class Ui(QtWidgets.QMainWindow):
         """This function set the "remove completed" button behaviour on the queue table
         context menu."""
 
-        self.queueTable.setRowCount(0)
+        rows = self.queueTable.rowCount()
+        offset = 0
+        for row in range(0, rows):
+            item = self.queueTable.cellWidget(row - offset, 3)
+            status = item.objectName()
+            if status == QUEUE_COMPLETED:
+                self.queueTable.removeRow(row - offset)
+                offset += 1
+
         self.client.send("remove_completed")
 
     def queue_clear_queued(self):
         """This function set the "remove completed" button behaviour on the queue table
         context menu."""
 
-        self.queueTable.setRowCount(0)
+        rows = self.queueTable.rowCount()
+        offset = 0
+        for row in range(0, rows):
+            item = self.queueTable.cellWidget(row - offset, 3)
+            status = item.objectName()
+            if status == QUEUE_QUEUED:
+                self.queueTable.removeRow(row - offset)
+                offset += 1
         self.client.send("remove_queued")
 
     def queue_info(self):
@@ -796,6 +815,7 @@ class Ui(QtWidgets.QMainWindow):
                             25, 25, QtCore.Qt.KeepAspectRatio
                         )
                     )
+                    label.setObjectName(QUEUE_QUEUED)
                 else:
                     label: QtWidgets.QLabel
                     label.setPixmap(
@@ -803,6 +823,7 @@ class Ui(QtWidgets.QMainWindow):
                             25, 25, QtCore.Qt.KeepAspectRatio
                         )
                     )
+                    label.setObjectName(QUEUE_PROGRESS)
             elif entry == "Progress":  # PROGRESS
                 label = QtWidgets.QProgressBar()
                 label.setValue(0)
@@ -1149,30 +1170,37 @@ class Ui(QtWidgets.QMainWindow):
                             25, Qt.SmoothTransformation
                         )
                     )
+                    status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["error"]:
                     status_cell.setPixmap(
                         QtGui.QPixmap(PATH["ERROR"]).scaledToHeight(
                             25, Qt.SmoothTransformation
                         )
                     )
+                    status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["finished"]:  # and not error
                     status_cell.setPixmap(
                         QtGui.QPixmap(PATH["OK"]).scaledToHeight(
                             25, Qt.SmoothTransformation
                         )
                     )
+                    status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["started"]:
                     status_cell.setPixmap(
                         QtGui.QPixmap(PATH["PROGRESS"]).scaledToHeight(
                             25, Qt.SmoothTransformation
                         )
                     )
+                    status_cell.setObjectName(QUEUE_PROGRESS)
                 else:
                     status_cell.setPixmap(
                         QtGui.QPixmap(PATH["PENDING"]).scaledToHeight(
                             25, Qt.SmoothTransformation
                         )
                     )
+                    status_cell.setObjectName(QUEUE_QUEUED)
+
+                print(status_cell.objectName())
 
         elif cmd == "get_disks":
             drives = params

@@ -403,14 +403,20 @@ class CommandRunner(threading.Thread):
 
         with queued_commands_lock:
             with running_commands_lock:
+                commands_to_remove = []
+
                 for the_command in queued_commands:
                     if the_command.command_runner.started():
-                        if the_command.command_runner.is_alive():
+                        if not the_command.command_runner.is_alive():
                             if remove_completed:
-                                queued_commands.remove(the_command)
+                                commands_to_remove.append(the_command)
                     else:
                         if remove_scheduled:
-                            queued_commands.remove(the_command)
+                            commands_to_remove.append(the_command)
+
+                for the_command in commands_to_remove:
+                    queued_commands.remove(the_command)
+                logging.debug(f"Removed {len(commands_to_remove)} items from task list")
 
         return None
 
@@ -740,7 +746,6 @@ class CommandRunner(threading.Thread):
         stderr = pipe.stderr.read().decode("utf-8")
         exitcode = pipe.wait()
 
-        smartctl_returned_valid = False
         if exitcode == 0:
             smartctl_returned_valid = True
         else:
