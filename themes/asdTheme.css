@@ -54,7 +54,19 @@ QPushButton {
 }
 
 QProgressBar {
-    color: rgb(255, 255, 255);
+    background-color: rgba(0, 0, 0, 0);
+    border: 2px solid grey;
+    border-radius: 5px;
+    color: deepskyblue;
+    font-weight: bold;
+    min-height: 10px;
+    max-height: 15px;
+}
+
+QProgressBar::chunk {
+    background-color: rgb(255, 255, 0);
+    min-width: 1px;
+    max-width: 1px;
 }
 
 QRadioButton {
@@ -95,8 +107,4 @@ QTabWidget::pane {
 
 QTableWidgetItem {
     background-color: rgb(49, 52, 59);
-}
-
-QScrollBar::vertical {
-    background-color: rgba(255, 255, 255, 0);
 }

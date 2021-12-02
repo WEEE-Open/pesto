@@ -57,15 +57,15 @@ QPushButton {
 QProgressBar {
     border: 2px solid grey;
     border-radius: 5px;
-    color: rgb(255, 255, 255);
+    color: rgb(3, 202, 252);
     min-height: 10px;
     max-height: 15px;
+    background-color: transparent;
 }
 
 QProgressBar::chunk {
-    background-color: rgb(255, 255, 0);
-    width: 20px;
-    color: rgb(3, 202, 252);
+    background-color: #eb3495;
+    max-width: 1px;
 }
 
 QRadioButton {
