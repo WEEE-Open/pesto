@@ -589,7 +589,7 @@
                           <property name="minimumSize">
                            <size>
                             <width>50</width>
-                            <height>50</height>
+                            <height>0</height>
                            </size>
                           </property>
                           <property name="maximumSize">
@@ -606,7 +606,7 @@
                         <item>
                          <widget class="QPushButton" name="restoreButton">
                           <property name="sizePolicy">
-                           <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                           <sizepolicy hsizetype="Maximum" vsizetype="Maximum">
                             <horstretch>0</horstretch>
                             <verstretch>0</verstretch>
                            </sizepolicy>
@@ -614,7 +614,7 @@
                           <property name="minimumSize">
                            <size>
                             <width>50</width>
-                            <height>50</height>
+                            <height>0</height>
                            </size>
                           </property>
                           <property name="maximumSize">
@@ -655,7 +655,7 @@
                         <item>
                          <widget class="QPushButton" name="saveButton">
                           <property name="sizePolicy">
-                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <sizepolicy hsizetype="Expanding" vsizetype="Maximum">
                             <horstretch>0</horstretch>
                             <verstretch>0</verstretch>
                            </sizepolicy>
@@ -663,7 +663,7 @@
                           <property name="minimumSize">
                            <size>
                             <width>50</width>
-                            <height>50</height>
+                            <height>0</height>
                            </size>
                           </property>
                           <property name="maximumSize">
