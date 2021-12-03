@@ -1279,7 +1279,7 @@ class Ui(QtWidgets.QMainWindow):
             tab = 0
             for tab in range(tab_count + 1):
                 if self.smartTabs.tabText(tab) == params["disk"]:
-                    message = "Il tab per il dosco esiste già asd.\nVuoi sovrascrivere l'output?"
+                    message = f"There are already SMART results for {params['disk']}.\nDo you want to overwrite them?"
                     if (
                         warning_dialog(message, dialog_type="yes_no")
                         == QtWidgets.QMessageBox.Yes
