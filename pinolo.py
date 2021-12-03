@@ -585,13 +585,17 @@ class Ui(QtWidgets.QMainWindow):
         self.deselect()
 
     def get_multiple_drive_selection(self):
-        """ This method returns a list with the names of the selected drives on disk_table """
+        """This method returns a list with the names of the selected drives on disk_table"""
         drives = []
         selected_items = self.diskTable.selectedItems()
         columns = self.diskTable.columnCount()
         for idx in range(len(selected_items) // columns):
-            drives.append([selected_items[idx * columns].text(),
-                          selected_items[(idx * columns) + 1].text()])
+            drives.append(
+                [
+                    selected_items[idx * columns].text(),
+                    selected_items[(idx * columns) + 1].text(),
+                ]
+            )
 
         return drives
 
@@ -654,7 +658,6 @@ class Ui(QtWidgets.QMainWindow):
                     return
             for drive in drives:
                 self.client.send("queued_badblocks " + drive[0])
-
 
         except BaseException:
             print("GUI: Error in erase Function")
@@ -1002,9 +1005,7 @@ class Ui(QtWidgets.QMainWindow):
         for drive in drives:
             ids += f"{drive[0]}, "
         ids.rstrip(", ")
-        self.statusBar().showMessage(
-            f"Sending cannolo to {ids} with {img}"
-        )
+        self.statusBar().showMessage(f"Sending cannolo to {ids} with {img}")
         for drive in drives:
             self.client.send(f"queued_cannolo {drive[0]} {directory}")
 

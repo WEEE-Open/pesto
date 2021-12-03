@@ -416,7 +416,9 @@ class CommandRunner(threading.Thread):
 
                 for the_command in commands_to_remove:
                     queued_commands.remove(the_command)
-                logging.debug(f"Removed {len(commands_to_remove)} items from tasks list")
+                logging.debug(
+                    f"Removed {len(commands_to_remove)} items from tasks list"
+                )
 
         return None
 
