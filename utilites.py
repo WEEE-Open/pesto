@@ -74,8 +74,9 @@ class CannoloDialog(QtWidgets.QDialog):
         for img in self.images:
             img = img.rsplit("/", 1)[1]
             img = img.rsplit(".")
-            if img[1] == "iso" or img[1] == "img":
-                self.files.append(img[0])
+            if len(img) > 1:
+                if img[1] == "iso" or img[1] == "img":
+                    self.files.append(f"{img[0]}.{img[1]}")
         self.isoList.addItems(self.files)
         self.selectButton = self.findChild(QtWidgets.QPushButton, "selectButton")
         self.selectButton.clicked.connect(self.select)
@@ -85,7 +86,7 @@ class CannoloDialog(QtWidgets.QDialog):
 
     def select(self):
         if self.isoList.currentItem() is None:
-            print("no cctf selected")
+            print("GUI: No image selected.")
             return
         iso = self.isoList.currentItem().text()
         for iso_dir in self.images:
