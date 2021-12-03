@@ -584,6 +584,17 @@ class Ui(QtWidgets.QMainWindow):
         info_dialog(message)
         self.deselect()
 
+    def get_multiple_drive_selection(self):
+        """ This method returns a list with the names of the selected drives on disk_table """
+        drives = []
+        selected_items = self.diskTable.selectedItems()
+        columns = self.diskTable.columnCount()
+        for idx in range(len(selected_items) // columns):
+            drives.append([selected_items[idx * columns].text(),
+                          selected_items[(idx * columns) + 1].text()])
+
+        return drives
+
     def std_procedure(self):
         """This function send to the server a sequence of commands:
         - queued_badblocks
@@ -595,103 +606,112 @@ class Ui(QtWidgets.QMainWindow):
         message = "Do you want to wipe all disk's data and load a fresh system image?"
         dialog = warning_dialog(message, dialog_type="yes_no_chk")
         if dialog[0] == QtWidgets.QMessageBox.Yes:
-            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            selected_drive_id = self.diskTable.item(
-                self.diskTable.currentRow(), 1
-            ).text()
-            if selected_drive_id == "":
-                message = (
-                    "The selected disk doesn't have a TARALLO id.\n"
-                    "Would you like to create the item on TARALLO?"
-                )
-                dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
-                if dialog_result == QtWidgets.QMessageBox.Yes:
-                    self.upload_to_tarallo(std=True)
-                elif dialog_result == QtWidgets.QMessageBox.Cancel:
-                    return
-            self.erase(std=True)
-            self.smart(std=True)
+            drives = self.get_multiple_drive_selection()
+            for drive in drives:
+                if drive[1] == "":
+                    message = (
+                        f"{drive[0]} disk doesn't have a TARALLO id.\n"
+                        "Would you like to create the item on TARALLO?"
+                    )
+                    dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
+                    if dialog_result == QtWidgets.QMessageBox.Yes:
+                        self.upload_to_tarallo(std=True, drive=drive[0])
+                    elif dialog_result == QtWidgets.QMessageBox.Cancel:
+                        continue
+            self.erase(std=True, drives=drives)
+            self.smart(std=True, drives=drives)
             if dialog[1]:
-                self.cannolo(std=True)
+                self.cannolo(std=True, drives=drives)
 
-    def erase(self, std=False):
+    def erase(self, std=False, drives=None):
         """This function send to the server a queued_badblocks command.
         If "std" is True it will skip the confirm dialog."""
 
         # noinspection PyBroadException
         try:
-            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            if self.selected_drive is None:
-                message = "There are no selected drives."
-                warning_dialog(message, dialog_type="ok")
+            if drives is None:
+                drives = self.get_multiple_drive_selection()
+
+            drives_qty = len(drives)
+            if drives_qty == 0:
+                if not std:
+                    message = "There are no selected drives."
+                    warning_dialog(message, dialog_type="ok")
+                    return
                 return
-            else:
-                self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if not std:
-                message = (
-                    "Do you want to wipe all disk's data?\nDisk: " + self.selected_drive
-                )
+                message = f"Do you want to wipe all disk's data?\n"
+                if drives_qty > 1:
+                    message += "Disks:"
+                    for drive in drives:
+                        message += f" {drive[0]}"
+                else:
+                    message += f"Disk: {drives[0][0]}"
                 if (
                     critical_dialog(message, dialog_type="yes_no")
                     != QtWidgets.QMessageBox.Yes
                 ):
                     return
-            self.client.send("queued_badblocks " + self.selected_drive)
+            for drive in drives:
+                self.client.send("queued_badblocks " + drive[0])
+
 
         except BaseException:
             print("GUI: Error in erase Function")
 
-    def smart(self, std=False):
+    def smart(self, std=False, drives=None):
         """This function send to the server a queued_smartctl command.
         If "std" is True it will skip the "no drive selected" check."""
 
         # noinspection PyBroadException
         try:
-            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            if self.selected_drive is None:
+            if drives is None:
+                drives = self.get_multiple_drive_selection()
+            drives_qty = len(drives)
+            if drives_qty == 0:
                 if not std:
                     message = "There are no selected drives."
                     warning_dialog(message, dialog_type="ok")
                     return
                 return
-            # TODO: Add new tab for every smart requested. If drive tab exist, use it.
-            drive = self.selected_drive.text().lstrip("Disk ")
-            self.client.send("queued_smartctl " + drive)
+            for drive in drives:
+                self.client.send("queued_smartctl " + drive[0])
 
         except BaseException:
             print("GUI: Error in smart function.")
 
-    def cannolo(self, std=False):
+    def cannolo(self, std=False, drives=None):
         """This function send to the server a queued_cannolo command.
         If "std" is True it will skip the cannolo dialog."""
 
         # noinspection PyBroadException
         try:
-            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+            if drives is None:
+                drives = self.get_multiple_drive_selection()
+            drives_qty = len(drives)
             directory = self.directoryText.text().rsplit("/", 1)[0] + "/"
-            if self.selected_drive is None:
+            if drives_qty == 0:
                 if not std:
                     message = "There are no selected drives."
                     warning_dialog(message, dialog_type="ok")
                     return
                 return
-            else:
-                self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if not std:
                 self.client.send(f"list_iso {directory}")
                 self.manual_cannolo = True
                 return
-            print(
-                f"GUI: Sending cannolo to {self.selected_drive} with {self.directoryText.text()}"
-            )
-            self.client.send(
-                f"queued_cannolo {self.selected_drive} {self.directoryText.text()}"
-            )
+            for drive in drives:
+                print(
+                    f"GUI: Sending cannolo to {drive[0]} with {self.directoryText.text()}"
+                )
+                self.client.send(
+                    f"queued_cannolo {drive[0]} {self.directoryText.text()}"
+                )
 
         except BaseException:
             print("GUI: Error in cannolo function.")
 
-    def upload_to_tarallo(self, std=False):
+    def upload_to_tarallo(self, std=False, drive=None):
         """This function send to the server a queued_upload_to_tarallo command.
         If "std" is True it will skip the confirm dialog."""
 
@@ -703,8 +723,9 @@ class Ui(QtWidgets.QMainWindow):
                 == QtWidgets.QMessageBox.No
             ):
                 return
-        self.selected_drive = self.selected_drive.text().lstrip("Disk ")
-        self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
+        if drive is None:
+            self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
+        self.client.send(f"queued_upload_to_tarallo {drive}")
 
     def sleep(self, std=False):
         """This function send to the server a queued_sleep command.
@@ -975,10 +996,17 @@ class Ui(QtWidgets.QMainWindow):
         """This function sends to the server a queued_cannolo with the selected drive
         and the directory of the selected cannolo image. This is specific of the
         non-standard procedure cannolo."""
+
+        drives = self.get_multiple_drive_selection()
+        ids = ""
+        for drive in drives:
+            ids += f"{drive[0]}, "
+        ids.rstrip(", ")
         self.statusBar().showMessage(
-            f"Sending cannolo to {self.selected_drive} with {img}"
+            f"Sending cannolo to {ids} with {img}"
         )
-        self.client.send(f"queued_cannolo {self.selected_drive} {directory}")
+        for drive in drives:
+            self.client.send(f"queued_cannolo {drive[0]} {directory}")
 
     def set_theme(self):
         """This function gets the stylesheet of the theme and sets the widgets aspect.
