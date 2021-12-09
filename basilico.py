@@ -1327,13 +1327,15 @@ if __name__ == "__main__":
     load_settings()
     if bool(os.getenv("DAEMONIZE", False)):
         import daemon
-        import lockfile
+        from daemon import pidfile
 
-        with daemon.DaemonContext(
-            pidfile=lockfile.FileLock(
-                os.getenv("LOCKFILE_PATH", f"/var/run/{NAME}.pid")
-            )
-        ):
+        out = open("/opt/pesto/stdout.log", "w+")
+        err = open("/opt/pesto/stderr.log", "w+")
+
+        pid = pidfile.PIDLockFile(os.getenv("LOCKFILE_PATH", f"/home/pesto/{NAME}.pid"))
+        context = daemon.DaemonContext(pidfile=pid, stdout=out, stderr=err)
+
+        with context:
             main()
     else:
         main()

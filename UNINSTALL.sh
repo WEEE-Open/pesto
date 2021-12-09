@@ -48,6 +48,10 @@ sudo rm -r $CURRENT_DIR
 sudo rm /usr/share/applications/basilico.desktop
 sudo rm /usr/share/applications/pinolo.desktop
 sudo rm /usr/share/applications/uninstall_pinolo.desktop
+sudo rm /etc/systemd/system/basilico.service
+
+echo "Updating systemd ..."
+sudo systemctl daemon-reload
 
 tput setaf $BLACK
 tput setab $GREEN

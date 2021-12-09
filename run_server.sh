@@ -1,5 +1,3 @@
 #!/bin/bash
 
-source venv/bin/activate
-./basilico.py
-deactivate
+venv/bin/python ./basilico.py

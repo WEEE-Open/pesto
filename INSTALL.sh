@@ -36,6 +36,7 @@ sudo cp -r $CURRENT_DIR /opt/
 sudo cp /opt/$FOLDER_NAME/desktop_files/basilico.desktop /usr/share/applications/
 sudo cp /opt/$FOLDER_NAME/desktop_files/pinolo.desktop /usr/share/applications/
 sudo cp /opt/$FOLDER_NAME/desktop_files/uninstall_pinolo.desktop /usr/share/applications/
+sudo cp /opt/$FOLDER_NAME/basilico.service /etc/systemd/system/
 
 echo "Generating python virtual environment ..."
 
@@ -45,6 +46,9 @@ source /opt/$FOLDER_NAME/venv/bin/activate
 pip install -r /opt/$FOLDER_NAME/requirements_client.txt
 pip install -r /opt/$FOLDER_NAME/requirements_server.txt
 deactivate
+
+echo "Updating systemd services ..."
+sudo systemctl daemon-reload
 
 tput setaf $BLACK
 tput setab $GREEN
