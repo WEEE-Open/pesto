@@ -1125,6 +1125,8 @@ class Ui(QtWidgets.QMainWindow):
                     for queue_row in range(queue_rows + 1):
                         queue_disk_label = self.queueTable.item(queue_row, 2)
                         queue_progress = self.queueTable.cellWidget(queue_row, 4)
+                        if self.diskTable.item(disk_row, 0).text() in self.critical_mounts:
+                            continue
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
                             queue_progress = queue_progress.findChild(
@@ -1146,6 +1148,20 @@ class Ui(QtWidgets.QMainWindow):
                             self.diskTable.item(disk_row, 0).setForeground(
                                 default_foreground
                             )
+
+    def set_disk_table_item(self, table: QtWidgets.QTableWidget, row: int, drive: dict):
+        table.setRowCount(row + 1)
+        table.setItem(row, 0, QTableWidgetItem(drive["path"]))
+        table.setItem(row, 1, QTableWidgetItem(drive["code"]))
+        table.setItem(
+            row,
+            2,
+            QTableWidgetItem(str(int(int(drive["size"]) / 1000000000)) + " GB"),
+        )
+        if drive["has_critical_mounts"]:
+            self.critical_mounts.append(drive["path"])
+            table.item(row, 0).setBackground(QtGui.QColor(255, 165, 0, 255))
+            table.item(row, 0).setForeground(Qt.black)
 
     def gui_update(self, cmd: str, params: str):
         """
@@ -1239,42 +1255,13 @@ class Ui(QtWidgets.QMainWindow):
                 self.diskTable.setRowCount(0)
                 return
             # compile disks table with disks list
-            rows = 0
-            for d in drives:
+            for row, d in enumerate(drives):
                 d: dict
-                # if "[BOOT]" in d["mountpoint"]:
-                #     continue
-                rows += 1
-                self.diskTable.setRowCount(rows)
+                self.set_disk_table_item(self.diskTable, row, d)
                 try:
-                    self.testDiskTable.setRowCount(rows)
+                    self.set_disk_table_item(self.testDiskTable, row, d)
                 except AttributeError:
                     print("Test mode disabled: testDiskTable not loaded.")
-
-                self.diskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
-                try:
-                    self.testDiskTable.setItem(rows - 1, 0, QTableWidgetItem(d["path"]))
-                except:
-                    pass
-
-                self.diskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
-                self.diskTable.setItem(
-                    rows - 1,
-                    2,
-                    QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"),
-                )
-                try:
-                    self.testDiskTable.setItem(rows - 1, 1, QTableWidgetItem(d["code"]))
-                    self.testDiskTable.setItem(
-                        rows - 1,
-                        2,
-                        QTableWidgetItem(str(int(int(d["size"]) / 1000000000)) + " GB"),
-                    )
-                except:
-                    pass
-                if d["has_critical_mounts"]:
-                    self.critical_mounts.append(d["path"])
-                    print(self.critical_mounts)
 
         elif cmd == "smartctl" or cmd == "queued_smartctl":
             text = ("Smartctl output:\n " + params["output"]).splitlines()
