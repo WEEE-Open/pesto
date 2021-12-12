@@ -719,13 +719,20 @@ class Ui(QtWidgets.QMainWindow):
         If "std" is True it will skip the confirm dialog."""
 
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
+
         if not std:
+            if self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
+                message = f"The drive {self.selected_drive.text()} already has a TARALLO id."
+                warning_dialog(message, dialog_type="ok")
+                return
             message = "Do you want to load the disk informations into TARALLO?"
             if (
                 warning_dialog(message, dialog_type="yes_no")
                 == QtWidgets.QMessageBox.No
             ):
                 return
+        elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
+            return
         if drive is None:
             self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
         self.client.send(f"queued_upload_to_tarallo {drive}")
@@ -1165,8 +1172,10 @@ class Ui(QtWidgets.QMainWindow):
         )
         if drive["has_critical_mounts"]:
             self.critical_mounts.append(drive["path"])
-            table.item(row, 0).setBackground(QtGui.QColor(255, 165, 0, 255))
-            table.item(row, 0).setForeground(Qt.black)
+            item = table.item(row, 0)
+            item.setBackground(QtGui.QColor(255, 165, 0, 255))
+            item.setForeground(Qt.black)
+            item.setToolTip("Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh.")
 
     def gui_update(self, cmd: str, params: str):
         """
