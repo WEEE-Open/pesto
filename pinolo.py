@@ -1229,7 +1229,8 @@ class Ui(QtWidgets.QMainWindow):
                     )
                     status_cell.setObjectName(QUEUE_QUEUED)
 
-                print(status_cell.objectName())
+                if "text" in param:
+                    status_cell.setToolTip(param["text"])
 
         elif cmd == "get_disks":
             drives = params
