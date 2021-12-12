@@ -1125,14 +1125,19 @@ class Ui(QtWidgets.QMainWindow):
                     for queue_row in range(queue_rows + 1):
                         queue_disk_label = self.queueTable.item(queue_row, 2)
                         queue_progress = self.queueTable.cellWidget(queue_row, 4)
-                        if self.diskTable.item(disk_row, 0).text() in self.critical_mounts:
+                        if (
+                            self.diskTable.item(disk_row, 0).text()
+                            in self.critical_mounts
+                        ):
                             continue
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
                             queue_progress = queue_progress.findChild(
                                 QtWidgets.QProgressBar
                             ).value()
-                            if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
+                            if queue_disk_label == disk_label and queue_progress != (
+                                100 * PROGRESS_BAR_SCALE
+                            ):
                                 self.diskTable.item(disk_row, 0).setBackground(
                                     Qt.yellow
                                 )
