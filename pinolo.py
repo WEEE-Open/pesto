@@ -1130,7 +1130,7 @@ class Ui(QtWidgets.QMainWindow):
                             queue_progress = queue_progress.findChild(
                                 QtWidgets.QProgressBar
                             ).value()
-                            if queue_disk_label == disk_label and queue_progress != 100:
+                            if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
                                 self.diskTable.item(disk_row, 0).setBackground(
                                     Qt.yellow
                                 )
@@ -1190,6 +1190,7 @@ class Ui(QtWidgets.QMainWindow):
                 )
                 status_cell = self.queueTable.cellWidget(row, 3)
                 progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
+
                 if param["stale"]:
                     pass
                 elif param["stopped"]:
