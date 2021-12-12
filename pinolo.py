@@ -762,8 +762,6 @@ class Ui(QtWidgets.QMainWindow):
         communications and other UI-related behaviours."""
 
         if self.localRadioBtn.isChecked():
-            if not self.remoteMode:
-                self.client.send("close_at_end")
             self.remoteMode = False
             self.settings.setValue("latestHost", self.host)
             self.settings.setValue("latestPort", self.port)
@@ -780,7 +778,6 @@ class Ui(QtWidgets.QMainWindow):
             if not self.remoteMode:
                 self.host = self.settings.value("latestHost")
                 self.port = int(self.settings.value("latestPort"))
-                self.client.send("close_at_end")
             self.remoteMode = True
             self.hostInput.setReadOnly(False)
             self.hostInput.setText(self.host)
