@@ -722,7 +722,9 @@ class Ui(QtWidgets.QMainWindow):
 
         if not std:
             if self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
-                message = f"The drive {self.selected_drive.text()} already has a TARALLO id."
+                message = (
+                    f"The drive {self.selected_drive.text()} already has a TARALLO id."
+                )
                 warning_dialog(message, dialog_type="ok")
                 return
             message = "Do you want to load the disk informations into TARALLO?"
@@ -1172,7 +1174,9 @@ class Ui(QtWidgets.QMainWindow):
             item = table.item(row, 0)
             item.setBackground(QtGui.QColor(255, 165, 0, 255))
             item.setForeground(Qt.black)
-            item.setToolTip("Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh.")
+            item.setToolTip(
+                "Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh."
+            )
 
     def gui_update(self, cmd: str, params: str):
         """
