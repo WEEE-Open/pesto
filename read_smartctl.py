@@ -68,7 +68,13 @@ def _parse_disk(file):
         disk["sn"] = file.get("serial_number")
 
     if file.get("wwn"):
-        disk["wwn"] = str(file["wwn"].get("naa", "")) + " " + str(file["wwn"].get("oui", "")) + " " + str(file["wwn"].get("id", ""))
+        disk["wwn"] = (
+            str(file["wwn"].get("naa", ""))
+            + " "
+            + str(file["wwn"].get("oui", ""))
+            + " "
+            + str(file["wwn"].get("id", ""))
+        )
 
     if file.get("form_factor", {}).get("name"):
         ff = file["form_factor"]["name"]
@@ -136,7 +142,9 @@ def _parse_disk(file):
         if "sata_version" in file:
             port = PORT.SATA
         elif "pata_version" in file:
-            if disk.get("hdd-form-factor", "").startswith("2.5") or disk.get("hdd-form-factor", "").startswith("1.8"):
+            if disk.get("hdd-form-factor", "").startswith("2.5") or disk.get(
+                "hdd-form-factor", ""
+            ).startswith("1.8"):
                 port = PORT.MINIIDE
             else:
                 port = PORT.IDE
@@ -146,8 +154,14 @@ def _parse_disk(file):
                 disk["type"] = "ssd"
             if "hdd-form-factor" not in disk:
                 disk["hdd-form-factor"] = "m2"
-        if "device" in file and file["device"].get("type", "") == "scsi" and file["device"].get("protocol", "") == "SCSI":
-            disk["notes"] = "This is a SCSI disk, however it is not possible to detect the exact connector type. Please set the correct one manually."
+        if (
+            "device" in file
+            and file["device"].get("type", "") == "scsi"
+            and file["device"].get("protocol", "") == "SCSI"
+        ):
+            disk[
+                "notes"
+            ] = "This is a SCSI disk, however it is not possible to detect the exact connector type. Please set the correct one manually."
 
     if port is not None:
         disk[port.value] = 1
