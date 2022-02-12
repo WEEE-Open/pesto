@@ -15,7 +15,7 @@ import threading
 import logging
 from datetime import datetime
 
-from utilites import smartctl_get_status, parse_smartctl_output
+from read_smartctl import extract_smart_data, smart_health_status
 
 NAME = "basilico"
 # Use env vars, do not change the value here
@@ -740,7 +740,7 @@ class CommandRunner(threading.Thread):
         if queued:
             self._queued_command.notify_start("Getting smarter")
         pipe = subprocess.Popen(
-            ("sudo", "-n", "smartctl", "-a", dev),
+            ("sudo", "-n", "smartctl", "-j", "-a", dev),
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
@@ -1237,7 +1237,9 @@ def load_settings():
 def get_smartctl_status(smartctl_output: str) -> Optional[str]:
     # noinspection PyBroadException
     try:
-        return smartctl_get_status(parse_smartctl_output(smartctl_output))
+        parsed = json.loads(smartctl_output)
+        smart = extract_smart_data(parsed)
+        return smart_health_status(smart, False)
     except BaseException as e:
         logging.error("Failed to parse smartctl output", exc_info=e)
         return None
