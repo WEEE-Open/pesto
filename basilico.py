@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import json
 import subprocess
-import sys
+import stat
 import os
 import time
 from collections import deque
@@ -635,12 +635,13 @@ class CommandRunner(threading.Thread):
             self._queued_command.notify_percentage(90)
             threading.Event().wait(2)
         else:
-            pipe = subprocess.Popen(
-                ("sudo", "-n", "cannolo", iso, dev)
-            )  # stderr=subprocess.PIPE), stdout=subprocess.PIPE)
-            exitcode = pipe.wait()
-            if exitcode != 0:
-                self._queued_command.notify_error("cannolo returned " + str(exitcode))
+            exitcode = self.dd(iso, dev)
+            # pipe = subprocess.Popen(
+            #     ("sudo", "-n", "cannolo", iso, dev)
+            # )  # stderr=subprocess.PIPE), stdout=subprocess.PIPE)
+            # exitcode = pipe.wait()
+            if not exitcode:
+                self._queued_command.notify_error(f"cannolo returned {exitcode}")
                 success = False
 
         if success:
@@ -864,6 +865,38 @@ class CommandRunner(threading.Thread):
         filename = filename.split(".", 1)[0]
         filename = filename.replace("-", " ").replace("_", " ")
         return filename
+
+    def dd(self, inputf: str, outputf: str, bs: int = 512, output_delay: float = 1.0):
+        if os.path.exists(inputf):
+            try:
+                with open(inputf, "rb") as fin:
+                    print("Input file opened successfully!")
+                    with open(outputf, "wb") as fout:
+                        print("Output file opened successfully!")
+                        s = os.stat(inputf).st_mode
+                        is_special = stat.S_ISBLK(s) or stat.S_ISCHR(s)
+                        total_size = get_block_size(outputf) if is_special else os.path.getsize(inputf)
+                        completed_size = 0
+                        elapsed_time = 0
+                        actual_time = time.time()
+                        while True:
+                            if fout.write(fin.read(bs)) == 0:
+                                break
+                            completed_size += bs
+                            if elapsed_time > output_delay:
+                                percentage = (completed_size / total_size) * 100
+                                self._queued_command.notify_percentage(percentage)
+                                elapsed_time = 0
+                            else:
+                                elapsed_time += time.time() - actual_time
+                                actual_time = time.time()
+                        return True
+            except KeyboardInterrupt:
+                print("\nInterrupted!")
+                os.system("sync")
+                return False
+        else:
+            return False
 
 
 class QueuedCommand:
@@ -1305,6 +1338,31 @@ def try_stop_at_end():
                                 reactor.stop()
         # noinspection PyUnresolvedReferences
         reactor.callLater(CLOSE_AT_END_TIMER, try_stop_at_end)
+
+
+def format_size(size: int):
+    notation = ['b', 'kiB', 'MiB', 'GiB', 'TiB']
+    index = 0
+    for count in range(0, len(notation)):
+        if size >> (10 * count) == 0:
+            index = count - 1
+            break
+    size = size / (1024 ** index)
+    result = '{:.2f}'.format(size) + f" {notation[index]}"
+    return result
+
+
+def get_block_size(path):
+    """Return device size in bytes.
+    """
+    with open(path, 'rb') as f:
+        return f.seek(0, 2) or f.tell()
+
+
+def expand_partition(dev: str):
+    s = os.stat(dev).st_mode
+    if stat.S_ISBLK(s):
+        os.system(f"sudo growpart {dev} 1")
 
 
 TARALLO = None
