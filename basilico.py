@@ -875,7 +875,11 @@ class CommandRunner(threading.Thread):
                         print("Output file opened successfully!")
                         s = os.stat(inputf).st_mode
                         is_special = stat.S_ISBLK(s) or stat.S_ISCHR(s)
-                        total_size = get_block_size(outputf) if is_special else os.path.getsize(inputf)
+                        total_size = (
+                            get_block_size(outputf)
+                            if is_special
+                            else os.path.getsize(inputf)
+                        )
                         completed_size = 0
                         elapsed_time = 0
                         actual_time = time.time()
@@ -1341,21 +1345,20 @@ def try_stop_at_end():
 
 
 def format_size(size: int):
-    notation = ['b', 'kiB', 'MiB', 'GiB', 'TiB']
+    notation = ["b", "kiB", "MiB", "GiB", "TiB"]
     index = 0
     for count in range(0, len(notation)):
         if size >> (10 * count) == 0:
             index = count - 1
             break
-    size = size / (1024 ** index)
-    result = '{:.2f}'.format(size) + f" {notation[index]}"
+    size = size / (1024**index)
+    result = "{:.2f}".format(size) + f" {notation[index]}"
     return result
 
 
 def get_block_size(path):
-    """Return device size in bytes.
-    """
-    with open(path, 'rb') as f:
+    """Return device size in bytes."""
+    with open(path, "rb") as f:
         return f.seek(0, 2) or f.tell()
 
 
