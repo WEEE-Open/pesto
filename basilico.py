@@ -645,6 +645,7 @@ class CommandRunner(threading.Thread):
                 success = False
 
         if success:
+            expand_partition(dev)
             with disks_lock:
                 update_disks_if_needed(self)
                 disk_ref = disks[dev]
