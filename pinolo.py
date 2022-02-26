@@ -7,7 +7,7 @@ Created on Fri Jul 30 10:54:18 2021
 """
 
 from client import *
-from utilites import *
+from utilities import *
 from typing import Union
 from multiprocessing import Process
 from dotenv import load_dotenv
@@ -24,7 +24,7 @@ PATH = {
     "REQUIREMENTS": "/requirements_client.txt",
     "ENV": "/.env",
     "UI": "/assets/qt/interface.ui",
-    "UI_TEST": "/assets/qt/interface_test.ui",
+    "SETTINGS_UI": "/assets/qt/settings.ui",
     "INFOUI": "/assets/qt/info.ui",
     "CANNOLOUI": "/assets/qt/cannolo_select.ui",
     "ICON": "/assets/icon.png",
@@ -65,55 +65,12 @@ absolute_path(PATH)
 class Ui(QtWidgets.QMainWindow):
     def __init__(self, app: QtWidgets.QApplication) -> None:
         super(Ui, self).__init__()
-        if os.getenv("TEST_MODE") == "1":
-            uic.loadUi(PATH["UI_TEST"], self)
-            self.testDiskTable = self.findChild(QtWidgets.QTableWidget, "testDiskTable")
-            self.testDiskTable.setSelectionBehavior(
-                QtWidgets.QAbstractItemView.SelectRows
-            )
-            self.testDiskTable.horizontalHeader().setStretchLastSection(True)
-            self.testDiskTable.setColumnWidth(0, 65)
-            self.testDiskTable.setColumnWidth(1, 70)
-            self.testDiskTable.setColumnWidth(2, 60)
-            self.testDiskTable.horizontalHeader().setStretchLastSection(True)
-            self.testDiskTable.horizontalHeader().setSectionResizeMode(
-                QtWidgets.QHeaderView.Fixed
-            )
-            self.testDiskTable.cellClicked.connect(self.greyout_buttons)
-            self.testRefreshBtn = self.findChild(
-                QtWidgets.QPushButton, "testRefreshBtn"
-            )
-            self.testRefreshBtn.clicked.connect(self.refresh)
-            self.testBadblocksBtn = self.findChild(
-                QtWidgets.QPushButton, "testBadblocksBtn"
-            )
-            self.testBadblocksBtn.clicked.connect(self.test_badblocks)
-            self.testSmartctlBtn = self.findChild(
-                QtWidgets.QPushButton, "testSmartctlBtn"
-            )
-            self.testSmartctlBtn.clicked.connect(self.test_smartctl)
-            self.testCannoloBtn = self.findChild(
-                QtWidgets.QPushButton, "testCannoloBtn"
-            )
-            self.testCannoloBtn.clicked.connect(self.test_cannolo)
-            self.testSleepBtn = self.findChild(QtWidgets.QPushButton, "testSleepBtn")
-            self.testSleepBtn.clicked.connect(self.test_sleep)
-            self.testStdProcBtn = self.findChild(
-                QtWidgets.QPushButton, "testStdProcBtn"
-            )
-            self.testStdProcBtn.clicked.connect(self.test_std_proc)
-            self.testStdProcNoCannoloBtn = self.findChild(
-                QtWidgets.QPushButton, "testStdProcNoCannoloBtn"
-            )
-            self.testStdProcNoCannoloBtn.clicked.connect(self.test_std_proc_no_cannolo)
-        else:
-            uic.loadUi(PATH["UI"], self)
+        uic.loadUi(PATH["UI"], self)
         self.app = app
         self.host = "127.0.0.1"
         self.port = 1030
         self.remoteMode = False
-        self.client: ReactorThread
-        self.client = None
+        self.client = ReactorThread(self.host, self.port, self.remoteMode)
         self.manual_cannolo = False
         self.selected_drive = None
         self.theme = None
@@ -133,31 +90,26 @@ class Ui(QtWidgets.QMainWindow):
         self.backgroundLabel.setAlignment(Qt.AlignCenter)
 
         """ Defining all items in GUI """
-        self.globalTab = self.findChild(QtWidgets.QTabWidget, "globalTab")
-        self.globalTab.move(0, 0)
+        self.mainWidget = self.findChild(QtWidgets.QWidget, "mainWidget")
+        self.mainWidget.move(0, 0)
         self.gif = QMovie(PATH["ASD"])
-        self.diskTable = self.findChild(QtWidgets.QTableWidget, "tableWidget")
+        self.diskTable = self.findChild(QtWidgets.QTableWidget, "diskTable")
         self.queueTable = self.findChild(QtWidgets.QTableWidget, "queueTable")
-        self.reloadButton = self.findChild(QtWidgets.QPushButton, "reloadButton")
         self.eraseButton = self.findChild(QtWidgets.QPushButton, "eraseButton")
         self.smartButton = self.findChild(QtWidgets.QPushButton, "smartButton")
         self.cannoloButton = self.findChild(QtWidgets.QPushButton, "cannoloButton")
         self.stdProcedureButton = self.findChild(QtWidgets.QPushButton, "stdProcButton")
-        self.localRadioBtn = self.findChild(QtWidgets.QRadioButton, "localRadioBtn")
-        self.remoteRadioBtn = self.findChild(QtWidgets.QRadioButton, "remoteRadioBtn")
-        self.hostInput = self.findChild(QtWidgets.QLineEdit, "remoteIp")
-        self.portInput = self.findChild(QtWidgets.QLineEdit, "remotePort")
-        self.restoreButton = self.findChild(QtWidgets.QPushButton, "restoreButton")
-        self.defaultButton = self.findChild(QtWidgets.QPushButton, "defaultButton")
-        self.saveButton = self.findChild(QtWidgets.QPushButton, "saveButton")
-        self.ipList = self.findChild(QtWidgets.QListWidget, "ipList")
-        self.findButton = self.findChild(QtWidgets.QPushButton, "findButton")
-        self.cannoloLabel = self.findChild(QtWidgets.QLabel, "cannoloLabel")
-        self.themeSelector = self.findChild(QtWidgets.QComboBox, "themeSelector")
-        self.directoryText = self.findChild(QtWidgets.QLineEdit, "directoryText")
-        self.smartLayout = self.findChild(QtWidgets.QVBoxLayout, "smartLayout")
-        self.smartTabs = SmartTabs()
-        self.smartLayout.addWidget(self.smartTabs)
+
+        """ Defining dialogs """
+        self.dialog = SettingsDialog(self.host, self.port, self.remoteMode, self.settings, self.client)
+
+        """ Defining menu actions """
+        self.newSessionAction = self.findChild(QtWidgets.QAction, "newSessionAction")
+        self.refreshAction = self.findChild(QtWidgets.QAction, "refreshAction")
+        self.exitAction = self.findChild(QtWidgets.QAction, "exitAction")
+        self.networkSettingsAction = self.findChild(QtWidgets.QAction, "networkSettingsAction")
+
+        """ Defining context menu actions """
         self.sleep_action = QtWidgets.QAction("Sleep", self)
         self.uploadToTarallo_action = QtWidgets.QAction("Upload to TARALLO", self)
         self.stop_action = QtWidgets.QAction("Stop", self)
@@ -166,15 +118,8 @@ class Ui(QtWidgets.QMainWindow):
         self.remove_completed_action = QtWidgets.QAction("Remove Completed", self)
         self.remove_queued_action = QtWidgets.QAction("Remove Queued", self)
         self.info_action = QtWidgets.QAction("Info", self)
-        self.asdlabel = self.findChild(QtWidgets.QLabel, "asdLabel")
         self.asdGif = QMovie(PATH["ASD"])
-        self.asdGif.setScaledSize(
-            QtCore.QSize().scaled(
-                self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio
-            )
-        )
-        self.asdGif.start()
-        self.asdlabel.setMovie(self.asdGif)
+        # self.asdGif.start()
 
         """ Initialization operations """
         self.set_items_functions()
@@ -187,7 +132,7 @@ class Ui(QtWidgets.QMainWindow):
         if self.backgroundLabel is None:
             return
 
-        self.globalTab.resize(
+        self.mainWidget.resize(
             self.centralWidget().width(), self.centralWidget().height()
         )
         self.backgroundLabel.resize(
@@ -196,6 +141,24 @@ class Ui(QtWidgets.QMainWindow):
 
         # Background image vaporwave theme scaling
         self.resize_bg()
+
+    def setup(self):
+        """This method must be called in the __init__ function of the Ui class
+        to initialize the pinolo session"""
+
+        # check if the host and port field are set
+        if self.host is None and self.port is None:
+            message = "The host and port combination is not set.\nPlease visit the settings section."
+            warning_dialog(message, dialog_type="ok")
+
+        """
+        The client try to connect to the BASILICO. If it can't and the client is in remote mode, then 
+        a critical error is shown and the client goes in idle. If the client is in local mode and it cannot reach a
+        BASILICO server, a new BASILICO process is instantiated.
+        """
+        self.client = ReactorThread(self.host, self.port, self.remoteMode)
+        self.client.updateEvent.connect(self.gui_update)
+        self.client.start()
 
     def resize_bg(self):
         if self.pixmapResizingNeeded:
@@ -237,6 +200,12 @@ class Ui(QtWidgets.QMainWindow):
 
         # get latest configuration
         self.latest_conf()
+
+        # menu actions
+        self.newSessionAction.triggered.connect(self.new_session)
+        self.refreshAction.triggered.connect(self.refresh)
+        self.exitAction.triggered.connect(self.closeEvent)
+        self.networkSettingsAction.triggered.connect(self.open_settings)
 
         # disks table
         self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
@@ -293,10 +262,6 @@ class Ui(QtWidgets.QMainWindow):
         self.info_action.setEnabled(False)
         self.queueTable.selectionModel().selectionChanged.connect(self.on_table_select)
 
-        # reload button
-        self.reloadButton.clicked.connect(self.refresh)
-        self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
-
         # erase button
         self.eraseButton.clicked.connect(self.erase)
 
@@ -309,75 +274,30 @@ class Ui(QtWidgets.QMainWindow):
         # standard procedure button
         self.stdProcedureButton.clicked.connect(self.std_procedure)
 
-        # text field
-        # self.textField.setReadOnly(True)
-        # font = self.textField.document().defaultFont()
-        # font.setFamily("Monospace")
-        # font.setStyleHint(QtGui.QFont.Monospace)
-        # self.textField.document().setDefaultFont(font)
-        # self.textField.setCurrentFont(font)
-        # self.textField.setFontPointSize(10)
-
-        # local radio button
-        if not self.remoteMode:
-            self.localRadioBtn.setChecked(True)
-        self.localRadioBtn.clicked.connect(self.set_remote_mode)
-
-        # remote radio button
-        if self.remoteMode:
-            self.remoteRadioBtn.setChecked(True)
-        self.remoteRadioBtn.clicked.connect(self.set_remote_mode)
-
-        # host input
-        self.hostInput.setText(self.host)
-
-        # port input
-        if self.port is not None:
-            self.portInput.setText(str(self.port))
-
-        # restore button
-        self.restoreButton.clicked.connect(self.restore)
-
-        # default values button
-        self.defaultButton.clicked.connect(self.default_config)
-
-        # remove config button
-        self.defaultButton.clicked.connect(self.remove_config)
-
-        # save config button
-        self.saveButton.clicked.connect(self.save_config)
-
         # configuration list
-        for key in self.settings.childKeys():
-            if "saved" in key:
-                values = self.settings.value(key)
-                self.ipList.addItem(values[0])
-        self.ipList.clicked.connect(self.load_config)
+        # for key in self.settings.childKeys():
+        #     if "saved" in key:
+        #         values = self.settings.value(key)
+        #         self.ipList.addItem(values[0])
+        # self.ipList.clicked.connect(self.load_config)
 
         # find button
-        self.findButton.clicked.connect(self.find_image)
+        # self.findButton.clicked.connect(self.find_image)
 
         # directory text
-        for key in self.settings.childKeys():
-            if "cannoloDir" in key:
-                self.directoryText.setText(str(self.settings.value(key)))
-        if self.remoteMode:
-            self.directoryText.setReadOnly(False)
+        # for key in self.settings.childKeys():
+        #     if "cannoloDir" in key:
+        #         self.directoryText.setText(str(self.settings.value(key)))
+        # if self.remoteMode:
+        #     self.directoryText.setReadOnly(False)
 
         # cannolo label
-        if self.remoteMode:
-            self.cannoloLabel.setText(
-                "When in remote mode, the user must insert manually the cannolo image directory."
-            )
-        else:
-            self.cannoloLabel.setText("")
-
-        # theme selector
-        for key in self.settings.childKeys():
-            if "theme" in key:
-                self.themeSelector.setCurrentText(self.settings.value(key))
-                self.set_theme()
-        self.themeSelector.currentTextChanged.connect(self.set_theme)
+        # if self.remoteMode:
+        #     self.cannoloLabel.setText(
+        #         "When in remote mode, the user must insert manually the cannolo image directory."
+        #     )
+        # else:
+        #     self.cannoloLabel.setText("")
 
     def latest_conf(self):
         """This function try to set the remote configuration used in the last
@@ -402,25 +322,12 @@ class Ui(QtWidgets.QMainWindow):
                     self.host = "127.0.0.1"
                 self.port = 1030
 
-    def setup(self):
-        """This method must be called in the __init__ function of the Ui class
-        to initialize the pinolo session"""
+    @staticmethod
+    def new_session():
+        os.popen("python pinolo.py")
 
-        self.set_remote_mode()
-
-        # check if the host and port field are set
-        if self.host is None and self.port is None:
-            message = "The host and port combination is not set.\nPlease visit the settings section."
-            warning_dialog(message, dialog_type="ok")
-
-        """
-        The client try to connect to the BASILICO. If it can't and the client is in remote mode, then 
-        a critical error is shown and the client goes in idle. If the client is in local mode and it cannot reach a
-        BASILICO server, a new BASILICO process is instantiated.
-        """
-        self.client = ReactorThread(self.host, self.port, self.remoteMode)
-        self.client.updateEvent.connect(self.gui_update)
-        self.client.start()
+    def open_settings(self):
+        self.dialog.show()
 
     def test_badblocks(self):
         """This function send to the server a badblocks command.
@@ -759,52 +666,11 @@ class Ui(QtWidgets.QMainWindow):
         except BaseException:
             print("GUI: Error in cannolo function.")
 
-    def set_remote_mode(self):
-        """This function set all the parameters related to the client-server
-        communications and other UI-related behaviours."""
-
-        if self.localRadioBtn.isChecked():
-            self.remoteMode = False
-            self.settings.setValue("latestHost", self.host)
-            self.settings.setValue("latestPort", self.port)
-            self.host = "127.0.0.1"
-            self.port = 1030
-            self.hostInput.setText(self.host)
-            self.portInput.setText(str(self.port))
-            self.hostInput.setReadOnly(True)
-            self.portInput.setReadOnly(True)
-            self.saveButton.setEnabled(False)
-            self.directoryText.setReadOnly(True)
-            self.cannoloLabel.setText("")
-        elif self.remoteRadioBtn.isChecked():
-            if not self.remoteMode:
-                self.host = self.settings.value("latestHost")
-                self.port = int(self.settings.value("latestPort"))
-            self.remoteMode = True
-            self.hostInput.setReadOnly(False)
-            self.hostInput.setText(self.host)
-            self.portInput.setReadOnly(False)
-            self.portInput.setText(str(self.port))
-            self.saveButton.setEnabled(True)
-            self.directoryText.setReadOnly(False)
-            self.cannoloLabel.setText(
-                "When in remote mode, the user must insert manually the cannolo image directory."
-            )
-
     def refresh(self):
         """This function read the host and port inputs in the settings
         tab and try to reconnect to the server, refreshing the disk list."""
 
-        self.host = self.hostInput.text()
-        self.port = int(self.portInput.text())
         self.client.reconnect(self.host, self.port)
-
-    def restore(self):
-        """This function delete all the edits made in the host and port input
-        in the settings tab."""
-
-        self.hostInput.setText(self.host)
-        self.portInput.setText(str(self.port))
 
     def update_queue(self, pid, drive, mode):
         """This function update the queue table with the new entries."""
@@ -916,37 +782,6 @@ class Ui(QtWidgets.QMainWindow):
         except Exception as exc:
             print(exc.args)
 
-    def save_config(self):
-        """This function saves the active host and port configuration in the qt settings
-        file, showing them in the recent ip list."""
-
-        ip = self.hostInput.text()
-        port = self.portInput.text()
-        if self.ipList.findItems(ip, Qt.MatchExactly):
-            message = "Do you want to overwrite the old configuration?"
-            if (
-                warning_dialog(message, dialog_type="yes_no")
-                == QtWidgets.QMessageBox.Yes
-            ):
-                self.settings.setValue("saved-" + ip, [ip, port])
-        else:
-            self.ipList.addItem(ip)
-            self.settings.setValue("saved-" + ip, [ip, port])
-
-    def remove_config(self):
-        """This function removes the selected configuration in the recent
-        ip list in the settings tab."""
-        try:
-            ip = self.ipList.currentItem().text()
-        except:
-            return
-        message = "Do you want to remove the selected configuration?"
-        if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
-            for key in self.settings.childKeys():
-                if ip in key:
-                    self.ipList.takeItem(self.ipList.row(self.ipList.currentItem()))
-                    self.settings.remove(key)
-
     def load_config(self):
         """This function loads the selected configuration in the recent ip
         list in the settings tab."""
@@ -958,41 +793,6 @@ class Ui(QtWidgets.QMainWindow):
                 port = values[1]
                 self.hostInput.setText(ip)
                 self.portInput.setText(port)
-
-    def default_config(self):
-        """This function removes all the data from the qt settings file.
-        Use with caution."""
-
-        message = "Do you want to restore all settings to default?\nThis action is unrevocable."
-        if critical_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
-            self.settings.clear()
-            self.ipList.clear()
-            self.setup()
-
-    def find_image(self):
-        """This function opens a different dialog, depending if
-        the user is in local or remote mode, to search for a cannolo image."""
-
-        # noinspection PyBroadException
-        try:
-            if self.remoteMode:
-                directory = self.directoryText.text()
-                splitted_dir = directory.rsplit("/", 1)
-                if len(splitted_dir[1].split(".")) > 1:
-                    self.client.send("list_iso " + directory.rsplit("/", 1)[0])
-                else:
-                    if directory[-1] != "/":
-                        directory += "/"
-                    self.client.send("list_iso " + directory)
-            else:
-                dialog = QtWidgets.QFileDialog()
-                directory = dialog.getExistingDirectory(
-                    self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly
-                )
-                self.directoryText.setText(directory)
-
-        except BaseException as ex:
-            print(f"GUI: Error in smart function [{ex}]")
 
     def set_default_cannolo(self, directory: str, img: str):
         """This function set the default cannolo path in the settings tab."""
@@ -1351,15 +1151,202 @@ class Ui(QtWidgets.QMainWindow):
         terminate all the active audio processes."""
 
         self.settings.setValue("remoteMode", str(self.remoteMode))
-        self.settings.setValue("remoteIp", self.hostInput.text())
-        self.settings.setValue("remotePort", self.portInput.text())
-        self.settings.setValue("cannoloDir", self.directoryText.text())
-        self.settings.setValue("theme", self.themeSelector.currentText())
-        self.client.stop(self.remoteMode)
+        self.settings.setValue("remoteIp", self.host)
+        self.settings.setValue("remotePort", self.port)
+        # self.settings.setValue("cannoloDir", self.directoryText.text())
+        # self.settings.setValue("theme", self.themeSelector.currentText())
+        # self.client.stop(self.remoteMode)
         try:
             self.audio_process.terminate()
         except:
             print("No audio process running.")
+
+
+class SmartTable(QtWidgets.QTableWidget):
+    def __init__(self, smart_results: dict):
+        super().__init__()
+        self.smart_results = smart_results
+
+
+class SettingsDialog(QtWidgets.QDialog):
+    def __init__(self, host: str, port: int, remoteMode: bool, settings: QtCore.QSettings, client: ReactorThread):
+        super(SettingsDialog, self).__init__()
+        uic.loadUi(PATH["SETTINGS_UI"], self)
+        self.host = host
+        self.port = port
+        self.remoteMode = remoteMode
+        self.settings = settings
+        self.client = client
+
+        """ Defining widgets """
+        self.localRadioBtn = self.findChild(QtWidgets.QRadioButton, "localRadioBtn")
+        self.remoteRadioBtn = self.findChild(QtWidgets.QRadioButton, "remoteRadioBtn")
+        self.ipLineEdit = self.findChild(QtWidgets.QLineEdit, "ipLineEdit")
+        self.portLineEdit = self.findChild(QtWidgets.QLineEdit, "portLineEdit")
+        self.restoreButton = self.findChild(QtWidgets.QPushButton, "restoreButton")
+        self.removeButton = self.findChild(QtWidgets.QPushButton, "removeButton")
+        self.defaultButton = self.findChild(QtWidgets.QPushButton, "defaultButton")
+        self.saveConfigButton = self.findChild(QtWidgets.QPushButton, "saveConfigButton")
+        self.ipList = self.findChild(QtWidgets.QListWidget, "ipList")
+        self.findButton = self.findChild(QtWidgets.QPushButton, "findButton")
+        self.cannoloLabel = self.findChild(QtWidgets.QLabel, "cannoloLabel")
+        self.cannoloLineEdit = self.findChild(QtWidgets.QLineEdit, "cannoloLineEdit")
+        self.cancelButton = self.findChild(QtWidgets.QPushButton, "cancelButton")
+        self.saveButton = self.findChild(QtWidgets.QPushButton, "saveButton")
+
+        """ Defining widgets functions """
+        self.saveButton.clicked.connect(self.save)
+        self.cancelButton.clicked.connect(self.cancel)
+        self.restoreButton.clicked.connect(self.restore_config)
+        self.defaultButton.clicked.connect(self.default_config)
+        self.removeButton.clicked.connect(self.remove_config)
+        self.saveConfigButton.clicked.connect(self.save_config)
+        self.findButton.clicked.connect(self.find_image)
+
+        # local radio button
+        if not self.remoteMode:
+            self.localRadioBtn.setChecked(True)
+        self.localRadioBtn.clicked.connect(self.set_remote_mode)
+
+        # remote radio button
+        if self.remoteMode:
+            self.remoteRadioBtn.setChecked(True)
+        self.remoteRadioBtn.clicked.connect(self.set_remote_mode)
+
+        """ Fill parameters in widgets """
+        # host input
+        self.ipLineEdit.setText(self.host)
+
+        # port input
+        if self.port is not None:
+            self.portLineEdit.setText(str(self.port))
+
+        """ Defining extremely important asd gif """
+        self.asdlabel = self.findChild(QtWidgets.QLabel, "asdLabel")
+        self.asdGif = QMovie(PATH["ASD"])
+        self.asdGif.setScaledSize(
+            QtCore.QSize().scaled(
+                self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio
+            )
+        )
+        self.asdGif.start()
+        self.asdlabel.setMovie(self.asdGif)
+
+    def set_remote_mode(self):
+        """This function set all the parameters related to the client-server
+        communications and other UI-related behaviours."""
+
+        if self.localRadioBtn.isChecked():
+            self.remoteMode = False
+            self.settings.setValue("latestHost", self.host)
+            self.settings.setValue("latestPort", self.port)
+            self.host = "127.0.0.1"
+            self.port = 1030
+            self.ipLineEdit.setText(self.host)
+            self.portLineEdit.setText(str(self.port))
+            self.ipLineEdit.setReadOnly(True)
+            self.portLineEdit.setReadOnly(True)
+            self.saveButton.setEnabled(False)
+            self.cannoloLineEdit.setReadOnly(True)
+            self.cannoloLabel.setText("")
+        elif self.remoteRadioBtn.isChecked():
+            if not self.remoteMode:
+                try:
+                    self.host = self.settings.value("latestHost")
+                    self.port = int(self.settings.value("latestPort"))
+                except:
+                    pass
+            self.remoteMode = True
+            self.ipLineEdit.setReadOnly(False)
+            self.ipLineEdit.setText(self.host)
+            self.portLineEdit.setReadOnly(False)
+            self.portLineEdit.setText(str(self.port))
+            self.saveButton.setEnabled(True)
+            self.cannoloLineEdit.setReadOnly(False)
+            self.cannoloLabel.setText(
+                "When in remote mode, the user must insert manually the cannolo image directory."
+            )
+
+    def save(self):
+        self.host = self.ipLineEdit.text()
+        self.port = self.portLineEdit.text()
+        self.hide()
+
+    def cancel(self):
+        self.restore_config()
+        self.hide()
+
+    def restore_config(self):
+        """This function delete all the edits made in the host and port input
+                in the settings tab."""
+
+        self.ipLineEdit.setText(self.host)
+        self.portLineEdit.setText(str(self.port))
+
+    def default_config(self):
+        """This function removes all the data from the qt settings file.
+                Use with caution."""
+
+        message = "Do you want to restore all settings to default?\nThis action is unrevocable."
+        if critical_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
+            self.settings.clear()
+            self.ipList.clear()
+
+    def remove_config(self):
+        """This function removes the selected configuration in the recent
+                ip list in the settings tab."""
+        try:
+            ip = self.ipList.currentItem().text()
+        except:
+            return
+        message = "Do you want to remove the selected configuration?"
+        if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
+            for key in self.settings.childKeys():
+                if ip in key:
+                    self.ipList.takeItem(self.ipList.row(self.ipList.currentItem()))
+                    self.settings.remove(key)
+
+    def save_config(self):
+        """This function saves the active host and port configuration in the qt settings
+        file, showing them in the recent ip list."""
+
+        ip = self.ipLineEdit.text()
+        port = self.portLineEdit.text()
+        if self.ipList.findItems(ip, Qt.MatchExactly):
+            message = "Do you want to overwrite the old configuration?"
+            if (
+                    warning_dialog(message, dialog_type="yes_no")
+                    == QtWidgets.QMessageBox.Yes
+            ):
+                self.settings.setValue("saved-" + ip, [ip, port])
+        else:
+            self.ipList.addItem(ip)
+            self.settings.setValue("saved-" + ip, [ip, port])
+
+    def find_image(self):
+        """This function opens a different dialog, depending if
+        the user is in local or remote mode, to search for a cannolo image."""
+
+        # noinspection PyBroadException
+        try:
+            if self.remoteMode:
+                directory = self.cannoloLineEdit.text()
+                splitted_dir = directory.rsplit("/", 1)
+                if len(splitted_dir[1].split(".")) > 1:
+                    self.client.send("list_iso " + directory.rsplit("/", 1)[0])
+                else:
+                    if directory[-1] != "/":
+                        directory += "/"
+                    self.client.send("list_iso " + directory)
+            else:
+                dialog = QtWidgets.QFileDialog()
+                directory = dialog.getExistingDirectory(
+                    self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly
+                )
+                self.directoryText.setText(directory)
+
+        except BaseException as ex:
+            print(f"GUI: Error in smart function [{ex}]")
 
 
 class LocalServer(QThread):
