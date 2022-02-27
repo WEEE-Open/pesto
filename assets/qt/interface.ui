@@ -360,7 +360,12 @@
     <property name="title">
      <string>Options</string>
     </property>
-    <addaction name="actionTheme"/>
+    <widget class="QMenu" name="themeMenu">
+     <property name="title">
+      <string>Theme</string>
+     </property>
+    </widget>
+    <addaction name="themeMenu"/>
     <addaction name="networkSettingsAction"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -397,11 +402,6 @@
     <string>Exit</string>
    </property>
   </action>
-  <action name="actionTheme">
-   <property name="text">
-    <string>Theme</string>
-   </property>
-  </action>
   <action name="networkSettingsAction">
    <property name="text">
     <string>Network settings</string>
@@ -423,6 +423,11 @@
   <action name="actionVersion">
    <property name="text">
     <string>Version</string>
+   </property>
+  </action>
+  <action name="actionasd">
+   <property name="text">
+    <string>asd</string>
    </property>
   </action>
  </widget>

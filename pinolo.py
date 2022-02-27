@@ -43,11 +43,7 @@ PATH = {
     "WEEE": "/assets/backgrounds/weee_logo.png",
     "VAPORWAVEBG": "/assets/backgrounds/vaporwave.png",
     "SERVER": "/basilico.py",
-    "DEFAULTTHEME": "/themes/defaultTheme.css",
-    "DARKTHEME": "/themes/darkTheme.css",
-    "VAPORTHEME": "/themes/vaporwaveTheme.css",
-    "ASDTHEME": "/themes/asdTheme.css",
-    "WEEETHEME": "/themes/weeeTheme.css",
+    "THEMES": "/themes/",
 }
 
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
@@ -73,7 +69,7 @@ class Ui(QtWidgets.QMainWindow):
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
         self.manual_cannolo = False
         self.selected_drive = None
-        self.theme = None
+        self.active_theme = None
         self.pixmapAspectRatio = None
         self.pixmap = None
         self.pixmapResizingNeeded = None
@@ -101,13 +97,21 @@ class Ui(QtWidgets.QMainWindow):
         self.stdProcedureButton = self.findChild(QtWidgets.QPushButton, "stdProcButton")
 
         """ Defining dialogs """
-        self.dialog = SettingsDialog(self.host, self.port, self.remoteMode, self.settings, self.client)
+        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.settings, self.client)
 
         """ Defining menu actions """
         self.newSessionAction = self.findChild(QtWidgets.QAction, "newSessionAction")
         self.refreshAction = self.findChild(QtWidgets.QAction, "refreshAction")
         self.exitAction = self.findChild(QtWidgets.QAction, "exitAction")
         self.networkSettingsAction = self.findChild(QtWidgets.QAction, "networkSettingsAction")
+        self.themeMenu = self.findChild(QtWidgets.QMenu, "themeMenu")
+        action = list()
+        action.append(self.themeMenu.addAction("Default"))
+        action[-1].triggered.connect(lambda: self.set_theme("default"))
+        for theme_file in os.listdir(PATH["THEMES"]):
+            theme = theme_file.rstrip(".css")
+            action.append(self.themeMenu.addAction(theme))
+            action[-1].triggered.connect((lambda t: lambda: self.set_theme(t))(theme))
 
         """ Defining context menu actions """
         self.sleep_action = QtWidgets.QAction("Sleep", self)
@@ -118,8 +122,6 @@ class Ui(QtWidgets.QMainWindow):
         self.remove_completed_action = QtWidgets.QAction("Remove Completed", self)
         self.remove_queued_action = QtWidgets.QAction("Remove Queued", self)
         self.info_action = QtWidgets.QAction("Info", self)
-        self.asdGif = QMovie(PATH["ASD"])
-        # self.asdGif.start()
 
         """ Initialization operations """
         self.set_items_functions()
@@ -327,7 +329,7 @@ class Ui(QtWidgets.QMainWindow):
         os.popen("python pinolo.py")
 
     def open_settings(self):
-        self.dialog.show()
+        self.settingsDialog.show()
 
     def test_badblocks(self):
         """This function send to the server a badblocks command.
@@ -815,99 +817,85 @@ class Ui(QtWidgets.QMainWindow):
         for drive in drives:
             self.client.send(f"queued_cannolo {drive[0]} {directory}")
 
-    def set_theme(self):
+    def set_theme(self, theme: str):
         """This function gets the stylesheet of the theme and sets the widgets aspect.
         Only for the Vaporwave theme, it will search a .mp3 file that will be played in background.
         Just for the meme. asd"""
 
         self.pixmapResizingNeeded = False
         self.pixmap = None
-        self.theme = self.themeSelector.currentText()
 
-        # Vaporwave audio search
-        if self.theme == "Vaporwave":
-            try:
-                f = open("assets/vaporwave_theme.mp3")
-                f.close()
-                self.audio_process = Process(
-                    target=playsound.playsound, args=("assets/vaporwave_theme.mp3",)
-                )
-                self.audio_process.start()
-            except IOError:
-                self.statusBar().showMessage("assets/vaporwave_theme.mp3 not found.")
-        else:
-            try:
-                self.audio_process.terminate()
-            except:
-                print("No audio")
-
-        # Theme change
-        if self.theme == "Dark":
-            with open(PATH["DARKTHEME"], "r") as file:
-                self.app.setStyleSheet(file.read())
-            self.reloadButton.setIcon(QIcon(PATH["WHITERELOAD"]))
-            self.backgroundLabel.clear()
-            self.reloadButton.setIconSize(QtCore.QSize(25, 25))
-            self.asd_gif_set(PATH["ASD"])
-            self.cannoloLabel.setStyleSheet("color: yellow")
-        elif self.theme == "Vaporwave":
-            with open(PATH["VAPORTHEME"], "r") as file:
-                self.app.setStyleSheet(file.read())
-            self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
-            self.reloadButton.setIconSize(QtCore.QSize(50, 50))
-            self.backgroundLabel.clear()
-            self.pixmap = QtGui.QPixmap(PATH["VAPORWAVEBG"])
-            self.pixmapAspectRatio = self.pixmap.width() / self.pixmap.height()
-            self.backgroundLabel.setPixmap(self.pixmap)
-            self.pixmapResizingNeeded = True
-            self.resize_bg()
-            self.asd_gif_set(PATH["ASDVAP"])
-            self.cannoloLabel.setStyleSheet("color: rgb(252, 186, 3)")
-        elif self.theme == "Asd":
-            with open(PATH["ASDTHEME"], "r") as file:
-                self.app.setStyleSheet(file.read())
-            # background asd gif setup
-            self.movie = QMovie(PATH["ASD"])
-            self.movie.setScaledSize(
-                QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio)
-            )
-            self.movie.start()
-            self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
-            self.backgroundLabel.setMovie(self.movie)
-            self.reloadButton.setIconSize(QtCore.QSize(25, 25))
-            self.asd_gif_set(PATH["ASD"])
-            self.cannoloLabel.setStyleSheet("color: blue")
-        elif self.theme == "WeeeOpen":
-            set_stylesheet(self.app, PATH["WEEETHEME"])
-            self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
-            self.backgroundLabel.clear()
-            self.backgroundLabel.setPixmap(
-                QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
-            )
-            self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
-            self.reloadButton.setIconSize(QtCore.QSize(25, 25))
-            self.asd_gif_set(PATH["ASD"])
-        elif self.theme == "Default":
+        if theme == "default":
             self.app.setStyleSheet("")
-            with open(PATH["DEFAULTTHEME"], "r") as file:
-                self.app.setStyleSheet(file.read())
+            self.app.setStyleSheet("QWidget {" "font-size: 10pt;" "}")
             self.backgroundLabel.clear()
-            self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
-            self.reloadButton.setIconSize(QtCore.QSize(25, 25))
             self.asd_gif_set(PATH["ASD"])
-            self.cannoloLabel.setStyleSheet("color: blue")
+            self.settingsDialog.cannoloLabel.setStyleSheet("color: blue")
+            self.active_theme = "default"
+        else:
+            with open(f"{PATH['THEMES']}{theme}.css", "r") as file:
+                self.app.setStyleSheet(file.read())
+            if self.active_theme == "Vaporwave":
+                try:
+                    f = open("assets/vaporwave_theme.mp3")
+                    f.close()
+                    self.audio_process = Process(
+                        target=playsound.playsound, args=("assets/vaporwave_theme.mp3",)
+                    )
+                    self.audio_process.start()
+                except IOError:
+                    self.statusBar().showMessage("assets/vaporwave_theme.mp3 not found.")
+                self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
+                self.reloadButton.setIconSize(QtCore.QSize(50, 50))
+                self.backgroundLabel.clear()
+                self.pixmap = QtGui.QPixmap(PATH["VAPORWAVEBG"])
+                self.pixmapAspectRatio = self.pixmap.width() / self.pixmap.height()
+                self.backgroundLabel.setPixmap(self.pixmap)
+                self.pixmapResizingNeeded = True
+                self.resize_bg()
+                self.asd_gif_set(PATH["ASDVAP"])
+                # self.cannoloLabel.setStyleSheet("color: rgb(252, 186, 3)")
+            else:
+                try:
+                    self.audio_process.terminate()
+                except:
+                    print("No audio")
+
+                self.backgroundLabel.clear()
+                self.asd_gif_set(PATH["ASD"])
+                if self.active_theme == "asd":
+                    # background asd gif setup
+                    self.movie = QMovie(PATH["ASD"])
+                    self.movie.setScaledSize(
+                        QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio)
+                    )
+                    self.movie.start()
+                    self.backgroundLabel.setMovie(self.movie)
+                    self.asd_gif_set(PATH["ASD"])
+                elif self.active_theme == "weeeopen":
+                    self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
+                    self.backgroundLabel.clear()
+                    self.backgroundLabel.setPixmap(
+                        QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
+                    )
+                    self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
+                    self.reloadButton.setIconSize(QtCore.QSize(25, 25))
+                    self.asd_gif_set(PATH["ASD"])
+
+        self.settings.setValue("last_theme", theme)
+        self.active_theme = theme
 
     def asd_gif_set(self, dir: str):
         """This function sets the asd gif for the settings tab."""
 
-        self.asdGif = QMovie(dir)
-        self.asdGif.setScaledSize(
+        self.settingsDialog.asdGif = QMovie(dir)
+        self.settingsDialog.asdGif.setScaledSize(
             QtCore.QSize().scaled(
-                self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio
+                self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio
             )
         )
-        self.asdGif.start()
-        self.asdlabel.setMovie(self.asdGif)
+        self.settingsDialog.asdGif.start()
+        self.settingsDialog.asdlabel.setMovie(self.settingsDialog.asdGif)
 
     def server_com(self, cmd: str, st2: str):
         """This function tries to reconnect the client to the local server.
@@ -1126,12 +1114,12 @@ class Ui(QtWidgets.QMainWindow):
             )
 
         elif cmd == "list_iso":
-            self.dialog = CannoloDialog(PATH, params)
+            self.settingsDialog = CannoloDialog(PATH, params)
             if self.manual_cannolo:
-                self.dialog.update.connect(self.use_cannolo_img)
+                self.settingsDialog.update.connect(self.use_cannolo_img)
                 self.manual_cannolo = False
             else:
-                self.dialog.update.connect(self.set_default_cannolo)
+                self.settingsDialog.update.connect(self.set_default_cannolo)
 
         elif cmd == "error":
             message = f"{params['message']}"
