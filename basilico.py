@@ -1367,7 +1367,7 @@ def expand_partition(dev: str):
     s = os.stat(dev).st_mode
     if stat.S_ISBLK(s):
         os.system(f"sudo growpart {dev} 1")
-
+        os.system(f"resize2fs {dev}1")
 
 TARALLO = None
 CLOSE_AT_END = False
