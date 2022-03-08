@@ -1369,6 +1369,7 @@ def expand_partition(dev: str):
         os.system(f"sudo growpart {dev} 1")
         os.system(f"resize2fs {dev}1")
 
+
 TARALLO = None
 CLOSE_AT_END = False
 CLOSE_AT_END_LOCK = threading.Lock()
