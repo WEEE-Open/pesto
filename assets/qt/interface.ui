@@ -173,6 +173,9 @@
                 <height>30</height>
                </size>
               </property>
+              <property name="toolTip">
+               <string>Ctrl+S</string>
+              </property>
               <property name="text">
                <string>Standard procedure</string>
               </property>
@@ -198,6 +201,9 @@
               <property name="cursor">
                <cursorShape>ArrowCursor</cursorShape>
               </property>
+              <property name="toolTip">
+               <string>Ctrl+E</string>
+              </property>
               <property name="text">
                <string>Erase</string>
               </property>
@@ -217,8 +223,14 @@
               <property name="cursor">
                <cursorShape>ArrowCursor</cursorShape>
               </property>
+              <property name="toolTip">
+               <string>Ctrl+Alt+S</string>
+              </property>
               <property name="text">
                <string>Smart check</string>
+              </property>
+              <property name="shortcut">
+               <string>Ctrl+Alt+S</string>
               </property>
              </widget>
             </item>
@@ -229,6 +241,9 @@
                 <width>16777215</width>
                 <height>30</height>
                </size>
+              </property>
+              <property name="toolTip">
+               <string>Ctrl+C</string>
               </property>
               <property name="text">
                <string>Load system</string>
@@ -344,7 +359,7 @@
      <x>0</x>
      <y>0</y>
      <width>938</width>
-     <height>21</height>
+     <height>27</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

@@ -62,12 +62,15 @@ def warning_dialog(message: str, dialog_type: str):
 class CannoloDialog(QtWidgets.QDialog):
     update = QtCore.pyqtSignal(str, str, name="event")
 
-    def __init__(self, path, images: list):
+    def __init__(self, parent: QtWidgets.QDialog, path, images: list):
         super(CannoloDialog, self).__init__()
+        self._parent = parent
         self.path = path
         self.images = images
         self.files = []
         uic.loadUi(self.path["CANNOLOUI"], self)
+
+        self.setWindowTitle("Select default image")
 
         self.label = self.findChild(QtWidgets.QLabel, "dialogLabel")
         self.isoList = self.findChild(QtWidgets.QListWidget, "isoList")
