@@ -68,43 +68,27 @@ class Ui(QtWidgets.QMainWindow):
         if os.getenv("TEST_MODE") == "1":
             uic.loadUi(PATH["UI_TEST"], self)
             self.testDiskTable = self.findChild(QtWidgets.QTableWidget, "testDiskTable")
-            self.testDiskTable.setSelectionBehavior(
-                QtWidgets.QAbstractItemView.SelectRows
-            )
+            self.testDiskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
             self.testDiskTable.horizontalHeader().setStretchLastSection(True)
             self.testDiskTable.setColumnWidth(0, 65)
             self.testDiskTable.setColumnWidth(1, 70)
             self.testDiskTable.setColumnWidth(2, 60)
             self.testDiskTable.horizontalHeader().setStretchLastSection(True)
-            self.testDiskTable.horizontalHeader().setSectionResizeMode(
-                QtWidgets.QHeaderView.Fixed
-            )
+            self.testDiskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
             self.testDiskTable.cellClicked.connect(self.greyout_buttons)
-            self.testRefreshBtn = self.findChild(
-                QtWidgets.QPushButton, "testRefreshBtn"
-            )
+            self.testRefreshBtn = self.findChild(QtWidgets.QPushButton, "testRefreshBtn")
             self.testRefreshBtn.clicked.connect(self.refresh)
-            self.testBadblocksBtn = self.findChild(
-                QtWidgets.QPushButton, "testBadblocksBtn"
-            )
+            self.testBadblocksBtn = self.findChild(QtWidgets.QPushButton, "testBadblocksBtn")
             self.testBadblocksBtn.clicked.connect(self.test_badblocks)
-            self.testSmartctlBtn = self.findChild(
-                QtWidgets.QPushButton, "testSmartctlBtn"
-            )
+            self.testSmartctlBtn = self.findChild(QtWidgets.QPushButton, "testSmartctlBtn")
             self.testSmartctlBtn.clicked.connect(self.test_smartctl)
-            self.testCannoloBtn = self.findChild(
-                QtWidgets.QPushButton, "testCannoloBtn"
-            )
+            self.testCannoloBtn = self.findChild(QtWidgets.QPushButton, "testCannoloBtn")
             self.testCannoloBtn.clicked.connect(self.test_cannolo)
             self.testSleepBtn = self.findChild(QtWidgets.QPushButton, "testSleepBtn")
             self.testSleepBtn.clicked.connect(self.test_sleep)
-            self.testStdProcBtn = self.findChild(
-                QtWidgets.QPushButton, "testStdProcBtn"
-            )
+            self.testStdProcBtn = self.findChild(QtWidgets.QPushButton, "testStdProcBtn")
             self.testStdProcBtn.clicked.connect(self.test_std_proc)
-            self.testStdProcNoCannoloBtn = self.findChild(
-                QtWidgets.QPushButton, "testStdProcNoCannoloBtn"
-            )
+            self.testStdProcNoCannoloBtn = self.findChild(QtWidgets.QPushButton, "testStdProcNoCannoloBtn")
             self.testStdProcNoCannoloBtn.clicked.connect(self.test_std_proc_no_cannolo)
         else:
             uic.loadUi(PATH["UI"], self)
@@ -122,9 +106,7 @@ class Ui(QtWidgets.QMainWindow):
         self.pixmapResizingNeeded = None
         self.critical_mounts = []
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
-        self.audio_process = Process(
-            target=playsound.playsound, args=("assets/vaporwave_theme.mp3",)
-        )
+        self.audio_process = Process(target=playsound.playsound, args=("assets/vaporwave_theme.mp3",))
 
         """ Setting up background label """
         self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
@@ -168,11 +150,7 @@ class Ui(QtWidgets.QMainWindow):
         self.info_action = QtWidgets.QAction("Info", self)
         self.asdlabel = self.findChild(QtWidgets.QLabel, "asdLabel")
         self.asdGif = QMovie(PATH["ASD"])
-        self.asdGif.setScaledSize(
-            QtCore.QSize().scaled(
-                self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio
-            )
-        )
+        self.asdGif.setScaledSize(QtCore.QSize().scaled(self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio))
         self.asdGif.start()
         self.asdlabel.setMovie(self.asdGif)
 
@@ -187,12 +165,8 @@ class Ui(QtWidgets.QMainWindow):
         if self.backgroundLabel is None:
             return
 
-        self.globalTab.resize(
-            self.centralWidget().width(), self.centralWidget().height()
-        )
-        self.backgroundLabel.resize(
-            self.centralWidget().width(), self.centralWidget().height()
-        )
+        self.globalTab.resize(self.centralWidget().width(), self.centralWidget().height())
+        self.backgroundLabel.resize(self.centralWidget().width(), self.centralWidget().height())
 
         # Background image vaporwave theme scaling
         self.resize_bg()
@@ -201,13 +175,9 @@ class Ui(QtWidgets.QMainWindow):
         if self.pixmapResizingNeeded:
             aspectRatio = self.backgroundLabel.width() / self.backgroundLabel.height()
             if aspectRatio > self.pixmapAspectRatio:
-                pixmap = self.pixmap.scaledToWidth(
-                    self.backgroundLabel.width(), Qt.SmoothTransformation
-                )
+                pixmap = self.pixmap.scaledToWidth(self.backgroundLabel.width(), Qt.SmoothTransformation)
             else:
-                pixmap = self.pixmap.scaledToHeight(
-                    self.backgroundLabel.height(), Qt.SmoothTransformation
-                )
+                pixmap = self.pixmap.scaledToHeight(self.backgroundLabel.height(), Qt.SmoothTransformation)
             self.backgroundLabel.setPixmap(pixmap)
 
     def on_table_select(self, selected):
@@ -245,9 +215,7 @@ class Ui(QtWidgets.QMainWindow):
         self.diskTable.setColumnWidth(1, 70)
         self.diskTable.setColumnWidth(2, 60)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
-        self.diskTable.horizontalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.Fixed
-        )
+        self.diskTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
         self.diskTable.cellClicked.connect(self.greyout_buttons)
         self.diskTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         self.sleep_action.triggered.connect(self.sleep)
@@ -268,9 +236,7 @@ class Ui(QtWidgets.QMainWindow):
         self.queueTable.setColumnWidth(3, 65)
         self.queueTable.setColumnWidth(4, 50)
         self.queueTable.horizontalHeader().setStretchLastSection(True)
-        self.queueTable.horizontalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.Fixed
-        )
+        self.queueTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
         self.queueTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         self.stop_action.triggered.connect(self.queue_stop)
         self.queueTable.addAction(self.stop_action)
@@ -366,9 +332,7 @@ class Ui(QtWidgets.QMainWindow):
 
         # cannolo label
         if self.remoteMode:
-            self.cannoloLabel.setText(
-                "When in remote mode, the user must insert manually the cannolo image directory."
-            )
+            self.cannoloLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
         else:
             self.cannoloLabel.setText("")
 
@@ -428,9 +392,7 @@ class Ui(QtWidgets.QMainWindow):
 
         print("GUI_TEST: queued_badblocks")
         try:
-            self.client.send(
-                f"queued_badblocks {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
+            self.client.send(f"queued_badblocks {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
         except BaseException:
             print("GUI_TEST: Error in test_badblocks test.")
 
@@ -440,9 +402,7 @@ class Ui(QtWidgets.QMainWindow):
 
         print("GUI_TEST: queued_cannolo")
         try:
-            self.client.send(
-                f"queued_cannolo {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
+            self.client.send(f"queued_cannolo {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
         except BaseException:
             print("GUI_TEST: Error in cannolo test.")
 
@@ -452,9 +412,7 @@ class Ui(QtWidgets.QMainWindow):
 
         print("GUI_TEST: queued_sleep")
         try:
-            self.client.send(
-                f"queued_sleep {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
+            self.client.send(f"queued_sleep {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
         except BaseException:
             print("GUI_TEST: Error in sleep test.")
 
@@ -464,9 +422,7 @@ class Ui(QtWidgets.QMainWindow):
 
         print("GUI_TEST: queued_smartctl")
         try:
-            self.client.send(
-                f"queued_smartctl {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
+            self.client.send(f"queued_smartctl {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
         except BaseException:
             print("GUI_TEST: Error in smartctl test.")
 
@@ -476,9 +432,7 @@ class Ui(QtWidgets.QMainWindow):
 
         print("GUI_TEST: queued_load_to_tarallo")
         try:
-            self.client.send(
-                f"queued_load_to_tarallo {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
+            self.client.send(f"queued_load_to_tarallo {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}")
         except BaseException:
             print("GUI_TEST: Error in load to tarallo test.")
 
@@ -613,10 +567,7 @@ class Ui(QtWidgets.QMainWindow):
             drives = self.get_multiple_drive_selection()
             for drive in drives:
                 if drive[1] == "":
-                    message = (
-                        f"{drive[0]} disk doesn't have a TARALLO id.\n"
-                        "Would you like to create the item on TARALLO?"
-                    )
+                    message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
                     dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
                     if dialog_result == QtWidgets.QMessageBox.Yes:
                         self.upload_to_tarallo(std=True, drive=drive[0])
@@ -651,10 +602,7 @@ class Ui(QtWidgets.QMainWindow):
                         message += f" {drive[0]}"
                 else:
                     message += f"Disk: {drives[0][0]}"
-                if (
-                    critical_dialog(message, dialog_type="yes_no")
-                    != QtWidgets.QMessageBox.Yes
-                ):
+                if critical_dialog(message, dialog_type="yes_no") != QtWidgets.QMessageBox.Yes:
                     return
             for drive in drives:
                 self.client.send("queued_badblocks " + drive[0])
@@ -704,12 +652,8 @@ class Ui(QtWidgets.QMainWindow):
                 self.manual_cannolo = True
                 return
             for drive in drives:
-                print(
-                    f"GUI: Sending cannolo to {drive[0]} with {self.directoryText.text()}"
-                )
-                self.client.send(
-                    f"queued_cannolo {drive[0]} {self.directoryText.text()}"
-                )
+                print(f"GUI: Sending cannolo to {drive[0]} with {self.directoryText.text()}")
+                self.client.send(f"queued_cannolo {drive[0]} {self.directoryText.text()}")
 
         except BaseException:
             print("GUI: Error in cannolo function.")
@@ -722,16 +666,11 @@ class Ui(QtWidgets.QMainWindow):
 
         if not std:
             if self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
-                message = (
-                    f"The drive {self.selected_drive.text()} already has a TARALLO id."
-                )
+                message = f"The drive {self.selected_drive.text()} already has a TARALLO id."
                 warning_dialog(message, dialog_type="ok")
                 return
             message = "Do you want to load the disk informations into TARALLO?"
-            if (
-                warning_dialog(message, dialog_type="yes_no")
-                == QtWidgets.QMessageBox.No
-            ):
+            if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.No:
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
@@ -787,9 +726,7 @@ class Ui(QtWidgets.QMainWindow):
             self.portInput.setText(str(self.port))
             self.saveButton.setEnabled(True)
             self.directoryText.setReadOnly(False)
-            self.cannoloLabel.setText(
-                "When in remote mode, the user must insert manually the cannolo image directory."
-            )
+            self.cannoloLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
 
     def refresh(self):
         """This function read the host and port inputs in the settings
@@ -840,19 +777,11 @@ class Ui(QtWidgets.QMainWindow):
                 if self.queueTable.rowCount() != 0:
                     label = QtWidgets.QLabel()
                     label: QtWidgets.QLabel
-                    label.setPixmap(
-                        QtGui.QPixmap(PATH["PENDING"]).scaled(
-                            25, 25, QtCore.Qt.KeepAspectRatio
-                        )
-                    )
+                    label.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
                     label.setObjectName(QUEUE_QUEUED)
                 else:
                     label: QtWidgets.QLabel
-                    label.setPixmap(
-                        QtGui.QPixmap(PATH["PROGRESS"]).scaled(
-                            25, 25, QtCore.Qt.KeepAspectRatio
-                        )
-                    )
+                    label.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
                     label.setObjectName(QUEUE_PROGRESS)
             elif entry == "Progress":  # PROGRESS
                 label = QtWidgets.QProgressBar()
@@ -883,9 +812,7 @@ class Ui(QtWidgets.QMainWindow):
         if self.selected_drive is not None:
             self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if self.selected_drive in self.critical_mounts:
-                self.statusBar().showMessage(
-                    f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted."
-                )
+                self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
                 self.eraseButton.setEnabled(False)
                 self.stdProcedureButton.setEnabled(False)
                 self.cannoloButton.setEnabled(False)
@@ -895,15 +822,11 @@ class Ui(QtWidgets.QMainWindow):
                 self.cannoloButton.setEnabled(True)
 
         try:
-            self.selected_drive = self.testDiskTable.item(
-                self.testDiskTable.currentRow(), 0
-            )
+            self.selected_drive = self.testDiskTable.item(self.testDiskTable.currentRow(), 0)
             if self.selected_drive is not None:
                 self.selected_drive = self.selected_drive.text().lstrip("Disk ")
                 if self.selected_drive in self.critical_mounts:
-                    self.statusBar().showMessage(
-                        f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted."
-                    )
+                    self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
                     self.testBadblocksBtn.setEnabled(False)
                     self.testCannoloBtn.setEnabled(False)
                     self.testStdProcBtn.setEnabled(False)
@@ -924,10 +847,7 @@ class Ui(QtWidgets.QMainWindow):
         port = self.portInput.text()
         if self.ipList.findItems(ip, Qt.MatchExactly):
             message = "Do you want to overwrite the old configuration?"
-            if (
-                warning_dialog(message, dialog_type="yes_no")
-                == QtWidgets.QMessageBox.Yes
-            ):
+            if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
                 self.settings.setValue("saved-" + ip, [ip, port])
         else:
             self.ipList.addItem(ip)
@@ -986,9 +906,7 @@ class Ui(QtWidgets.QMainWindow):
                     self.client.send("list_iso " + directory)
             else:
                 dialog = QtWidgets.QFileDialog()
-                directory = dialog.getExistingDirectory(
-                    self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly
-                )
+                directory = dialog.getExistingDirectory(self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly)
                 self.directoryText.setText(directory)
 
         except BaseException as ex:
@@ -1029,9 +947,7 @@ class Ui(QtWidgets.QMainWindow):
             try:
                 f = open("assets/vaporwave_theme.mp3")
                 f.close()
-                self.audio_process = Process(
-                    target=playsound.playsound, args=("assets/vaporwave_theme.mp3",)
-                )
+                self.audio_process = Process(target=playsound.playsound, args=("assets/vaporwave_theme.mp3",))
                 self.audio_process.start()
             except IOError:
                 self.statusBar().showMessage("assets/vaporwave_theme.mp3 not found.")
@@ -1068,9 +984,7 @@ class Ui(QtWidgets.QMainWindow):
                 self.app.setStyleSheet(file.read())
             # background asd gif setup
             self.movie = QMovie(PATH["ASD"])
-            self.movie.setScaledSize(
-                QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio)
-            )
+            self.movie.setScaledSize(QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio))
             self.movie.start()
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.backgroundLabel.setMovie(self.movie)
@@ -1081,9 +995,7 @@ class Ui(QtWidgets.QMainWindow):
             set_stylesheet(self.app, PATH["WEEETHEME"])
             self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
             self.backgroundLabel.clear()
-            self.backgroundLabel.setPixmap(
-                QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
-            )
+            self.backgroundLabel.setPixmap(QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio))
             self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
             self.reloadButton.setIconSize(QtCore.QSize(25, 25))
             self.asd_gif_set(PATH["ASD"])
@@ -1101,11 +1013,7 @@ class Ui(QtWidgets.QMainWindow):
         """This function sets the asd gif for the settings tab."""
 
         self.asdGif = QMovie(dir)
-        self.asdGif.setScaledSize(
-            QtCore.QSize().scaled(
-                self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio
-            )
-        )
+        self.asdGif.setScaledSize(QtCore.QSize().scaled(self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio))
         self.asdGif.start()
         self.asdlabel.setMovie(self.asdGif)
 
@@ -1131,34 +1039,19 @@ class Ui(QtWidgets.QMainWindow):
                     for queue_row in range(queue_rows + 1):
                         queue_disk_label = self.queueTable.item(queue_row, 2)
                         queue_progress = self.queueTable.cellWidget(queue_row, 4)
-                        if (
-                            self.diskTable.item(disk_row, 0).text()
-                            in self.critical_mounts
-                        ):
+                        if self.diskTable.item(disk_row, 0).text() in self.critical_mounts:
                             continue
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
-                            queue_progress = queue_progress.findChild(
-                                QtWidgets.QProgressBar
-                            ).value()
-                            if queue_disk_label == disk_label and queue_progress != (
-                                100 * PROGRESS_BAR_SCALE
-                            ):
-                                self.diskTable.item(disk_row, 0).setBackground(
-                                    Qt.yellow
-                                )
+                            queue_progress = queue_progress.findChild(QtWidgets.QProgressBar).value()
+                            if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
+                                self.diskTable.item(disk_row, 0).setBackground(Qt.yellow)
                                 self.diskTable.item(disk_row, 0).setForeground(Qt.black)
                                 break
                         if queue_row == queue_rows:
-                            default_foreground = self.diskTable.item(
-                                disk_row, 1
-                            ).foreground()
-                            self.diskTable.item(disk_row, 0).setBackground(
-                                Qt.transparent
-                            )
-                            self.diskTable.item(disk_row, 0).setForeground(
-                                default_foreground
-                            )
+                            default_foreground = self.diskTable.item(disk_row, 1).foreground()
+                            self.diskTable.item(disk_row, 0).setBackground(Qt.transparent)
+                            self.diskTable.item(disk_row, 0).setForeground(default_foreground)
 
     def set_disk_table_item(self, table: QtWidgets.QTableWidget, row: int, drive: dict):
         table.setRowCount(row + 1)
@@ -1174,9 +1067,7 @@ class Ui(QtWidgets.QMainWindow):
             item = table.item(row, 0)
             item.setBackground(QtGui.QColor(255, 165, 0, 255))
             item.setForeground(Qt.black)
-            item.setToolTip(
-                "Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh."
-            )
+            item.setToolTip("Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh.")
 
     def gui_update(self, cmd: str, params: str):
         """
@@ -1193,9 +1084,7 @@ class Ui(QtWidgets.QMainWindow):
             params = json.loads(params)
             params: Union[dict, list]
         except json.decoder.JSONDecodeError:
-            print(
-                f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}"
-            )
+            print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
         if cmd == "queue_status" or cmd == "get_queue":
             if cmd == "queue_status":
@@ -1216,9 +1105,7 @@ class Ui(QtWidgets.QMainWindow):
                             mode=param["command"],
                         )
                         rows += 1
-                progress_bar = self.queueTable.cellWidget(row, 4).findChild(
-                    QtWidgets.QProgressBar
-                )
+                progress_bar = self.queueTable.cellWidget(row, 4).findChild(QtWidgets.QProgressBar)
                 status_cell = self.queueTable.cellWidget(row, 3)
                 progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
 
@@ -1226,39 +1113,19 @@ class Ui(QtWidgets.QMainWindow):
                     pass
                 elif param["stopped"]:
                     # TODO: we don't have an icon for this, maybe we should
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["STOP"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["error"]:
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["ERROR"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["ERROR"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["finished"]:  # and not error
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["OK"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["OK"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["started"]:
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["PROGRESS"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_PROGRESS)
                 else:
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["PENDING"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_QUEUED)
 
                 if "text" in param:
@@ -1285,19 +1152,12 @@ class Ui(QtWidgets.QMainWindow):
             for tab in range(tab_count + 1):
                 if self.smartTabs.tabText(tab) == params["disk"]:
                     message = f"There are already SMART results for {params['disk']}.\nDo you want to overwrite them?"
-                    if (
-                        warning_dialog(message, dialog_type="yes_no")
-                        == QtWidgets.QMessageBox.Yes
-                    ):
+                    if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
                         self.smartTabs.removeTab(tab)
-                        self.smartTabs.add_tab(
-                            params["disk"], params["status"], params["updated"], text
-                        )
+                        self.smartTabs.add_tab(params["disk"], params["status"], params["updated"], text)
                     break
                 elif tab == tab_count:
-                    self.smartTabs.add_tab(
-                        params["disk"], params["status"], params["updated"], text
-                    )
+                    self.smartTabs.add_tab(params["disk"], params["status"], params["updated"], text)
 
         elif cmd == "connection_failed":
             message = params["reason"]
@@ -1307,23 +1167,16 @@ class Ui(QtWidgets.QMainWindow):
                 self.localServer.start()
                 return
             if "Connection was refused by other side" in message:
-                message = (
-                    "Cannot find BASILICO server.\nCheck if it's running in the "
-                    "targeted machine."
-                )
+                message = "Cannot find BASILICO server.\nCheck if it's running in the " "targeted machine."
             warning_dialog(message, dialog_type="ok")
 
         elif cmd == "connection_lost":
-            self.statusBar().showMessage(
-                f"⚠ Connection lost. Press the reload button to reconnect."
-            )
+            self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
             self.queueTable.setRowCount(0)
             self.diskTable.setRowCount(0)
 
         elif cmd == "connection_made":
-            self.statusBar().showMessage(
-                f"Connected to {params['host']}:{params['port']}"
-            )
+            self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
 
         elif cmd == "list_iso":
             self.dialog = CannoloDialog(PATH, params)

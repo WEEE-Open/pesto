@@ -48,9 +48,7 @@ class Client(LineOnlyReceiver):
         self.send_msg("get_disks")
         self.send_msg("get_queue")
 
-    def disconnect(
-        self, reactor=None, factory=None, host=None, port=None, isReconnection=False
-    ):
+    def disconnect(self, reactor=None, factory=None, host=None, port=None, isReconnection=False):
         try:
             self.transport.loseConnection()
             if isReconnection:
@@ -69,9 +67,7 @@ class ClientFactory(protocol.ClientFactory):
 
     protocol = Client
 
-    def __init__(
-        self, update_event: QtCore.pyqtSignal, host: str, port: int, remoteMode: bool
-    ):
+    def __init__(self, update_event: QtCore.pyqtSignal, host: str, port: int, remoteMode: bool):
         self.updateEvent = update_event
         self.host = host
         self.port = port
@@ -119,9 +115,7 @@ class ReactorThread(QThread):
         self.port = port
         self.remoteMode = remoteMode
         self.protocol = Client
-        self.factory = ClientFactory(
-            self.updateEvent, self.host, self.port, self.remoteMode
-        )
+        self.factory = ClientFactory(self.updateEvent, self.host, self.port, self.remoteMode)
         self.reactor = reactor
 
     def run(self) -> None:

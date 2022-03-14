@@ -26,9 +26,7 @@ class Disk:
     def __init__(self, lsblk, tarallo: Optional[Tarallo.Tarallo]):
         self._lsblk = lsblk
         if "path" not in self._lsblk:
-            raise RuntimeError(
-                "lsblk did not provide path for this disk: " + self._lsblk
-            )
+            raise RuntimeError("lsblk did not provide path for this disk: " + self._lsblk)
         self._path = str(self._lsblk["path"])
         self._mountpoint_map = self._lsblk["mountpoint_map"]
         del self._lsblk["mountpoint_map"]
@@ -164,9 +162,7 @@ class Disk:
         if "serial" not in self._lsblk:
             self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(
-                    f"Disk {self._path} has no serial number"
-                )
+                raise ErrorThatCanBeManuallyFixed(f"Disk {self._path} has no serial number")
 
         sn = self._lsblk["serial"]
         sn: str
@@ -184,36 +180,24 @@ class Disk:
             else:
                 self._code = None
                 if stop_on_error:
-                    raise ErrorThatCanBeManuallyFixed(
-                        f"Duplicate codes for {self._path}: {' '.join(codes)}, S/N is {sn}"
-                    )
+                    raise ErrorThatCanBeManuallyFixed(f"Duplicate codes for {self._path}: {' '.join(codes)}, S/N is {sn}")
         except Errors.NoInternetConnectionError:
             self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(
-                    f"Tarallo lookup for disk with S/N {sn} failed due to a connection error"
-                )
+                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed due to a connection error")
         except Errors.ServerError:
             self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(
-                    f"Tarallo lookup for disk with S/N {sn} failed due to server error, try again later"
-                )
+                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed due to server error, try again later")
         except Errors.AuthenticationError:
             self._code = None
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(
-                    f"Tarallo lookup for disk with S/N {sn} failed due to authentication error, check the token"
-                )
+                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed due to authentication error, check the token")
         except (Errors.ValidationError, RuntimeError) as e:
             self._code = None
-            logging.warning(
-                f"Tarallo lookup failed unexpectedly for disk with S/N {sn}", exc_info=e
-            )
+            logging.warning(f"Tarallo lookup failed unexpectedly for disk with S/N {sn}", exc_info=e)
             if stop_on_error:
-                raise ErrorThatCanBeManuallyFixed(
-                    f"Tarallo lookup for disk with S/N {sn} failed, more info has been logged on the server"
-                )
+                raise ErrorThatCanBeManuallyFixed(f"Tarallo lookup for disk with S/N {sn} failed, more info has been logged on the server")
 
     def _get_item(self):
         if self._tarallo and self._code:
@@ -285,9 +269,7 @@ class CommandRunner(threading.Thread):
             try:
                 self._function(self._cmd, self._args)
             except BaseException as e:
-                logging.error(
-                    f"[{self._the_id}] BIG ERROR in command thread", exc_info=e
-                )
+                logging.error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
         finally:
             # The next thread on the disk can start, if there's a queue
             if self._queued_command:
@@ -308,9 +290,7 @@ class CommandRunner(threading.Thread):
         # (none of them does, for now)
         self._go = False
 
-    def dispatch_command(
-        self, cmd: str, args: str
-    ) -> (Optional[Callable[[str, str], None]], Optional[str]):
+    def dispatch_command(self, cmd: str, args: str) -> (Optional[Callable[[str, str], None]], Optional[str]):
         commands = {
             "smartctl": self.get_smartctl,
             "queued_smartctl": self.queued_get_smartctl,
@@ -327,9 +307,7 @@ class CommandRunner(threading.Thread):
             "remove_queued": self.remove_all_from_queue,
             "list_iso": self.list_iso,
         }
-        logging.debug(
-            f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}"
-        )
+        logging.debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
         if cmd.startswith("queued_"):
             disk_for_queue = self.dev_from_args(args)
         else:
@@ -397,9 +375,7 @@ class CommandRunner(threading.Thread):
         else:
             remove_completed = True
             remove_scheduled = True
-        logging.debug(
-            f"remove_completed = {remove_completed}, remove_scheduled = {remove_scheduled}"
-        )
+        logging.debug(f"remove_completed = {remove_completed}, remove_scheduled = {remove_scheduled}")
 
         with queued_commands_lock:
             with running_commands_lock:
@@ -416,9 +392,7 @@ class CommandRunner(threading.Thread):
 
                 for the_command in commands_to_remove:
                     queued_commands.remove(the_command)
-                logging.debug(
-                    f"Removed {len(commands_to_remove)} items from tasks list"
-                )
+                logging.debug(f"Removed {len(commands_to_remove)} items from tasks list")
 
         return None
 
@@ -497,9 +471,7 @@ class CommandRunner(threading.Thread):
                         result = buffer.decode("utf-8")
                         errors_print = "?"
 
-                        reading_and_comparing = reading_and_comparing or (
-                            "Reading and comparing" in result
-                        )
+                        reading_and_comparing = reading_and_comparing or ("Reading and comparing" in result)
 
                         # If other messages are printed, ignore them
                         i = result.index("% done")
@@ -518,9 +490,7 @@ class CommandRunner(threading.Thread):
                                 for error in errors_str:
                                     errors += int(error)
                                 errors_print = str(errors)
-                            self._queued_command.notify_percentage(
-                                percent, f"{errors_print} errors"
-                            )
+                            self._queued_command.notify_percentage(percent, f"{errors_print} errors")
                         buffer.clear()
                         deleting = True
                 # elif char == b'\n':
@@ -603,9 +573,7 @@ class CommandRunner(threading.Thread):
             return
 
         if not os.path.isfile(iso):
-            self._queued_command.notify_finish_with_error(
-                f"{iso} is not a file (is it a directory?)"
-            )
+            self._queued_command.notify_finish_with_error(f"{iso} is not a file (is it a directory?)")
             return
 
         go_ahead = self._unswap()
@@ -667,9 +635,7 @@ class CommandRunner(threading.Thread):
                 disk_ref.update_software(pretty_iso)
             except BaseException as e:
                 final_message = f"{pretty_iso} installed, failed to update Tarallo"
-                self._queued_command.notify_error(
-                    f"{pretty_iso} installed, failed to update Tarallo"
-                )
+                self._queued_command.notify_error(f"{pretty_iso} installed, failed to update Tarallo")
                 logging.warning(
                     f"[{self._the_id}] Can't update software of {dev} on tarallo",
                     exc_info=e,
@@ -692,9 +658,7 @@ class CommandRunner(threading.Thread):
                 oh_no = part
                 break
         if oh_no:
-            self._queued_command.notify_finish_with_error(
-                f"Partition {oh_no} is mounted as {mountpoints[oh_no]}"
-            )
+            self._queued_command.notify_finish_with_error(f"Partition {oh_no} is mounted as {mountpoints[oh_no]}")
             return False
         if len(unswap_them) > 0:
             self._queued_command.notify_start("Unswapping the disk")
@@ -702,9 +666,7 @@ class CommandRunner(threading.Thread):
                 sp = subprocess.Popen(("sudo", "swapoff", path))
                 exitcode = sp.wait()
                 if exitcode != 0:
-                    self._queued_command.notify_finish_with_error(
-                        f"Failed to unswap {path}, exit code {str(exitcode)}"
-                    )
+                    self._queued_command.notify_finish_with_error(f"Failed to unswap {path}, exit code {str(exitcode)}")
                     return False
             self._queued_command.disk.update_mountpoints()
         return True
@@ -715,9 +677,7 @@ class CommandRunner(threading.Thread):
         if exitcode == 0:
             self._queued_command.notify_finish("Good night!")
         else:
-            self._queued_command.notify_finish_with_error(
-                f"hdparm exited with status {str(exitcode)}"
-            )
+            self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
 
     def call_hdparm_for_sleep(self, dev):
         if TEST_MODE:
@@ -731,9 +691,7 @@ class CommandRunner(threading.Thread):
         )
         exitcode = res.wait()
         if exitcode != 0:
-            logging.warning(
-                f"[{self._the_id}] hdparm for {dev} returned {str(exitcode)}"
-            )
+            logging.warning(f"[{self._the_id}] hdparm for {dev} returned {str(exitcode)}")
         return exitcode
 
     def get_smartctl(self, cmd: str, args: str):
@@ -762,11 +720,7 @@ class CommandRunner(threading.Thread):
             smartctl_returned_valid = True
         else:
             exitcode_bytes = exitcode.to_bytes(8, "little")
-            if (
-                exitcode_bytes[0] == 1
-                or exitcode_bytes[1] == 1
-                or exitcode_bytes[2] == 1
-            ):
+            if exitcode_bytes[0] == 1 or exitcode_bytes[1] == 1 or exitcode_bytes[2] == 1:
                 smartctl_returned_valid = False
             else:
                 # TODO: parse remaining bits (https://github.com/WEEE-Open/pesto/issues/65)
@@ -779,9 +733,7 @@ class CommandRunner(threading.Thread):
             status = get_smartctl_status(output)
             if queued:
                 if not status:
-                    self._queued_command.notify_error(
-                        "Error while parsing smartctl status"
-                    )
+                    self._queued_command.notify_error("Error while parsing smartctl status")
                     return {
                         "disk": dev,
                         "status": status,
@@ -833,15 +785,11 @@ class CommandRunner(threading.Thread):
         return json.dumps(param, separators=(",", ":"), indent=None)
 
     def send_msg(self, cmd: str, param=None, the_id: Optional[int] = None):
-        logging.debug(
-            f"[{self._the_id}] Sending {cmd}{ ' with args' if param else ''} to client"
-        )
+        logging.debug(f"[{self._the_id}] Sending {cmd}{ ' with args' if param else ''} to client")
         the_id = the_id or self._the_id
         thread = clients.get(the_id)
         if thread is None:
-            logging.info(
-                f"[{the_id}] Connection already closed while trying to send {cmd}"
-            )
+            logging.info(f"[{the_id}] Connection already closed while trying to send {cmd}")
         else:
             thread: TurboProtocol
             # noinspection PyBroadException
@@ -855,9 +803,7 @@ class CommandRunner(threading.Thread):
                 # noinspection PyUnresolvedReferences
                 reactor.callFromThread(TurboProtocol.send_msg, thread, response_string)
             except BaseException:
-                logging.warning(
-                    f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)"
-                )
+                logging.warning(f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)")
 
     def get_disks(self, cmd: str, _nothing: str):
         result = []
@@ -884,11 +830,7 @@ class CommandRunner(threading.Thread):
                         print("Output file opened successfully!")
                         s = os.stat(inputf).st_mode
                         is_special = stat.S_ISBLK(s) or stat.S_ISCHR(s)
-                        total_size = (
-                            get_block_size(outputf)
-                            if is_special
-                            else os.path.getsize(inputf)
-                        )
+                        total_size = get_block_size(outputf) if is_special else os.path.getsize(inputf)
                         completed_size = 0
                         elapsed_time = 0
                         actual_time = time.time()
@@ -1110,14 +1052,10 @@ class TurboProtocol(LineOnlyReceiver):
         if self._delimiter_found:
             self.sendLine(response.encode("utf-8"))
         else:
-            logging.warning(
-                f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}"
-            )
+            logging.warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
 
 
-def update_disks_if_needed(
-    this_thread: Optional[CommandRunner], send: bool = True
-):  # , disk: Optional[str] = None):
+def update_disks_if_needed(this_thread: Optional[CommandRunner], send: bool = True):  # , disk: Optional[str] = None):
     with disks_lock:
         disks_lsblk = get_disks()
         found_disks = set()
@@ -1159,9 +1097,7 @@ def update_disks_if_needed(
                     disks[path] = Disk(lsblk, TARALLO)
                     changes = True
                 except BaseException as e:
-                    logging.warning(
-                        "Exception while re-scanning for disks, skipping", exc_info=e
-                    )
+                    logging.warning("Exception while re-scanning for disks, skipping", exc_info=e)
 
         # RuntimeError: dictionary changed size during iteration
         to_delete = []
@@ -1200,9 +1136,7 @@ def scan_for_disks():
                 global TARALLO
                 disks[path] = Disk(disk_lsblk, TARALLO)
             except BaseException as e:
-                logging.warning(
-                    "Exception while scanning for disks, skipping", exc_info=e
-                )
+                logging.warning("Exception while scanning for disks, skipping", exc_info=e)
 
 
 def get_disks(path: Optional[str] = None):
@@ -1218,13 +1152,9 @@ def main():
     TEST_MODE = bool(os.getenv("TEST_MODE", False))
 
     if TEST_MODE:
-        logging.warning(
-            "Test mode is enabled, no destructive actions will be performed"
-        )
+        logging.warning("Test mode is enabled, no destructive actions will be performed")
     else:
-        logging.debug(
-            "TEST MODE IS DISABLED! Do you really want to risk your hard drive?"
-        )
+        logging.debug("TEST MODE IS DISABLED! Do you really want to risk your hard drive?")
 
     try:
         factory = protocol.ServerFactory()
@@ -1260,20 +1190,14 @@ def load_settings():
     config = StringIO("IP=127.0.0.1\nPORT=1030\nLOGLEVEL=INFO")
     load_dotenv(stream=config)
 
-    logging.basicConfig(
-        format="%(message)s", level=getattr(logging, os.getenv("LOGLEVEL").upper())
-    )
+    logging.basicConfig(format="%(message)s", level=getattr(logging, os.getenv("LOGLEVEL").upper()))
 
     if os.getenv("CLOSE_AT_END_TIMER") is not None:
         global CLOSE_AT_END_TIMER
         CLOSE_AT_END_TIMER = int(os.getenv("CLOSE_AT_END_TIMER"))
 
-    url = os.getenv("TARALLO_URL") or logging.warning(
-        "TARALLO_URL is not set, tarallo will be unavailable"
-    )
-    token = os.getenv("TARALLO_TOKEN") or logging.warning(
-        "TARALLO_TOKEN is not set, tarallo will be unavailable"
-    )
+    url = os.getenv("TARALLO_URL") or logging.warning("TARALLO_URL is not set, tarallo will be unavailable")
+    token = os.getenv("TARALLO_TOKEN") or logging.warning("TARALLO_TOKEN is not set, tarallo will be unavailable")
 
     if url and token:
         global TARALLO
@@ -1308,9 +1232,7 @@ def get_disks_linux(path: Optional[str] = None) -> list:
     # To filter out ODDs and tape drives: --exclude 9,11
     # See: https://www.kernel.org/doc/Documentation/admin-guide/devices.txt
     # Also: https://unix.stackexchange.com/a/610634
-    output = subprocess.getoutput(
-        f"lsblk --exclude 9,11 -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT,SIZE -J {path if path else ''}"
-    )
+    output = subprocess.getoutput(f"lsblk --exclude 9,11 -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT,SIZE -J {path if path else ''}")
     jsonized = json.loads(output)
     if "blockdevices" in jsonized:
         result = jsonized["blockdevices"]
@@ -1344,9 +1266,7 @@ def try_stop_at_end():
                                 if not empty:
                                     break
                             if empty:
-                                logging.debug(
-                                    "CLOSE_AT_END met all the conditions, stopping reactor"
-                                )
+                                logging.debug("CLOSE_AT_END met all the conditions, stopping reactor")
                                 # noinspection PyUnresolvedReferences
                                 reactor.stop()
         # noinspection PyUnresolvedReferences

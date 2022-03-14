@@ -132,9 +132,7 @@ class SmartTabs(QtWidgets.QTabWidget):
         if not status:
             status = "Errore deflagrante: impossibile determinare lo stato del disco."
         nowtime = datetime.datetime.now()
-        label = QtWidgets.QLabel(
-            f"Date: {nowtime.strftime('%H:%M:%S')}\nStatus: {status}\nUploaded: {uploaded}"
-        )
+        label = QtWidgets.QLabel(f"Date: {nowtime.strftime('%H:%M:%S')}\nStatus: {status}\nUploaded: {uploaded}")
         label.setStyleSheet(f"color: {self.color}")
         layout.addWidget(label)
         layout.addWidget(text_box)
