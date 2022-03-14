@@ -635,17 +635,25 @@ class CommandRunner(threading.Thread):
             self._queued_command.notify_percentage(90)
             threading.Event().wait(2)
         else:
-            exitcode = self.dd(iso, dev)
+            success = self.dd(iso, dev)
             # pipe = subprocess.Popen(
             #     ("sudo", "-n", "cannolo", iso, dev)
             # )  # stderr=subprocess.PIPE), stdout=subprocess.PIPE)
             # exitcode = pipe.wait()
-            if not exitcode:
-                self._queued_command.notify_error(f"cannolo returned {exitcode}")
-                success = False
+            if success:
+                success = run_command_on_partition(dev, f"sudo growpart {dev} 1")
+                if success:
+                    success = run_command_on_partition(dev, f"sudo resize2fs {dev}1")
+                    if success:
+                        pass
+                    else:
+                        self._queued_command.notify_error(f"resize2fs failed")
+                else:
+                    self._queued_command.notify_error(f"growpart failed")
+            else:
+                self._queued_command.notify_error(f"Disk imaging failed")
 
         if success:
-            expand_partition(dev)
             with disks_lock:
                 update_disks_if_needed(self)
                 disk_ref = disks[dev]
@@ -867,7 +875,7 @@ class CommandRunner(threading.Thread):
         filename = filename.replace("-", " ").replace("_", " ")
         return filename
 
-    def dd(self, inputf: str, outputf: str, bs: int = 512, output_delay: float = 1.0):
+    def dd(self, inputf: str, outputf: str, bs: int = 4096, output_delay: float = 1.0):
         if os.path.exists(inputf):
             try:
                 with open(inputf, "rb") as fin:
@@ -1363,11 +1371,13 @@ def get_block_size(path):
         return f.seek(0, 2) or f.tell()
 
 
-def expand_partition(dev: str):
+def run_command_on_partition(dev: str, cmd: str) -> bool:
     s = os.stat(dev).st_mode
     if stat.S_ISBLK(s):
-        os.system(f"sudo growpart {dev} 1")
-        os.system(f"resize2fs {dev}1")
+        res = os.system(cmd)
+        if res == 0:
+            return True
+    return False
 
 
 TARALLO = None
