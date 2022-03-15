@@ -604,18 +604,18 @@ class CommandRunner(threading.Thread):
             threading.Event().wait(2)
         else:
             success = self.dd(iso, dev)
-            # pipe = subprocess.Popen(
-            #     ("sudo", "-n", "cannolo", iso, dev)
-            # )  # stderr=subprocess.PIPE), stdout=subprocess.PIPE)
-            # exitcode = pipe.wait()
             if success:
                 success = run_command_on_partition(dev, f"sudo growpart {dev} 1")
                 if success:
-                    success = run_command_on_partition(dev, f"sudo resize2fs {dev}1")
+                    success = run_command_on_partition(dev, f"sudo e2fsck -f {dev}1")
                     if success:
-                        pass
+                        success = run_command_on_partition(dev, f"sudo resize2fs {dev}1")
+                        if success:
+                            pass
+                        else:
+                            self._queued_command.notify_error(f"resize2fs failed")
                     else:
-                        self._queued_command.notify_error(f"resize2fs failed")
+                        self._queued_command.notify_error(f"e2fsck failed")
                 else:
                     self._queued_command.notify_error(f"growpart failed")
             else:
