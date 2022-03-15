@@ -47,6 +47,11 @@ PATH = {
     "THEMES": "/themes/",
 }
 
+URL = {
+    "website": "https://weeeopen.polito.it",
+    "source_code": "https://github.com/WEEE-Open/pesto",
+}
+
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
 
 QUEUE_COMPLETED = "completed"
@@ -54,6 +59,8 @@ QUEUE_PROGRESS = "progress"
 QUEUE_QUEUED = "queued"
 
 PROGRESS_BAR_SCALE = 100
+
+VERSION = "2.0.0"
 
 absolute_path(PATH)
 
@@ -84,18 +91,12 @@ class Ui(QtWidgets.QMainWindow):
         self.smart_results = {}
         self.smart_widgets = {}
 
-        """ Setting up background label """
-        self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
-        self.backgroundLabel.move(0, 0)
-        self.backgroundLabel.resize(self.width(), self.height())
-        self.backgroundLabel.setAlignment(Qt.AlignCenter)
-
         """ Defining all items in GUI """
-        self.mainWidget = self.findChild(QtWidgets.QWidget, "mainWidget")
-        self.mainWidget.move(0, 0)
         self.gif = QMovie(PATH["ASD"])
+        self.splitter = self.findChild(QtWidgets.QSplitter, "splitter")
         self.diskTable = self.findChild(QtWidgets.QTableWidget, "diskTable")
         self.queueTable = self.findChild(QtWidgets.QTableWidget, "queueTable")
+        self.refreshButton = self.findChild(QtWidgets.QPushButton, "refreshButton")
         self.eraseButton = self.findChild(QtWidgets.QPushButton, "eraseButton")
         self.smartButton = self.findChild(QtWidgets.QPushButton, "smartButton")
         self.cannoloButton = self.findChild(QtWidgets.QPushButton, "cannoloButton")
@@ -130,6 +131,9 @@ class Ui(QtWidgets.QMainWindow):
         self.remove_completed_action = QtWidgets.QAction("Remove Completed", self)
         self.remove_queued_action = QtWidgets.QAction("Remove Queued", self)
         self.info_action = QtWidgets.QAction("Info", self)
+        self.actionAboutUs = self.findChild(QtWidgets.QAction, "actionAboutUs")
+        self.actionSourceCode = self.findChild(QtWidgets.QAction, "actionSourceCode")
+        self.actionVersion = self.findChild(QtWidgets.QAction, "actionVersion")
 
         """ Initialization operations """
         self.set_items_functions()
@@ -137,20 +141,6 @@ class Ui(QtWidgets.QMainWindow):
         self.localServer.update.connect(self.server_com)
         self.show()
         self.setup()
-
-    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-        if self.backgroundLabel is None:
-            return
-
-        self.mainWidget.resize(
-            self.centralWidget().width(), self.centralWidget().height()
-        )
-        self.backgroundLabel.resize(
-            self.centralWidget().width(), self.centralWidget().height()
-        )
-
-        # Background image vaporwave theme scaling
-        self.resize_bg()
 
     def setup(self):
         """This method must be called in the __init__ function of the Ui class
@@ -177,17 +167,18 @@ class Ui(QtWidgets.QMainWindow):
         self.cannoloDir = cannoloDir
 
     def resize_bg(self):
-        if self.pixmapResizingNeeded:
-            aspectRatio = self.backgroundLabel.width() / self.backgroundLabel.height()
-            if aspectRatio > self.pixmapAspectRatio:
-                pixmap = self.pixmap.scaledToWidth(
-                    self.backgroundLabel.width(), Qt.SmoothTransformation
-                )
-            else:
-                pixmap = self.pixmap.scaledToHeight(
-                    self.backgroundLabel.height(), Qt.SmoothTransformation
-                )
-            self.backgroundLabel.setPixmap(pixmap)
+        # if self.pixmapResizingNeeded:
+        #     # aspectRatio = self.backgroundLabel.width() / self.backgroundLabel.height()
+        #     if aspectRatio > self.pixmapAspectRatio:
+        #         pixmap = self.pixmap.scaledToWidth(
+        #             # self.backgroundLabel.width(), Qt.SmoothTransformation
+        #         )
+        #     else:
+        #         pixmap = self.pixmap.scaledToHeight(
+        #             # self.backgroundLabel.height(), Qt.SmoothTransformation
+        #         )
+        #     # self.backgroundLabel.setPixmap(pixmap)
+        pass
 
     def on_table_select(self, selected):
         """This function set the queue table context menu buttons"""
@@ -217,8 +208,11 @@ class Ui(QtWidgets.QMainWindow):
         # menu actions
         self.newSessionAction.triggered.connect(self.new_session)
         self.refreshAction.triggered.connect(self.refresh)
-        self.exitAction.triggered.connect(self.closeEvent)
+        self.exitAction.triggered.connect(self.close)
         self.networkSettingsAction.triggered.connect(self.open_settings)
+        self.actionAboutUs.triggered.connect(self.open_website)
+        self.actionSourceCode.triggered.connect(self.open_source_code)
+        self.actionVersion.triggered.connect(self.show_version)
 
         # disks table
         self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
@@ -227,9 +221,6 @@ class Ui(QtWidgets.QMainWindow):
         self.diskTable.setColumnWidth(1, 70)
         self.diskTable.setColumnWidth(2, 60)
         self.diskTable.horizontalHeader().setStretchLastSection(True)
-        self.diskTable.horizontalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.Fixed
-        )
         self.diskTable.cellClicked.connect(self.greyout_buttons)
         self.diskTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         self.sleep_action.triggered.connect(self.sleep)
@@ -276,6 +267,9 @@ class Ui(QtWidgets.QMainWindow):
         self.queueTable.addAction(self.info_action)
         self.info_action.setEnabled(False)
         self.queueTable.selectionModel().selectionChanged.connect(self.on_table_select)
+
+        # refresh button
+        self.refreshButton.clicked.connect(self.refresh)
 
         # erase button
         self.eraseButton.clicked.connect(self.erase)
@@ -331,87 +325,19 @@ class Ui(QtWidgets.QMainWindow):
     def open_settings(self):
         self.settingsDialog.show()
 
-    def test_badblocks(self):
-        """This function send to the server a badblocks command.
-        Use it only in test context."""
+    def open_url(self, url_type: str):
+        url = QtCore.QUrl(url_type)
+        if not QtGui.QDesktopServices.openUrl(url):
+            QtWidgets.QMessageBox.warning(self, "Cannot Open Url", f"Could not open url {url_type}")
 
-        print("GUI_TEST: queued_badblocks")
-        try:
-            self.client.send(
-                f"queued_badblocks {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
-        except BaseException:
-            print("GUI_TEST: Error in test_badblocks test.")
+    def open_website(self):
+        self.open_url(URL["website"])
 
-    def test_cannolo(self):
-        """This function send to the server a cannolo command.
-        Use it only in test context."""
+    def open_source_code(self):
+        self.open_url(URL["source_code"])
 
-        print("GUI_TEST: queued_cannolo")
-        try:
-            self.client.send(
-                f"queued_cannolo {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
-        except BaseException:
-            print("GUI_TEST: Error in cannolo test.")
-
-    def test_sleep(self):
-        """This function send to the server a queued_sleep command.
-        Use it only in test context."""
-
-        print("GUI_TEST: queued_sleep")
-        try:
-            self.client.send(
-                f"queued_sleep {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
-        except BaseException:
-            print("GUI_TEST: Error in sleep test.")
-
-    def test_smartctl(self):
-        """This function send to the server a queued_smart command.
-        Use it only in test context."""
-
-        print("GUI_TEST: queued_smartctl")
-        try:
-            self.client.send(
-                f"queued_smartctl {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
-        except BaseException:
-            print("GUI_TEST: Error in smartctl test.")
-
-    def test_load_to_tarallo(self):
-        """This function send to the server a queued_load_to_tarallo command.
-        Use it only in test context."""
-
-        print("GUI_TEST: queued_load_to_tarallo")
-        try:
-            self.client.send(
-                f"queued_load_to_tarallo {self.testDiskTable.item(self.testDiskTable.currentRow(), 0).text().lstrip('Disk ')}"
-            )
-        except BaseException:
-            print("GUI_TEST: Error in load to tarallo test.")
-
-    def test_std_proc(self, cannolo_flag=True):
-        """This function send to the server a list of test commands:
-            - queued_badblocks
-            - queued_smartctl
-            - queued_cannolo (if cannolo_flag is True)
-            - queued_load_to_tarallo
-            - queued_sleep
-        Use it only in test context."""
-
-        self.test_badblocks()
-        self.test_smartctl()
-        if cannolo_flag:
-            self.test_cannolo()
-        self.test_load_to_tarallo()
-        self.test_sleep()
-
-    def test_std_proc_no_cannolo(self):
-        """This function call the test_std_proc method, setting the cannolo_flag
-        as True."""
-
-        self.test_std_proc(cannolo_flag=False)
+    def show_version(self):
+        QtWidgets.QMessageBox.about(self, "Version", f"Pesto v{VERSION}")
 
     def deselect(self):
         """This function clear the queue table active selection."""
@@ -780,28 +706,6 @@ class Ui(QtWidgets.QMainWindow):
                 self.stdProcedureButton.setEnabled(True)
                 self.cannoloButton.setEnabled(True)
 
-        try:
-            self.selected_drive = self.testDiskTable.item(
-                self.testDiskTable.currentRow(), 0
-            )
-            if self.selected_drive is not None:
-                self.selected_drive = self.selected_drive.text().lstrip("Disk ")
-                if self.selected_drive in self.critical_mounts:
-                    self.statusBar().showMessage(
-                        f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted."
-                    )
-                    self.testBadblocksBtn.setEnabled(False)
-                    self.testCannoloBtn.setEnabled(False)
-                    self.testStdProcBtn.setEnabled(False)
-                    self.testStdProcNoCannoloBtn.setEnabled(False)
-                else:
-                    self.testBadblocksBtn.setEnabled(True)
-                    self.testCannoloBtn.setEnabled(True)
-                    self.testStdProcBtn.setEnabled(True)
-                    self.testStdProcNoCannoloBtn.setEnabled(True)
-        except Exception as exc:
-            print(exc.args)
-
     def use_cannolo_img(self, directory: str, img: str):
         """This function sends to the server a queued_cannolo with the selected drive
         and the directory of the selected cannolo image. This is specific of the
@@ -827,7 +731,7 @@ class Ui(QtWidgets.QMainWindow):
         if theme == "default":
             self.app.setStyleSheet("")
             self.app.setStyleSheet("QWidget {" "font-size: 10pt;" "}")
-            self.backgroundLabel.clear()
+            # self.backgroundLabel.clear()
             self.asd_gif_set(PATH["ASD"])
             self.settingsDialog.cannoloLabel.setStyleSheet("color: blue")
             self.active_theme = "default"
@@ -846,10 +750,10 @@ class Ui(QtWidgets.QMainWindow):
                     self.statusBar().showMessage("assets/vaporwave_theme.mp3 not found.")
                 self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
                 self.reloadButton.setIconSize(QtCore.QSize(50, 50))
-                self.backgroundLabel.clear()
+                # self.backgroundLabel.clear()
                 self.pixmap = QtGui.QPixmap(PATH["VAPORWAVEBG"])
                 self.pixmapAspectRatio = self.pixmap.width() / self.pixmap.height()
-                self.backgroundLabel.setPixmap(self.pixmap)
+                # self.backgroundLabel.setPixmap(self.pixmap)
                 self.pixmapResizingNeeded = True
                 self.resize_bg()
                 self.asd_gif_set(PATH["ASDVAP"])
@@ -860,7 +764,7 @@ class Ui(QtWidgets.QMainWindow):
                 except:
                     print("No audio")
 
-                self.backgroundLabel.clear()
+                # self.backgroundLabel.clear()
                 self.asd_gif_set(PATH["ASD"])
                 if self.active_theme == "asd":
                     # background asd gif setup
@@ -869,14 +773,14 @@ class Ui(QtWidgets.QMainWindow):
                         QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio)
                     )
                     self.movie.start()
-                    self.backgroundLabel.setMovie(self.movie)
+                    # self.backgroundLabel.setMovie(self.movie)
                     self.asd_gif_set(PATH["ASD"])
                 elif self.active_theme == "weeeopen":
-                    self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
-                    self.backgroundLabel.clear()
-                    self.backgroundLabel.setPixmap(
-                        QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
-                    )
+                    # self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
+                    # self.backgroundLabel.clear()
+                    # self.backgroundLabel.setPixmap(
+                    #     QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
+                    # )
                     self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
                     self.reloadButton.setIconSize(QtCore.QSize(25, 25))
                     self.asd_gif_set(PATH["ASD"])
@@ -1060,10 +964,8 @@ class Ui(QtWidgets.QMainWindow):
             for row, d in enumerate(drives):
                 d: dict
                 self.set_disk_table_item(self.diskTable, row, d)
-                try:
-                    self.set_disk_table_item(self.testDiskTable, row, d)
-                except AttributeError:
-                    print("Test mode disabled: testDiskTable not loaded.")
+            self.diskTable.resizeColumnToContents(0)
+            self.diskTable.resizeColumnToContents(1)
 
         elif cmd == "smartctl" or cmd == "queued_smartctl":
             self.smart_results[params["disk"]] = params["output"]
