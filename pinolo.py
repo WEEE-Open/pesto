@@ -91,6 +91,7 @@ class Ui(QtWidgets.QMainWindow):
         self.smart_results = {}
         self.smart_widgets = {}
 
+
         """ Defining all items in GUI """
         self.gif = QMovie(PATH["ASD"])
         self.splitter = self.findChild(QtWidgets.QSplitter, "splitter")
@@ -180,6 +181,7 @@ class Ui(QtWidgets.QMainWindow):
         #     # self.backgroundLabel.setPixmap(pixmap)
         pass
 
+
     def on_table_select(self, selected):
         """This function set the queue table context menu buttons"""
 
@@ -243,9 +245,7 @@ class Ui(QtWidgets.QMainWindow):
         self.queueTable.setColumnWidth(3, 65)
         self.queueTable.setColumnWidth(4, 50)
         self.queueTable.horizontalHeader().setStretchLastSection(True)
-        self.queueTable.horizontalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.Fixed
-        )
+        self.queueTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
         self.queueTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         self.stop_action.triggered.connect(self.queue_stop)
         self.queueTable.addAction(self.stop_action)
@@ -287,12 +287,14 @@ class Ui(QtWidgets.QMainWindow):
         # self.findButton.clicked.connect(self.find_image)
 
         # cannolo label
+
         # if self.remoteMode:
         #     self.cannoloLabel.setText(
         #         "When in remote mode, the user must insert manually the cannolo image directory."
         #     )
         # else:
         #     self.cannoloLabel.setText("")
+
 
     def latest_conf(self):
         """This function try to set the remote configuration used in the last
@@ -448,10 +450,7 @@ class Ui(QtWidgets.QMainWindow):
             drives = self.get_multiple_drive_selection()
             for drive in drives:
                 if drive[1] == "":
-                    message = (
-                        f"{drive[0]} disk doesn't have a TARALLO id.\n"
-                        "Would you like to create the item on TARALLO?"
-                    )
+                    message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
                     dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
                     if dialog_result == QtWidgets.QMessageBox.Yes:
                         self.upload_to_tarallo(std=True, drive=drive[0])
@@ -486,10 +485,7 @@ class Ui(QtWidgets.QMainWindow):
                         message += f" {drive[0]}"
                 else:
                     message += f"Disk: {drives[0][0]}"
-                if (
-                    critical_dialog(message, dialog_type="yes_no")
-                    != QtWidgets.QMessageBox.Yes
-                ):
+                if critical_dialog(message, dialog_type="yes_no") != QtWidgets.QMessageBox.Yes:
                     return
             for drive in drives:
                 self.client.send("queued_badblocks " + drive[0])
@@ -575,16 +571,11 @@ class Ui(QtWidgets.QMainWindow):
 
         if not std:
             if self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
-                message = (
-                    f"The drive {self.selected_drive.text()} already has a TARALLO id."
-                )
+                message = f"The drive {self.selected_drive.text()} already has a TARALLO id."
                 warning_dialog(message, dialog_type="ok")
                 return
             message = "Do you want to load the disk informations into TARALLO?"
-            if (
-                warning_dialog(message, dialog_type="yes_no")
-                == QtWidgets.QMessageBox.No
-            ):
+            if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.No:
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
@@ -652,19 +643,11 @@ class Ui(QtWidgets.QMainWindow):
                 if self.queueTable.rowCount() != 0:
                     label = QtWidgets.QLabel()
                     label: QtWidgets.QLabel
-                    label.setPixmap(
-                        QtGui.QPixmap(PATH["PENDING"]).scaled(
-                            25, 25, QtCore.Qt.KeepAspectRatio
-                        )
-                    )
+                    label.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
                     label.setObjectName(QUEUE_QUEUED)
                 else:
                     label: QtWidgets.QLabel
-                    label.setPixmap(
-                        QtGui.QPixmap(PATH["PROGRESS"]).scaled(
-                            25, 25, QtCore.Qt.KeepAspectRatio
-                        )
-                    )
+                    label.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
                     label.setObjectName(QUEUE_PROGRESS)
             elif entry == "Progress":  # PROGRESS
                 label = QtWidgets.QProgressBar()
@@ -695,9 +678,7 @@ class Ui(QtWidgets.QMainWindow):
         if self.selected_drive is not None:
             self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if self.selected_drive in self.critical_mounts:
-                self.statusBar().showMessage(
-                    f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted."
-                )
+                self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
                 self.eraseButton.setEnabled(False)
                 self.stdProcedureButton.setEnabled(False)
                 self.cannoloButton.setEnabled(False)
@@ -822,34 +803,19 @@ class Ui(QtWidgets.QMainWindow):
                     for queue_row in range(queue_rows + 1):
                         queue_disk_label = self.queueTable.item(queue_row, 2)
                         queue_progress = self.queueTable.cellWidget(queue_row, 4)
-                        if (
-                            self.diskTable.item(disk_row, 0).text()
-                            in self.critical_mounts
-                        ):
+                        if self.diskTable.item(disk_row, 0).text() in self.critical_mounts:
                             continue
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
-                            queue_progress = queue_progress.findChild(
-                                QtWidgets.QProgressBar
-                            ).value()
-                            if queue_disk_label == disk_label and queue_progress != (
-                                100 * PROGRESS_BAR_SCALE
-                            ):
-                                self.diskTable.item(disk_row, 0).setBackground(
-                                    Qt.yellow
-                                )
+                            queue_progress = queue_progress.findChild(QtWidgets.QProgressBar).value()
+                            if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
+                                self.diskTable.item(disk_row, 0).setBackground(Qt.yellow)
                                 self.diskTable.item(disk_row, 0).setForeground(Qt.black)
                                 break
                         if queue_row == queue_rows:
-                            default_foreground = self.diskTable.item(
-                                disk_row, 1
-                            ).foreground()
-                            self.diskTable.item(disk_row, 0).setBackground(
-                                Qt.transparent
-                            )
-                            self.diskTable.item(disk_row, 0).setForeground(
-                                default_foreground
-                            )
+                            default_foreground = self.diskTable.item(disk_row, 1).foreground()
+                            self.diskTable.item(disk_row, 0).setBackground(Qt.transparent)
+                            self.diskTable.item(disk_row, 0).setForeground(default_foreground)
 
     def set_disk_table_item(self, table: QtWidgets.QTableWidget, row: int, drive: dict):
         table.setRowCount(row + 1)
@@ -865,9 +831,7 @@ class Ui(QtWidgets.QMainWindow):
             item = table.item(row, 0)
             item.setBackground(QtGui.QColor(255, 165, 0, 255))
             item.setForeground(Qt.black)
-            item.setToolTip(
-                "Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh."
-            )
+            item.setToolTip("Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh.")
 
     def gui_update(self, cmd: str, params: str):
         """
@@ -884,9 +848,7 @@ class Ui(QtWidgets.QMainWindow):
             params = json.loads(params)
             params: Union[dict, list]
         except json.decoder.JSONDecodeError:
-            print(
-                f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}"
-            )
+            print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
         if cmd == "queue_status" or cmd == "get_queue":
             if cmd == "queue_status":
@@ -907,9 +869,7 @@ class Ui(QtWidgets.QMainWindow):
                             mode=param["command"],
                         )
                         rows += 1
-                progress_bar = self.queueTable.cellWidget(row, 4).findChild(
-                    QtWidgets.QProgressBar
-                )
+                progress_bar = self.queueTable.cellWidget(row, 4).findChild(QtWidgets.QProgressBar)
                 status_cell = self.queueTable.cellWidget(row, 3)
                 progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
 
@@ -917,39 +877,19 @@ class Ui(QtWidgets.QMainWindow):
                     pass
                 elif param["stopped"]:
                     # TODO: we don't have an icon for this, maybe we should
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["STOP"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["error"]:
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["ERROR"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["ERROR"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["finished"]:  # and not error
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["OK"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["OK"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["started"]:
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["PROGRESS"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_PROGRESS)
                 else:
-                    status_cell.setPixmap(
-                        QtGui.QPixmap(PATH["PENDING"]).scaledToHeight(
-                            25, Qt.SmoothTransformation
-                        )
-                    )
+                    status_cell.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_QUEUED)
 
                 if "text" in param:
@@ -978,23 +918,16 @@ class Ui(QtWidgets.QMainWindow):
                 self.localServer.start()
                 return
             if "Connection was refused by other side" in message:
-                message = (
-                    "Cannot find BASILICO server.\nCheck if it's running in the "
-                    "targeted machine."
-                )
+                message = "Cannot find BASILICO server.\nCheck if it's running in the " "targeted machine."
             warning_dialog(message, dialog_type="ok")
 
         elif cmd == "connection_lost":
-            self.statusBar().showMessage(
-                f"⚠ Connection lost. Press the reload button to reconnect."
-            )
+            self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
             self.queueTable.setRowCount(0)
             self.diskTable.setRowCount(0)
 
         elif cmd == "connection_made":
-            self.statusBar().showMessage(
-                f"Connected to {params['host']}:{params['port']}"
-            )
+            self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
 
         elif cmd == "list_iso":
             self.dialog = CannoloDialog(self.settingsDialog, PATH, params)

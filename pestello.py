@@ -95,14 +95,8 @@ def get_files(paths, quiet: bool, predict: bool):
         for result in results:
             writer.writerow(result)
 
-    print(
-        f"Predictions: {predictions['right']} good, {predictions['wrong']} bad, {predictions['failed']} errors"
-    )
-    acc = (
-        float(predictions["right"])
-        / (float(predictions["right"]) + float(predictions["wrong"]))
-        * 100
-    )
+    print(f"Predictions: {predictions['right']} good, {predictions['wrong']} bad, {predictions['failed']} errors")
+    acc = float(predictions["right"]) / (float(predictions["right"]) + float(predictions["wrong"])) * 100
     print(f"Accuracy: {acc:.2f} %")
 
     if errors:
@@ -233,12 +227,8 @@ def parse_file(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Classify SMART data manually. Now.")
-    parser.add_argument(
-        "files", nargs="+", type=str, help="Path to smartctl saved files"
-    )
-    parser.add_argument(
-        "-q", "--quiet", action="store_true", help="Be quiet about already labeled data"
-    )
+    parser.add_argument("files", nargs="+", type=str, help="Path to smartctl saved files")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Be quiet about already labeled data")
     parser.add_argument("-t", "--test", action="store_true", help="How am I mining?")
     args = parser.parse_args()
 

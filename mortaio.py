@@ -19,11 +19,7 @@ def main(directory: str):
     col_names.append("Serial_Number")
     for filename in os.listdir(directory):
         fullpath = directory.rstrip("/") + "/" + filename
-        if (
-            filename.startswith("labeled_")
-            and filename.endswith(".csv")
-            and filename != "labeled_out.csv"
-        ):
+        if filename.startswith("labeled_") and filename.endswith(".csv") and filename != "labeled_out.csv":
             print(f"Reading {filename}")
             files.append(fullpath)
             with open(fullpath, "r") as csvfile:
