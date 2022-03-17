@@ -9,15 +9,14 @@ Created on Fri Jul 30 10:54:18 2021
 from client import *
 from utilities import *
 from typing import Union
-from multiprocessing import Process
 from dotenv import load_dotenv
 from PyQt5 import uic
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QTableWidgetItem
+from diff_dialog import DiffWidget
 import sys
 import traceback
-import playsound
 
 
 PATH = {
@@ -85,12 +84,16 @@ class Ui(QtWidgets.QMainWindow):
         self.dialog = None
         self.critical_mounts = []
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
-        self.audio_process = Process(
-            target=playsound.playsound, args=("assets/vaporwave_theme.mp3",)
-        )
         self.smart_results = {}
-        self.smart_widgets = {}
 
+
+        " Utilities Widgets "
+        self.latest_conf()
+        self.diff_widgets = {}
+        self.smart_widgets = {}
+        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings,
+                                             self.client)
+        self.settingsDialog.update.connect(self.update_settings)
 
         """ Defining all items in GUI """
         self.gif = QMovie(PATH["ASD"])
@@ -102,11 +105,6 @@ class Ui(QtWidgets.QMainWindow):
         self.smartButton = self.findChild(QtWidgets.QPushButton, "smartButton")
         self.cannoloButton = self.findChild(QtWidgets.QPushButton, "cannoloButton")
         self.stdProcedureButton = self.findChild(QtWidgets.QPushButton, "stdProcButton")
-
-        """ Defining dialogs """
-        self.latest_conf()
-        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings, self.client)
-        self.settingsDialog.update.connect(self.update_settings)
 
         """ Defining menu actions """
         self.newSessionAction = self.findChild(QtWidgets.QAction, "newSessionAction")
@@ -181,7 +179,6 @@ class Ui(QtWidgets.QMainWindow):
         #     # self.backgroundLabel.setPixmap(pixmap)
         pass
 
-
     def on_table_select(self, selected):
         """This function set the queue table context menu buttons"""
 
@@ -216,15 +213,17 @@ class Ui(QtWidgets.QMainWindow):
         self.actionSourceCode.triggered.connect(self.open_source_code)
         self.actionVersion.triggered.connect(self.show_version)
 
-        # disks table
+        # disk table
         self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.diskTable.horizontalHeader().setStretchLastSection(True)
-        self.diskTable.setColumnWidth(0, 65)
-        self.diskTable.setColumnWidth(1, 70)
-        self.diskTable.setColumnWidth(2, 60)
-        self.diskTable.horizontalHeader().setStretchLastSection(True)
+        self.diskTable.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        self.diskTable.resizeColumnToContents(1)
+        self.diskTable.setColumnWidth(1, self.diskTable.columnWidth(1) + 40)
+        self.diskTable.resizeColumnToContents(2)
+        self.diskTable.setColumnWidth(2, self.diskTable.columnWidth(2) + 20)
         self.diskTable.cellClicked.connect(self.greyout_buttons)
         self.diskTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+
+        # disk table actions
         self.sleep_action.triggered.connect(self.sleep)
         self.diskTable.addAction(self.sleep_action)
         self.sleep_action.setEnabled(False)
@@ -239,13 +238,10 @@ class Ui(QtWidgets.QMainWindow):
         # queue table
         self.queueTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.queueTable.setRowCount(0)
-        self.queueTable.horizontalHeader().setStretchLastSection(True)
-        self.queueTable.setColumnWidth(0, 125)
-        self.queueTable.setColumnWidth(2, 65)
-        self.queueTable.setColumnWidth(3, 65)
-        self.queueTable.setColumnWidth(4, 50)
-        self.queueTable.horizontalHeader().setStretchLastSection(True)
-        self.queueTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Fixed)
+        self.resize_queue_table_to_contents()
+        self.queueTable.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.Stretch)
+
+        # queue table actions
         self.queueTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         self.stop_action.triggered.connect(self.queue_stop)
         self.queueTable.addAction(self.stop_action)
@@ -294,7 +290,6 @@ class Ui(QtWidgets.QMainWindow):
         #     )
         # else:
         #     self.cannoloLabel.setText("")
-
 
     def latest_conf(self):
         """This function try to set the remote configuration used in the last
@@ -532,6 +527,13 @@ class Ui(QtWidgets.QMainWindow):
     def remove_smart_widget(self, drive: str):
         del self.smart_widgets[drive]
 
+    def show_diff_widget(self, drive: str, features: str):
+        self.diff_widgets["/dev/sda"] = DiffWidget("/dev/sda", features)
+        self.diff_widgets["/dev/sda"].close_signal.connect(self.remove_diff_widget)
+
+    def remove_diff_widget(self, drive: str):
+        del self.diff_widgets[drive]
+
     def cannolo(self, std=False, drives=None):
         """This function send to the server a queued_cannolo command.
         If "std" is True it will skip the cannolo dialog."""
@@ -720,15 +722,6 @@ class Ui(QtWidgets.QMainWindow):
             with open(f"{PATH['THEMES']}{theme}.css", "r") as file:
                 self.app.setStyleSheet(file.read())
             if self.active_theme == "Vaporwave":
-                try:
-                    f = open("assets/vaporwave_theme.mp3")
-                    f.close()
-                    self.audio_process = Process(
-                        target=playsound.playsound, args=("assets/vaporwave_theme.mp3",)
-                    )
-                    self.audio_process.start()
-                except IOError:
-                    self.statusBar().showMessage("assets/vaporwave_theme.mp3 not found.")
                 self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
                 self.reloadButton.setIconSize(QtCore.QSize(50, 50))
                 # self.backgroundLabel.clear()
@@ -739,11 +732,6 @@ class Ui(QtWidgets.QMainWindow):
                 self.resize_bg()
                 self.asd_gif_set(PATH["ASDVAP"])
                 # self.cannoloLabel.setStyleSheet("color: rgb(252, 186, 3)")
-            else:
-                try:
-                    self.audio_process.terminate()
-                except:
-                    print("No audio")
 
                 # self.backgroundLabel.clear()
                 self.asd_gif_set(PATH["ASD"])
@@ -833,6 +821,11 @@ class Ui(QtWidgets.QMainWindow):
             item.setForeground(Qt.black)
             item.setToolTip("Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh.")
 
+    def resize_queue_table_to_contents(self):
+        for col in range(self.queueTable.columnCount() - 1):
+            self.queueTable.resizeColumnToContents(col)
+            self.queueTable.setColumnWidth(col, self.queueTable.columnWidth(col) + 20)
+
     def gui_update(self, cmd: str, params: str):
         """
         This function gets all the server responses and update, if possible, the UI. "
@@ -888,6 +881,7 @@ class Ui(QtWidgets.QMainWindow):
                 elif param["started"]:
                     status_cell.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_PROGRESS)
+                    self.resize_queue_table_to_contents()
                 else:
                     status_cell.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_QUEUED)
@@ -962,10 +956,6 @@ class Ui(QtWidgets.QMainWindow):
         # self.settings.setValue("cannoloDir", self.cannoloLineEdit.text())
         # self.settings.setValue("theme", self.themeSelector.currentText())
         # self.client.stop(self.remoteMode)
-        try:
-            self.audio_process.terminate()
-        except:
-            print("No audio process running.")
 
 
 class SmartWidget(QtWidgets.QWidget):
