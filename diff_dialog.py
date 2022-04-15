@@ -6,8 +6,8 @@ class DiffWidget(QtWidgets.QWidget):
     close_signal = QtCore.pyqtSignal(str, name="close")
 
     def __init__(self, reference: str, data: list):
-        """ Set reference as the data that can identify the object that need features comparison.
-         Example data list: [["type", "cpu", "ram"], ["working", "yes", "no"]] """
+        """Set reference as the data that can identify the object that need features comparison.
+        Example data list: [["type", "cpu", "ram"], ["working", "yes", "no"]]"""
 
         super(DiffWidget, self).__init__()
         uic.loadUi("assets/qt/diff.ui", self)
@@ -55,6 +55,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     window = DiffWidget("asd", example)
     app.exec_()
+
 
 if __name__ == "__main__":
     main()

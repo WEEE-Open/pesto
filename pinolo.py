@@ -86,13 +86,11 @@ class Ui(QtWidgets.QMainWindow):
         self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
         self.smart_results = {}
 
-
         " Utilities Widgets "
         self.latest_conf()
         self.diff_widgets = {}
         self.smart_widgets = {}
-        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings,
-                                             self.client)
+        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings, self.client)
         self.settingsDialog.update.connect(self.update_settings)
 
         """ Defining all items in GUI """
@@ -555,12 +553,8 @@ class Ui(QtWidgets.QMainWindow):
                 self.manual_cannolo = True
                 return
             for drive in drives:
-                print(
-                    f"GUI: Sending cannolo to {drive[0]} with {self.cannoloDir}"
-                )
-                self.client.send(
-                    f"queued_cannolo {drive[0]} {self.cannoloDir}"
-                )
+                print(f"GUI: Sending cannolo to {drive[0]} with {self.cannoloDir}")
+                self.client.send(f"queued_cannolo {drive[0]} {self.cannoloDir}")
 
         except BaseException:
             print("GUI: Error in cannolo function.")
@@ -738,9 +732,7 @@ class Ui(QtWidgets.QMainWindow):
                 if self.active_theme == "asd":
                     # background asd gif setup
                     self.movie = QMovie(PATH["ASD"])
-                    self.movie.setScaledSize(
-                        QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio)
-                    )
+                    self.movie.setScaledSize(QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio))
                     self.movie.start()
                     # self.backgroundLabel.setMovie(self.movie)
                     self.asd_gif_set(PATH["ASD"])
@@ -762,9 +754,7 @@ class Ui(QtWidgets.QMainWindow):
 
         self.settingsDialog.asdGif = QMovie(dir)
         self.settingsDialog.asdGif.setScaledSize(
-            QtCore.QSize().scaled(
-                self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio
-            )
+            QtCore.QSize().scaled(self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio)
         )
         self.settingsDialog.asdGif.start()
         self.settingsDialog.asdlabel.setMovie(self.settingsDialog.asdGif)
@@ -1044,11 +1034,7 @@ class SettingsDialog(QtWidgets.QDialog):
         """ Defining extremely important asd gif """
         self.asdlabel = self.findChild(QtWidgets.QLabel, "asdLabel")
         self.asdGif = QMovie(PATH["ASD"])
-        self.asdGif.setScaledSize(
-            QtCore.QSize().scaled(
-                self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio
-            )
-        )
+        self.asdGif.setScaledSize(QtCore.QSize().scaled(self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio))
 
         # configuration list
         for key in self.settings.childKeys():
@@ -1092,9 +1078,7 @@ class SettingsDialog(QtWidgets.QDialog):
             self.portLineEdit.setText(str(self.port))
             self.saveButton.setEnabled(True)
             self.cannoloLineEdit.setReadOnly(False)
-            self.cannoloLabel.setText(
-                "When in remote mode, the user must insert manually the cannolo image directory."
-            )
+            self.cannoloLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
 
     def save(self):
         self.host = self.ipLineEdit.text()
@@ -1109,14 +1093,14 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def restore_config(self):
         """This function delete all the edits made in the host and port input
-                in the settings tab."""
+        in the settings tab."""
 
         self.ipLineEdit.setText(self.host)
         self.portLineEdit.setText(str(self.port))
 
     def default_config(self):
         """This function removes all the data from the qt settings file.
-                Use with caution."""
+        Use with caution."""
 
         message = "Do you want to restore all settings to default?\nThis action is unrevocable."
         if critical_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
@@ -1125,7 +1109,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
     def remove_config(self):
         """This function removes the selected configuration in the recent
-                ip list in the settings tab."""
+        ip list in the settings tab."""
         try:
             ip = self.ipList.currentItem().text()
         except:
@@ -1145,10 +1129,7 @@ class SettingsDialog(QtWidgets.QDialog):
         port = self.portLineEdit.text()
         if self.ipList.findItems(ip, Qt.MatchExactly):
             message = "Do you want to overwrite the old configuration?"
-            if (
-                    warning_dialog(message, dialog_type="yes_no")
-                    == QtWidgets.QMessageBox.Yes
-            ):
+            if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
                 self.settings.setValue("saved-" + ip, [ip, port])
         else:
             self.ipList.addItem(ip)
@@ -1175,9 +1156,7 @@ class SettingsDialog(QtWidgets.QDialog):
                     self.client.send("list_iso " + directory)
             else:
                 dialog = QtWidgets.QFileDialog()
-                directory = dialog.getExistingDirectory(
-                    self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly
-                )
+                directory = dialog.getExistingDirectory(self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly)
                 self.cannoloLineEdit.setText(directory)
 
         except BaseException as ex:
