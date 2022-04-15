@@ -1,0 +1,358 @@
+QMainWindow {
+    background: #3c3d3b;
+    color: white;
+    border-color: rgb(188, 188, 188);
+}
+
+QWidget {
+    font-size: 10pt;
+}
+
+QMenu {
+    background-color: #3c3d3b;
+    color: white;
+    border-color: rgb(188, 188, 188);
+}
+
+QMenu::item {
+    background-color: #3c3d3b;
+    color: white;
+    padding: 5px 50px 5px 35px;
+    margin-right: 2px;
+}
+
+QMenu::item:selected {
+    background-color: #00983A;
+    color: black;
+    border-color: rgb(188, 188, 188);
+}
+
+QMenuBar {
+    background: #3c3d3b;
+    color: white;
+}
+
+QMenuBar::item:selected {
+    background-color: #00963A;
+    color: black;
+}
+
+QPushButton {
+    background-color: #00963A;
+    color: black;
+    border-radius: 5px;
+    border: 1px solid black;
+    padding: 4px 0 4px 0;
+    margin: 0 5px 0 5px;
+}
+
+QPushButton:hover {
+    background-color: #00963A;
+    color: white;
+    border-radius: 5px;
+    border: 1px solid rgb(188, 188, 188);
+    padding: 4px 0 4px 0;
+    margin: 0 5px 0 5px;
+}
+
+QHeaderView::section {
+    background-color: #00963A;
+    color: black;
+    font: bold;
+}
+
+QTableWidget {
+    background-color: rgb(60, 61, 59);
+    color: white;
+}
+
+QTableView::item {
+    background-color: rgb(50, 51, 49);
+    color: white;
+}
+
+QTableView::item:alternate {
+    background-color: rgb(30, 31, 29);
+    color: white;
+}
+
+Qlabel {
+    background-color: transparent;
+    color: white;
+}
+
+QGroupBox {
+    background-color: #3c3d3b;
+    color: white;
+    border-radius: 5px;
+    border: 1px solid rgb(188, 188, 188);
+    padding: 10px 0 10px 0;
+    font: bold;
+    font-size: 15px;
+    margin: 10px 5px 10px 5px;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 20px;
+}
+
+QRadioButton {
+    color: white;
+}
+
+QRadioButton QLabel{
+    color: red;
+}
+
+QLineEdit {
+    background-color: rgb(50, 51, 49);
+    color: white;
+    border: 1px solid rgb(188, 188, 188);
+    height: 20px;
+    border-radius: 5px;
+    padding-left: 5px;
+}
+
+QLineEdit:disabled {
+    background-color: rgb(80, 81, 79);
+    color: white;
+    border: 1px solid rgb(188, 188, 188);
+    height: 20px;
+    border-radius: 5px;
+    padding-left: 10px;
+}
+
+QMessageBox {
+    background-color: rgb(49, 52, 59);
+    color: white;
+    border-color: rgb(188, 188, 188);
+}
+
+QSplitter::handle {
+    background: #3c3d3b;
+    image: url(assets/ui/light_split_handle.png);
+    height: 15px;
+    padding: 0 -5px 0 -5px;
+    color: white;
+}
+
+QDialog {
+    background-color: #3c3d3b;
+    color: white;
+    border-color: whitesmoke;
+}
+
+QDialog QLabel {
+    color: white;
+}
+
+QDialog QCheckBox {
+    color: white;
+}
+
+QDialog QPushButton {
+    min-width: 60px;
+}
+
+QDialog QPlainTextEdit {
+    background-color: #3c3d3b;
+    border: 1px solid whitesmoke;
+    color: white;
+}
+
+QComboBox {
+    background-color: rgb(50, 51, 49);
+    color: white;
+    border: 1px solid whitesmoke;
+    border-radius: 5px;
+    height: 20px;
+}
+
+QComboBox:hover {
+    background-color: #00963A;
+    color: black;
+    border: 1px solid whitesmoke;
+    border-radius: 5px;
+    height: 20px;
+}
+
+QComboBox::down-arrow {
+    border: none;
+    image: url(assets/ui/light_down_arrow.png);
+    width: 10px;
+    margin-right: 5px;
+}
+
+QComboBox::down-arrow:hover {
+    border: none;
+    image: url(assets/ui/light_down_arrow.png);
+    width: 14px;
+    margin-right: 5px;
+}
+
+QComboBox::drop-down {
+    border: none;
+}
+
+QComboBox QAbstractItemView {
+    background-color: rgb(50, 51, 49);
+    color: white;
+    border: 1px solid darkgray;
+    border-radius: 5px;
+    height: 20px;
+}
+
+QProgressBar {
+    background-color: rgba(0, 0, 0, 0);
+    border: 2px solid grey;
+    border-radius: 5px;
+    color: white;
+    min-height: 10px;
+    max-height: 15px;
+}
+
+QProgressBar::chunk {
+    background-color: #05B8CC;
+    min-width: 1px;
+    max-width: 1px;
+}
+
+QScrollBar:vertical {
+    background: transparent;
+}
+
+QScrollBar::handle:vertical {
+    border: 1px solid whitesmoke;
+    background: rgb(50, 51, 49);
+    border-radius: 8px;
+}
+
+QScrollBar::add-line:vertical {
+    background: none;
+}
+
+QScrollBar::sub-line:vertical {
+    background: none;
+}
+
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+    background: none;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QScrollBar:horizontal {
+    background: transparent;
+}
+
+QScrollBar::handle:horizontal {
+    border: 1px solid whitesmoke;
+    background: rgb(50, 51, 49);
+    border-radius: 8px;
+}
+
+QScrollBar::add-line:horizontal {
+    background: none;
+}
+
+QScrollBar::sub-line:horizontal {
+    background: none;
+}
+
+QScrollBar::up-arrow:horizontal, QScrollBar::down-arrow:horizontal {
+    background: none;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: none;
+}
+
+QScrollArea {
+    background-color: #3c3d3b;
+}
+
+QScrollArea QWidget{
+    background-color: #3c3d3b;
+    background-attachment: scroll;
+    color: white;
+}
+
+QScrollArea QPushButton {
+    background-color: #00963A;
+    color: black;
+    border-radius: 5px;
+    border: 1px solid black;
+    padding: 4px 0 4px 0;
+    margin: 0 5px 0 5px;
+}
+
+QScrollArea QPushButton:hover {
+    background-color: #00963A;
+    color: white;
+    border-radius: 5px;
+    border: 1px solid rgb(188, 188, 188);
+    padding: 4px 0 4px 0;
+    margin: 0 5px 0 5px;
+}
+
+QScrollArea QLineEdit {
+    background-color: rgb(50, 51, 49);
+    color: white;
+    border: 1px solid rgb(188, 188, 188);
+    height: 20px;
+    border-radius: 5px;
+    padding-left: 5px;
+}
+
+QScrollArea QComboBox {
+    background-color: rgb(50, 51, 49);
+    color: white;
+    border: 1px solid rgb(188, 188, 188);
+    border-radius: 5px;
+    height: 20px;
+}
+
+QScrollArea QComboBox QAbstractItemView {
+    background-color: rgb(50, 51, 49);
+    color: white;
+    border: 1px solid darkgray;
+    border-radius: 5px;
+    height: 20px;
+}
+
+QScrollArea QComboBox QScrollBar:vertical {
+    background: rgb(50, 51, 49);
+}
+
+QScrollArea QComboBox QScrollBar::handle:vertical {
+    border: 1px solid whitesmoke;
+    background: rgb(50, 51, 49);
+    border-radius: 8px;
+}
+
+QScrollArea QComboBox QScrollBar::add-line:vertical {
+    background: none;
+}
+
+QScrollArea QComboBox QScrollBar::sub-line:vertical {
+    background: none;
+}
+
+QScrollArea QComboBox QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+    background: none;
+}
+
+QScrollArea QComboBox QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QMessageBox QLabel {
+    color: white;
+}
+
+QMessageBox QPushButton {
+    padding: 5px 10px 5px 10px;
+}
