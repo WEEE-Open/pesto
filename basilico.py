@@ -804,6 +804,10 @@ class CommandRunner(threading.Thread):
         self._upload_to_tarallo(args, False)
 
     def _upload_to_tarallo(self, dev: str, queued: bool):
+        if TEST_MODE:
+            self._queued_command.notify_finish("This doesn't do anything when test mode is enabled")
+            return
+
         if queued:
             self._queued_command.notify_start("Preparing to upload")
 
@@ -829,7 +833,8 @@ class CommandRunner(threading.Thread):
 
         features = parse_single_disk(json.loads(smartctl.get("output", "")))
 
-        self._queued_command.notify_percentage(75.0, "Parsing done")
+        if queued:
+            self._queued_command.notify_percentage(75.0, "Parsing done")
 
         with disks_lock:
             # update_disks_if_needed(self)
@@ -838,10 +843,20 @@ class CommandRunner(threading.Thread):
         try:
             code = disk_ref.create_on_tarallo(features)
         except ValidationError as e:
-            self._queued_command.notify_finish_with_error("Upload failed due to validation error: " + str(e))
+            if queued:
+                self.send_msg(
+                    "error_that_can_be_manually_fixed",
+                    {"message": "Upload failed due to validation error: " + str(e), "disk": dev},
+                )
+                self._queued_command.notify_finish_with_error("Upload failed due to validation error: " + str(e))
             return
         except NotAuthorizedError as e:
-            self._queued_command.notify_finish_with_error("Upload failed due to authorization error: " + str(e))
+            if queued:
+                self.send_msg(
+                    "error_that_can_be_manually_fixed",
+                    {"message": "Upload failed due to authorization error: " + str(e), "disk": dev},
+                )
+                self._queued_command.notify_finish_with_error("Upload failed due to authorization error: " + str(e))
             return
 
         with disks_lock:
@@ -851,15 +866,17 @@ class CommandRunner(threading.Thread):
             try:
                 disk_ref.update_from_tarallo_if_needed()
             except ErrorThatCanBeManuallyFixed as e:
-                self.send_msg(
-                    "error_that_can_be_manually_fixed",
-                    {"message": str(e), "disk": dev},
-                )
-                self._queued_command.notify_finish_with_error("Upload succeeded, but an error was reported")
+                if queued:
+                    self.send_msg(
+                        "error_that_can_be_manually_fixed",
+                        {"message": str(e), "disk": dev},
+                    )
+                    self._queued_command.notify_finish_with_error("Upload succeeded, but an error was reported")
                 return
 
         logging.info(f"[{self._the_id}] created {disk_ref.get_path()} on tarallo as {code if code else 'unknown code'}")
-        self._queued_command.notify_finish("Upload done")
+        if queued:
+            self._queued_command.notify_finish("Upload done")
 
     @staticmethod
     def _encode_param(param):
