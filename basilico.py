@@ -472,11 +472,6 @@ class CommandRunner(threading.Thread):
                 env=custom_env,
             )  # , stdout=subprocess.PIPE)
 
-            # TODO: restore this code and kill badblocks if it's too slow (the disk is probably broken)
-            # disk_gb = self.disk['features']['capacity-byte'] / 1024 ** 3
-            # mins_per_gb = 2  # TODO: could be set with a config file?
-            # timeout = 60 * mins_per_gb * disk_gb
-
             percent = 0.0
             reading_and_comparing = False
             errors = -1
