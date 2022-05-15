@@ -434,14 +434,19 @@ class Ui(QtWidgets.QMainWindow):
         Get a list of lists representing the table, with each full row that has at least one selected cell
         :return:
         """
+        encountered_rows = set()
         rows = []
-
+        self.diskTable: QtWidgets.QTableWidget
         for selectedIndex in self.diskTable.selectedIndexes():
+            r = selectedIndex.row()
+            if r in encountered_rows:
+                continue
+            encountered_rows.add(r)
+
             row = []
-            self.diskTable: QtWidgets.QTableWidget
             cc = self.diskTable.columnCount()
             for c in range(cc):
-                row.append(self.diskTable.item(selectedIndex.row(), 0).text())
+                row.append(self.diskTable.item(r, c).text())
             rows.append(row)
 
         return rows
@@ -454,24 +459,37 @@ class Ui(QtWidgets.QMainWindow):
         - queued_sleep
         """
 
-        # TODO: checkbox for cannolo?
-        message = "Do you want to use cannolo, too?"
-        dialog = warning_dialog(message, dialog_type="yes_no_chk")
+        drives = self.get_selected_drive_rows()
+
+        # TODO: checkbox on the main window for cannolo, instead of the message box?
+        dialog = warning_dialog(self.get_wipe_disks_message(drives), dialog_type="yes_no_chk")
         if dialog[0] == QtWidgets.QMessageBox.Yes:
-            drives = self.get_selected_drive_rows()
             for drive in drives:
                 if drive[1] == "":
                     # TODO: allow to enter ID manually?
                     message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
-                    dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
+                    dialog_result = warning_dialog(message, dialog_type="yes_no")
                     if dialog_result == QtWidgets.QMessageBox.Yes:
                         self.upload_to_tarallo(drive[0])
-                    elif dialog_result == QtWidgets.QMessageBox.Cancel:
-                        continue
+                    # If you continue here, it will still erase and smart check and so on...
+                    # elif dialog_result == QtWidgets.QMessageBox.Cancel:
+                    #     continue
             self.erase(std=True, drives=drives)
             self.smart(std=True, drives=drives)
             if dialog[1]:
                 self.cannolo(std=True, drives=drives)
+
+    @staticmethod
+    def get_wipe_disks_message(drives):
+        if len(drives) > 1:
+            message = f"Do you want to wipe these disks?"
+            for drive in drives:
+                message += f"\n{drive[0]}"
+        elif len(drives) > 0:
+            message = f"Do you want to wipe {drives[0][0]}?"
+        else:
+            message = f"Do you want to wipe selected disks?"
+        return message
 
     def erase(self, std=False, drives=None):
         """This function send to the server a queued_badblocks command.
@@ -490,14 +508,8 @@ class Ui(QtWidgets.QMainWindow):
                     return
                 return
             if not std:
-                message = f"Do you want to wipe all disk's data?\n"
-                if drives_qty > 1:
-                    message += "Disks:"
-                    for drive in drives:
-                        message += f" {drive[0]}"
-                else:
-                    message += f"Disk: {drives[0][0]}"
-                if critical_dialog(message, dialog_type="yes_no") != QtWidgets.QMessageBox.Yes:
+                message = self.get_wipe_disks_message(drives)
+                if warning_dialog(message, dialog_type="yes_no") != QtWidgets.QMessageBox.Yes:
                     return
             for drive in drives:
                 self.client.send("queued_badblocks " + drive[0])
@@ -638,6 +650,8 @@ class Ui(QtWidgets.QMainWindow):
                     label = "Cannolo"
                 elif mode == "queued_sleep":
                     label = "Sleep"
+                elif mode == "queued_upload_to_tarallo":
+                    label = "Upload"
                 else:
                     label = "Unknown"
             elif entry == "Disk":  # DISK
