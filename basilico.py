@@ -622,7 +622,7 @@ class CommandRunner(threading.Thread):
             if success:
                 success = run_command_on_partition(dev, f"sudo growpart {dev} 1")
                 if success:
-                    success = run_command_on_partition(dev, f"sudo e2fsck -f {dev}1")
+                    success = run_command_on_partition(dev, f"sudo e2fsck -fy {dev}1")
                     if success:
                         success = run_command_on_partition(dev, f"sudo resize2fs {dev}1")
                         if success:
