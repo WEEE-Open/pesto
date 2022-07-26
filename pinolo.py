@@ -914,8 +914,7 @@ class Ui(QtWidgets.QMainWindow):
             self.diskTable.resizeColumnToContents(1)
 
         elif cmd == "smartctl" or cmd == "queued_smartctl":
-            self.smart_results[params["disk"]] = {"output": params["output"],
-                                                  "status": params["status"]}
+            self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
 
         elif cmd == "connection_failed":
             message = params["reason"]
@@ -1014,7 +1013,6 @@ class SmartWidget(QtWidgets.QWidget):
             elif isinstance(self.smart_results[data], int):
                 add_row(str(data), str(self.smart_results[data]))
         self.table.resizeColumnsToContents()
-
 
     def close_widget(self):
         self.hide()
