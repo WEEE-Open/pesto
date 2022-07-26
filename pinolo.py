@@ -5,6 +5,7 @@ Created on Fri Jul 30 10:54:18 2021
 
 @author: il_palmi
 """
+import json
 
 from client import *
 from utilities import *
@@ -902,7 +903,8 @@ class Ui(QtWidgets.QMainWindow):
             self.diskTable.resizeColumnToContents(1)
 
         elif cmd == "smartctl" or cmd == "queued_smartctl":
-            self.smart_results[params["disk"]] = params["output"]
+            self.smart_results[params["disk"]] = {"output": params["output"],
+                                                  "status": params["status"]}
 
         elif cmd == "connection_failed":
             message = params["reason"]
@@ -961,25 +963,56 @@ class Ui(QtWidgets.QMainWindow):
 class SmartWidget(QtWidgets.QWidget):
     close_signal = QtCore.pyqtSignal(str, name="close")
 
-    def __init__(self, drive: str, smart_results: list):
+    def __init__(self, drive: str, smart_results: dict):
         super(SmartWidget, self).__init__()
         uic.loadUi(PATH["SMART_UI"], self)
         self.drive = drive
-        self.smart_results = smart_results
+        self.smart_results = json.loads(smart_results["output"])
 
         self.setWindowTitle(f"SMART data - {self.drive}")
 
         self.closeButton = self.findChild(QtWidgets.QPushButton, "closeButton")
         self.exportButton = self.findChild(QtWidgets.QPushButton, "exportButton")
-        self.smartPlainText = self.findChild(QtWidgets.QPlainTextEdit, "smartPlainText")
-        self.smartPlainText.appendPlainText(f"{self.smart_results}")
+        self.table = self.findChild(QtWidgets.QTableWidget, "tableWidget")
+        self.statusLineEdit = self.findChild(QtWidgets.QLineEdit, "statusLineEdit")
+        self.statusLineEdit.setText(smart_results["status"])
+        if smart_results["status"] == "ok":
+            self.statusLineEdit.setStyleSheet("background-color: green; color: black;")
+        elif smart_results["status"] == "old":
+            self.statusLineEdit.setStyleSheet("background-color: yellow; color: black;")
+        else:
+            self.statusLineEdit.setStyleSheet("background-color: red; color: black;")
         self.closeButton.clicked.connect(self.close)
 
+        self.setup()
+
         self.show()
+
+    def setup(self):
+        def add_row(type_value: str, value: str):
+            self.table.setRowCount(self.table.rowCount() + 1)
+            self.table.setItem(self.table.rowCount() - 1, 0, QTableWidgetItem(type_value))
+            self.table.setItem(self.table.rowCount() - 1, 1, QTableWidgetItem(value))
+
+        for data in self.smart_results:
+            if isinstance(self.smart_results[data], dict):
+                for line in self.smart_results[data]:
+                    add_row(f"{data} {line}", str(self.smart_results[data][line]))
+            elif isinstance(self.smart_results[data], str):
+                add_row(str(data), self.smart_results[data])
+            elif isinstance(self.smart_results[data], int):
+                add_row(str(data), str(self.smart_results[data]))
+        self.table.resizeColumnsToContents()
+
 
     def close_widget(self):
         self.hide()
         self.close_signal.emit(self.drive)
+
+
+class SmartTable(QtWidgets.QTableWidget):
+    def __init__(self, data: dict):
+        super(SmartTable, self).__init__()
 
 
 class SettingsDialog(QtWidgets.QDialog):
