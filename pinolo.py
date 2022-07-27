@@ -815,7 +815,7 @@ class Ui(QtWidgets.QMainWindow):
             2,
             QTableWidgetItem(str(int(int(drive["size"]) / 1000000000)) + " GB"),
         )
-        if drive["has_critical_mounts"]:
+        if drive["mountpoint"]:
             self.critical_mounts.append(drive["path"])
             item = table.item(row, 0)
             item.setBackground(QtGui.QColor(255, 165, 0, 255))
