@@ -166,7 +166,7 @@ class Disk:
 
         sn = self._lsblk["serial"]
         sn: str
-        if sn.startswith("WD-"):
+        if sn and sn.startswith("WD-"):
             sn = sn[3:]
 
         try:
