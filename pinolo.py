@@ -6,87 +6,48 @@ Created on Fri Jul 30 10:54:18 2021
 @author: il_palmi
 """
 import json
-
 from client import *
 from utilities import *
 from typing import Union
 from dotenv import load_dotenv
 from PyQt5 import uic
-from PyQt5.QtGui import QIcon, QMovie
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QTableWidgetItem
+from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent, QColor
+from PyQt5.QtCore import Qt, QSettings, QSize, pyqtSignal, QThread, QUrl
+from PyQt5.QtWidgets import QTableWidgetItem, QAction, QPushButton, QTableWidget, QMenu, QMessageBox, QMainWindow,\
+    QApplication, QAbstractItemView, QHeaderView, QLabel, QVBoxLayout, QProgressBar, QLineEdit, QFileDialog, QWidget, \
+    QDialog, QRadioButton, QListWidget, QSplitter
 from diff_dialog import DiffWidget
+from variables import *
 import sys
 import traceback
 
-
-PATH = {
-    "REQUIREMENTS": "/requirements_client.txt",
-    "ENV": "/.env",
-    "UI": "/assets/qt/interface.ui",
-    "SETTINGS_UI": "/assets/qt/settings.ui",
-    "SMART_UI": "/assets/qt/smart.ui",
-    "INFOUI": "/assets/qt/info.ui",
-    "CANNOLOUI": "/assets/qt/cannolo_select.ui",
-    "ICON": "/assets/icon.png",
-    "VAPORWAVE_AUDIO": "/assets/vaporwave_theme.mp3",
-    "ASD": "/assets/asd/asd.gif",
-    "ASDVAP": "/assets/asd/asdvap.gif",
-    "RELOAD": "/assets/reload/reload.png",
-    "WHITERELOAD": "/assets/reload/reload_white.png",
-    "VAPORWAVERELOAD": "/assets/reload/vapman.png",
-    "PENDING": "/assets/table/pending.png",
-    "PROGRESS": "/assets/table/progress.png",
-    "OK": "/assets/table/ok.png",
-    "WARNING": "/assets/table/warning.png",
-    "ERROR": "/assets/table/error.png",
-    "STOP": "/assets/stop.png",
-    "WEEE": "/assets/backgrounds/weee_logo.png",
-    "VAPORWAVEBG": "/assets/backgrounds/vaporwave.png",
-    "SERVER": "/basilico.py",
-    "THEMES": "/themes/",
-}
-
-URL = {
-    "website": "https://weeeopen.polito.it",
-    "source_code": "https://github.com/WEEE-Open/pesto",
-}
-
-QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
-
-QUEUE_COMPLETED = "completed"
-QUEUE_PROGRESS = "progress"
-QUEUE_QUEUED = "queued"
-
-PROGRESS_BAR_SCALE = 100
-
-VERSION = "2.0.0"
 
 absolute_path(PATH)
 
 
 # UI class
-class Ui(QtWidgets.QMainWindow):
-    def __init__(self, app: QtWidgets.QApplication) -> None:
+class Ui(QMainWindow):
+    def __init__(self, app: QApplication) -> None:
         super(Ui, self).__init__()
         uic.loadUi(PATH["UI"], self)
         self.app = app
-        self.host = "127.0.0.1"
-        self.port = 1030
+        self.host = DEFAULT_IP
+        self.port = DEFAULT_PORT
         self.cannoloDir = ""
         self.remoteMode = False
-        self.client = ReactorThread(self.host, self.port, self.remoteMode)
         self.manual_cannolo = False
-        self.selected_drive = None
         self.active_theme = None
-        self.pixmapAspectRatio = None
-        self.pixmap = None
-        self.pixmapResizingNeeded = None
         self.dialog = None
+        self.pixmap = None
+        self.pixmapAspectRatio = None
+        self.pixmapResizingNeeded = None
+        self.selected_drive = None
+
         self.critical_mounts = []
-        self.settings = QtCore.QSettings("WEEE-Open", "PESTO")
         self.smart_results = {}
 
+        self.settings = QSettings("WEEE-Open", "PESTO")
+        self.client = ReactorThread(self.host, self.port, self.remoteMode)
 
         " Utilities Widgets "
         self.latest_conf()
@@ -98,42 +59,35 @@ class Ui(QtWidgets.QMainWindow):
 
         """ Defining all items in GUI """
         self.gif = QMovie(PATH["ASD"])
-        self.splitter = self.findChild(QtWidgets.QSplitter, "splitter")
-        self.diskTable = self.findChild(QtWidgets.QTableWidget, "diskTable")
-        self.queueTable = self.findChild(QtWidgets.QTableWidget, "queueTable")
-        self.refreshButton = self.findChild(QtWidgets.QPushButton, "refreshButton")
-        self.eraseButton = self.findChild(QtWidgets.QPushButton, "eraseButton")
-        self.smartButton = self.findChild(QtWidgets.QPushButton, "smartButton")
-        self.cannoloButton = self.findChild(QtWidgets.QPushButton, "cannoloButton")
-        self.stdProcedureButton = self.findChild(QtWidgets.QPushButton, "stdProcButton")
+        self.splitter = self.findChild(QSplitter, "splitter")
+        self.diskTable = self.findChild(QTableWidget, "diskTable")
+        self.queueTable = self.findChild(QTableWidget, "queueTable")
+        self.refreshButton = self.findChild(QPushButton, "refreshButton")
+        self.eraseButton = self.findChild(QPushButton, "eraseButton")
+        self.smartButton = self.findChild(QPushButton, "smartButton")
+        self.cannoloButton = self.findChild(QPushButton, "cannoloButton")
+        self.stdProcedureButton = self.findChild(QPushButton, "stdProcButton")
 
         """ Defining menu actions """
-        self.newSessionAction = self.findChild(QtWidgets.QAction, "newSessionAction")
-        self.refreshAction = self.findChild(QtWidgets.QAction, "refreshAction")
-        self.exitAction = self.findChild(QtWidgets.QAction, "exitAction")
-        self.networkSettingsAction = self.findChild(QtWidgets.QAction, "networkSettingsAction")
-        self.themeMenu = self.findChild(QtWidgets.QMenu, "themeMenu")
-        action = list()
-        action.append(self.themeMenu.addAction("Default"))
-        action[-1].triggered.connect(lambda: self.set_theme("default"))
-        for theme_file in os.listdir(PATH["THEMES"]):
-            theme = theme_file.rstrip(".css")
-            action.append(self.themeMenu.addAction(theme))
-            action[-1].triggered.connect((lambda t: lambda: self.set_theme(t))(theme))
+        self.newSessionAction = self.findChild(QAction, "newSessionAction")
+        self.refreshAction = self.findChild(QAction, "refreshAction")
+        self.exitAction = self.findChild(QAction, "exitAction")
+        self.networkSettingsAction = self.findChild(QAction, "networkSettingsAction")
+        self.themeMenu = self.findChild(QMenu, "themeMenu")
+        self.aboutUsAction = self.findChild(QAction, "actionAboutUs")
+        self.sourceCodeAction = self.findChild(QAction, "actionSourceCode")
+        self.versionAction = self.findChild(QAction, "actionVersion")
 
         """ Defining context menu actions """
-        self.sleep_action = QtWidgets.QAction("Sleep", self)
-        self.uploadToTarallo_action = QtWidgets.QAction("Upload to TARALLO", self)
-        self.showSmartData_Action = QtWidgets.QAction("Show SMART data", self)
-        self.stop_action = QtWidgets.QAction("Stop", self)
-        self.remove_action = QtWidgets.QAction("Remove", self)
-        self.remove_all_action = QtWidgets.QAction("Remove All", self)
-        self.remove_completed_action = QtWidgets.QAction("Remove Completed", self)
-        self.remove_queued_action = QtWidgets.QAction("Remove Queued", self)
-        self.info_action = QtWidgets.QAction("Info", self)
-        self.actionAboutUs = self.findChild(QtWidgets.QAction, "actionAboutUs")
-        self.actionSourceCode = self.findChild(QtWidgets.QAction, "actionSourceCode")
-        self.actionVersion = self.findChild(QtWidgets.QAction, "actionVersion")
+        self.sleep_action = QAction("Sleep", self)
+        self.uploadToTarallo_action = QAction("Upload to TARALLO", self)
+        self.showSmartData_Action = QAction("Show SMART data", self)
+        self.stop_action = QAction("Stop", self)
+        self.remove_action = QAction("Remove", self)
+        self.remove_all_action = QAction("Remove All", self)
+        self.remove_completed_action = QAction("Remove Completed", self)
+        self.remove_queued_action = QAction("Remove Queued", self)
+        self.info_action = QAction("Info", self)
 
         """ Initialization operations """
         self.set_items_functions()
@@ -146,7 +100,7 @@ class Ui(QtWidgets.QMainWindow):
         """This method must be called in the __init__ function of the Ui class
         to initialize the pinolo session"""
 
-        # check if the host and port field are set
+        # Check if the host and port field are set
         if self.host is None and self.port is None:
             message = "The host and port combination is not set.\nPlease visit the settings section."
             warning_dialog(message, dialog_type="ok")
@@ -160,25 +114,20 @@ class Ui(QtWidgets.QMainWindow):
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
 
+        # Actions setup
+        action = list()
+        action.append(self.themeMenu.addAction("Default"))
+        action[-1].triggered.connect(lambda: self.set_theme("default"))
+        for theme_file in os.listdir(PATH["THEMES"]):
+            theme = theme_file.rstrip(".css")
+            action.append(self.themeMenu.addAction(theme))
+            action[-1].triggered.connect((lambda t: lambda: self.set_theme(t))(theme))
+
     def update_settings(self, host: str, port: int, remote_mode: bool, cannoloDir: str):
         self.host = host
         self.port = port
         self.remoteMode = remote_mode
         self.cannoloDir = cannoloDir
-
-    def resize_bg(self):
-        # if self.pixmapResizingNeeded:
-        #     # aspectRatio = self.backgroundLabel.width() / self.backgroundLabel.height()
-        #     if aspectRatio > self.pixmapAspectRatio:
-        #         pixmap = self.pixmap.scaledToWidth(
-        #             # self.backgroundLabel.width(), Qt.SmoothTransformation
-        #         )
-        #     else:
-        #         pixmap = self.pixmap.scaledToHeight(
-        #             # self.backgroundLabel.height(), Qt.SmoothTransformation
-        #         )
-        #     # self.backgroundLabel.setPixmap(pixmap)
-        pass
 
     def on_table_select(self, selected):
         """This function set the queue table context menu buttons"""
@@ -210,19 +159,19 @@ class Ui(QtWidgets.QMainWindow):
         self.refreshAction.triggered.connect(self.refresh)
         self.exitAction.triggered.connect(self.close)
         self.networkSettingsAction.triggered.connect(self.open_settings)
-        self.actionAboutUs.triggered.connect(self.open_website)
-        self.actionSourceCode.triggered.connect(self.open_source_code)
-        self.actionVersion.triggered.connect(self.show_version)
+        self.aboutUsAction.triggered.connect(self.open_website)
+        self.sourceCodeAction.triggered.connect(self.open_source_code)
+        self.versionAction.triggered.connect(self.show_version)
 
         # disk table
-        self.diskTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.diskTable.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        self.diskTable.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.diskTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.diskTable.resizeColumnToContents(1)
         self.diskTable.setColumnWidth(1, self.diskTable.columnWidth(1) + 40)
         self.diskTable.resizeColumnToContents(2)
         self.diskTable.setColumnWidth(2, self.diskTable.columnWidth(2) + 20)
         self.diskTable.cellClicked.connect(self.greyout_buttons)
-        self.diskTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.diskTable.setContextMenuPolicy(Qt.ActionsContextMenu)
 
         # disk table actions
         self.sleep_action.triggered.connect(self.sleep)
@@ -237,13 +186,13 @@ class Ui(QtWidgets.QMainWindow):
         self.diskTable.selectionModel().selectionChanged.connect(self.on_table_select)
 
         # queue table
-        self.queueTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.queueTable.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.queueTable.setRowCount(0)
         self.resize_queue_table_to_contents()
-        self.queueTable.horizontalHeader().setSectionResizeMode(4, QtWidgets.QHeaderView.Stretch)
+        self.queueTable.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
 
         # queue table actions
-        self.queueTable.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.queueTable.setContextMenuPolicy(Qt.ActionsContextMenu)
         self.stop_action.triggered.connect(self.queue_stop)
         self.queueTable.addAction(self.stop_action)
         self.stop_action.setEnabled(False)
@@ -324,9 +273,9 @@ class Ui(QtWidgets.QMainWindow):
         self.settingsDialog.show()
 
     def open_url(self, url_type: str):
-        url = QtCore.QUrl(url_type)
-        if not QtGui.QDesktopServices.openUrl(url):
-            QtWidgets.QMessageBox.warning(self, "Cannot Open Url", f"Could not open url {url_type}")
+        url = QUrl(url_type)
+        if not QDesktopServices.openUrl(url):
+            QMessageBox.warning(self, "Cannot Open Url", f"Could not open url {url_type}")
 
     def open_website(self):
         self.open_url(URL["website"])
@@ -335,7 +284,7 @@ class Ui(QtWidgets.QMainWindow):
         self.open_url(URL["source_code"])
 
     def show_version(self):
-        QtWidgets.QMessageBox.about(self, "Version", f"Pesto v{VERSION}")
+        QMessageBox.about(self, "Version", f"Pesto v{VERSION}")
 
     def deselect(self):
         """This function clear the queue table active selection."""
@@ -349,7 +298,7 @@ class Ui(QtWidgets.QMainWindow):
 
         pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = "Do you want to stop the process?\nID: " + pid
-        if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
+        if warning_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
             self.client.send(f"stop {pid}")
         self.deselect()
 
@@ -360,7 +309,7 @@ class Ui(QtWidgets.QMainWindow):
         pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = "With this action you will also stop the process (ID: " + pid + ")\n"
         message += "Do you want to proceed?"
-        if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
+        if warning_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
             self.client.send(f"remove {pid}")
             self.queueTable.removeRow(self.queueTable.currentRow())
         self.deselect()
@@ -442,15 +391,15 @@ class Ui(QtWidgets.QMainWindow):
 
         message = "Do you want to wipe all disk's data and load a fresh system image?"
         dialog = warning_dialog(message, dialog_type="yes_no_chk")
-        if dialog[0] == QtWidgets.QMessageBox.Yes:
+        if dialog[0] == QMessageBox.Yes:
             drives = self.get_multiple_drive_selection()
             for drive in drives:
                 if drive[1] == "":
                     message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
                     dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
-                    if dialog_result == QtWidgets.QMessageBox.Yes:
+                    if dialog_result == QMessageBox.Yes:
                         self.upload_to_tarallo(std=True, drive=drive[0])
-                    elif dialog_result == QtWidgets.QMessageBox.Cancel:
+                    elif dialog_result == QMessageBox.Cancel:
                         continue
             self.erase(std=True, drives=drives)
             self.smart(std=True, drives=drives)
@@ -481,7 +430,7 @@ class Ui(QtWidgets.QMainWindow):
                         message += f" {drive[0]}"
                 else:
                     message += f"Disk: {drives[0][0]}"
-                if critical_dialog(message, dialog_type="yes_no") != QtWidgets.QMessageBox.Yes:
+                if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
                     return
             for drive in drives:
                 self.client.send("queued_badblocks " + drive[0])
@@ -578,7 +527,7 @@ class Ui(QtWidgets.QMainWindow):
                 warning_dialog(message, dialog_type="ok")
                 return
             message = "Do you want to load the disk informations into TARALLO?"
-            if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.No:
+            if warning_dialog(message, dialog_type="yes_no") == QMessageBox.No:
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
@@ -622,9 +571,9 @@ class Ui(QtWidgets.QMainWindow):
             label: Union[
                 None,
                 str,
-                QtWidgets.QLabel,
-                QtWidgets.QProgressBar,
-                QtWidgets.QTableWidgetItem,
+                QLabel,
+                QProgressBar,
+                QTableWidgetItem,
             ]
             label = None
             if entry == "ID":  # ID
@@ -644,22 +593,22 @@ class Ui(QtWidgets.QMainWindow):
                 label = drive
             elif entry == "Status":  # STATUS
                 if self.queueTable.rowCount() != 0:
-                    label = QtWidgets.QLabel()
-                    label: QtWidgets.QLabel
-                    label.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
+                    label = QLabel()
+                    label: QLabel
+                    label.setPixmap(QPixmap(PATH["PENDING"]).scaled(25, 25, Qt.KeepAspectRatio))
                     label.setObjectName(QUEUE_QUEUED)
                 else:
-                    label: QtWidgets.QLabel
-                    label.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaled(25, 25, QtCore.Qt.KeepAspectRatio))
+                    label: QLabel
+                    label.setPixmap(QPixmap(PATH["PROGRESS"]).scaled(25, 25, Qt.KeepAspectRatio))
                     label.setObjectName(QUEUE_PROGRESS)
             elif entry == "Progress":  # PROGRESS
-                label = QtWidgets.QProgressBar()
+                label = QProgressBar()
                 label.setValue(0)
                 label.setMaximum(100 * PROGRESS_BAR_SCALE)
 
             if entry in ["ID", "Process", "Disk"]:
                 label = QTableWidgetItem(label)
-                label: QtWidgets.QTableWidgetItem
+                label: QTableWidgetItem
                 label.setTextAlignment(Qt.AlignCenter)
                 self.queueTable.setItem(row, idx, label)
             elif entry == "Status":
@@ -667,10 +616,10 @@ class Ui(QtWidgets.QMainWindow):
                 self.queueTable.setCellWidget(row, idx, label)
             else:
                 label.setAlignment(Qt.AlignCenter)
-                layout = QtWidgets.QVBoxLayout()
+                layout = QVBoxLayout()
                 layout.setContentsMargins(0, 0, 0, 0)
                 layout.addWidget(label)
-                widget = QtWidgets.QWidget()
+                widget = QWidget()
                 widget.setLayout(layout)
                 self.queueTable.setCellWidget(row, idx, widget)
 
@@ -709,51 +658,26 @@ class Ui(QtWidgets.QMainWindow):
         Only for the Vaporwave theme, it will search a .mp3 file that will be played in background.
         Just for the meme. asd"""
 
-        self.pixmapResizingNeeded = False
         self.pixmap = None
 
         if theme == "default":
             self.app.setStyleSheet("")
             self.app.setStyleSheet("QWidget {" "font-size: 10pt;" "}")
-            # self.backgroundLabel.clear()
             self.asd_gif_set(PATH["ASD"])
             self.settingsDialog.cannoloLabel.setStyleSheet("color: blue")
             self.active_theme = "default"
+            self.refreshButton.setIcon(QIcon(PATH["RELOAD"]))
         else:
             with open(f"{PATH['THEMES']}{theme}.css", "r") as file:
                 self.app.setStyleSheet(file.read())
             if self.active_theme == "Vaporwave":
-                self.reloadButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
-                self.reloadButton.setIconSize(QtCore.QSize(50, 50))
-                # self.backgroundLabel.clear()
-                self.pixmap = QtGui.QPixmap(PATH["VAPORWAVEBG"])
-                self.pixmapAspectRatio = self.pixmap.width() / self.pixmap.height()
-                # self.backgroundLabel.setPixmap(self.pixmap)
-                self.pixmapResizingNeeded = True
-                self.resize_bg()
                 self.asd_gif_set(PATH["ASDVAP"])
-                # self.cannoloLabel.setStyleSheet("color: rgb(252, 186, 3)")
-
-                # self.backgroundLabel.clear()
+                self.refreshButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
+                self.refreshButton.setIconSize(QSize(50, 50))
+            else:
+                self.refreshButton.setIcon(QIcon(PATH["RELOAD"]))
+                self.refreshButton.setIconSize(QSize(25, 25))
                 self.asd_gif_set(PATH["ASD"])
-                if self.active_theme == "asd":
-                    # background asd gif setup
-                    self.movie = QMovie(PATH["ASD"])
-                    self.movie.setScaledSize(
-                        QtCore.QSize().scaled(400, 400, Qt.KeepAspectRatio)
-                    )
-                    self.movie.start()
-                    # self.backgroundLabel.setMovie(self.movie)
-                    self.asd_gif_set(PATH["ASD"])
-                elif self.active_theme == "weeeopen":
-                    # self.backgroundLabel = self.findChild(QtWidgets.QLabel, "backgroundLabel")
-                    # self.backgroundLabel.clear()
-                    # self.backgroundLabel.setPixmap(
-                    #     QtGui.QPixmap(PATH["WEEE"]).scaled(300, 300, QtCore.Qt.KeepAspectRatio)
-                    # )
-                    self.reloadButton.setIcon(QIcon(PATH["RELOAD"]))
-                    self.reloadButton.setIconSize(QtCore.QSize(25, 25))
-                    self.asd_gif_set(PATH["ASD"])
 
         self.settings.setValue("last_theme", theme)
         self.active_theme = theme
@@ -763,7 +687,7 @@ class Ui(QtWidgets.QMainWindow):
 
         self.settingsDialog.asdGif = QMovie(dir)
         self.settingsDialog.asdGif.setScaledSize(
-            QtCore.QSize().scaled(
+            QSize().scaled(
                 self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio
             )
         )
@@ -796,7 +720,7 @@ class Ui(QtWidgets.QMainWindow):
                             continue
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
-                            queue_progress = queue_progress.findChild(QtWidgets.QProgressBar).value()
+                            queue_progress = queue_progress.findChild(QProgressBar).value()
                             if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
                                 self.diskTable.item(disk_row, 0).setBackground(Qt.yellow)
                                 self.diskTable.item(disk_row, 0).setForeground(Qt.black)
@@ -806,7 +730,7 @@ class Ui(QtWidgets.QMainWindow):
                             self.diskTable.item(disk_row, 0).setBackground(Qt.transparent)
                             self.diskTable.item(disk_row, 0).setForeground(default_foreground)
 
-    def set_disk_table_item(self, table: QtWidgets.QTableWidget, row: int, drive: dict):
+    def set_disk_table_item(self, table: QTableWidget, row: int, drive: dict):
         table.setRowCount(row + 1)
         table.setItem(row, 0, QTableWidgetItem(drive["path"]))
         table.setItem(row, 1, QTableWidgetItem(drive["code"]))
@@ -818,7 +742,7 @@ class Ui(QtWidgets.QMainWindow):
         if drive["mountpoint"]:
             self.critical_mounts.append(drive["path"])
             item = table.item(row, 0)
-            item.setBackground(QtGui.QColor(255, 165, 0, 255))
+            item.setBackground(QColor(255, 165, 0, 255))
             item.setForeground(Qt.black)
             item.setToolTip("Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh.")
 
@@ -863,7 +787,7 @@ class Ui(QtWidgets.QMainWindow):
                             mode=param["command"],
                         )
                         rows += 1
-                progress_bar = self.queueTable.cellWidget(row, 4).findChild(QtWidgets.QProgressBar)
+                progress_bar = self.queueTable.cellWidget(row, 4).findChild(QProgressBar)
                 status_cell = self.queueTable.cellWidget(row, 3)
                 progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
 
@@ -871,20 +795,20 @@ class Ui(QtWidgets.QMainWindow):
                     pass
                 elif param["stopped"]:
                     # TODO: we don't have an icon for this, maybe we should
-                    status_cell.setPixmap(QtGui.QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
+                    status_cell.setPixmap(QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["error"]:
-                    status_cell.setPixmap(QtGui.QPixmap(PATH["ERROR"]).scaledToHeight(25, Qt.SmoothTransformation))
+                    status_cell.setPixmap(QPixmap(PATH["ERROR"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["finished"]:  # and not error
-                    status_cell.setPixmap(QtGui.QPixmap(PATH["OK"]).scaledToHeight(25, Qt.SmoothTransformation))
+                    status_cell.setPixmap(QPixmap(PATH["OK"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_COMPLETED)
                 elif param["started"]:
-                    status_cell.setPixmap(QtGui.QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
+                    status_cell.setPixmap(QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_PROGRESS)
                     self.resize_queue_table_to_contents()
                 else:
-                    status_cell.setPixmap(QtGui.QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
+                    status_cell.setPixmap(QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
                     status_cell.setObjectName(QUEUE_QUEUED)
 
                 if "text" in param:
@@ -945,7 +869,7 @@ class Ui(QtWidgets.QMainWindow):
 
         self.check_disk_usage()
 
-    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
+    def closeEvent(self, a0: QCloseEvent) -> None:
         """This function is called when the window is closed.
         It will save all the latest settings parameters into the QT settings file and
         terminate all the active audio processes."""
@@ -960,8 +884,8 @@ class Ui(QtWidgets.QMainWindow):
         # self.client.stop(self.remoteMode)
 
 
-class SmartWidget(QtWidgets.QWidget):
-    close_signal = QtCore.pyqtSignal(str, name="close")
+class SmartWidget(QWidget):
+    close_signal = pyqtSignal(str, name="close")
 
     def __init__(self, drive: str, smart_results: dict):
         super(SmartWidget, self).__init__()
@@ -971,10 +895,10 @@ class SmartWidget(QtWidgets.QWidget):
 
         self.setWindowTitle(f"SMART data - {self.drive}")
 
-        self.closeButton = self.findChild(QtWidgets.QPushButton, "closeButton")
-        self.exportButton = self.findChild(QtWidgets.QPushButton, "exportButton")
-        self.table = self.findChild(QtWidgets.QTableWidget, "tableWidget")
-        self.statusLineEdit = self.findChild(QtWidgets.QLineEdit, "statusLineEdit")
+        self.closeButton = self.findChild(QPushButton, "closeButton")
+        self.exportButton = self.findChild(QPushButton, "exportButton")
+        self.table = self.findChild(QTableWidget, "tableWidget")
+        self.statusLineEdit = self.findChild(QLineEdit, "statusLineEdit")
         self.statusLineEdit.setText(smart_results["status"])
         if smart_results["status"] == "ok":
             self.statusLineEdit.setStyleSheet("background-color: green; color: black;")
@@ -1010,15 +934,15 @@ class SmartWidget(QtWidgets.QWidget):
         self.close_signal.emit(self.drive)
 
 
-class SmartTable(QtWidgets.QTableWidget):
+class SmartTable(QTableWidget):
     def __init__(self, data: dict):
         super(SmartTable, self).__init__()
 
 
-class SettingsDialog(QtWidgets.QDialog):
-    update = QtCore.pyqtSignal(str, int, bool, str, name="update_settings")
+class SettingsDialog(QDialog):
+    update = pyqtSignal(str, int, bool, str, name="update_settings")
 
-    def __init__(self, host: str, port: int, remoteMode: bool, cannoloDir: str, settings: QtCore.QSettings, client: ReactorThread):
+    def __init__(self, host: str, port: int, remoteMode: bool, cannoloDir: str, settings: QSettings, client: ReactorThread):
         super(SettingsDialog, self).__init__()
         uic.loadUi(PATH["SETTINGS_UI"], self)
         self.host = host
@@ -1029,20 +953,20 @@ class SettingsDialog(QtWidgets.QDialog):
         self.client = client
 
         """ Defining widgets """
-        self.localRadioBtn = self.findChild(QtWidgets.QRadioButton, "localRadioBtn")
-        self.remoteRadioBtn = self.findChild(QtWidgets.QRadioButton, "remoteRadioBtn")
-        self.ipLineEdit = self.findChild(QtWidgets.QLineEdit, "ipLineEdit")
-        self.portLineEdit = self.findChild(QtWidgets.QLineEdit, "portLineEdit")
-        self.restoreButton = self.findChild(QtWidgets.QPushButton, "restoreButton")
-        self.removeButton = self.findChild(QtWidgets.QPushButton, "removeButton")
-        self.defaultButton = self.findChild(QtWidgets.QPushButton, "defaultButton")
-        self.saveConfigButton = self.findChild(QtWidgets.QPushButton, "saveConfigButton")
-        self.ipList = self.findChild(QtWidgets.QListWidget, "ipList")
-        self.findButton = self.findChild(QtWidgets.QPushButton, "findButton")
-        self.cannoloLabel = self.findChild(QtWidgets.QLabel, "cannoloLabel")
-        self.cannoloLineEdit = self.findChild(QtWidgets.QLineEdit, "cannoloLineEdit")
-        self.cancelButton = self.findChild(QtWidgets.QPushButton, "cancelButton")
-        self.saveButton = self.findChild(QtWidgets.QPushButton, "saveButton")
+        self.localRadioBtn = self.findChild(QRadioButton, "localRadioBtn")
+        self.remoteRadioBtn = self.findChild(QRadioButton, "remoteRadioBtn")
+        self.ipLineEdit = self.findChild(QLineEdit, "ipLineEdit")
+        self.portLineEdit = self.findChild(QLineEdit, "portLineEdit")
+        self.restoreButton = self.findChild(QPushButton, "restoreButton")
+        self.removeButton = self.findChild(QPushButton, "removeButton")
+        self.defaultButton = self.findChild(QPushButton, "defaultButton")
+        self.saveConfigButton = self.findChild(QPushButton, "saveConfigButton")
+        self.ipList = self.findChild(QListWidget, "ipList")
+        self.findButton = self.findChild(QPushButton, "findButton")
+        self.cannoloLabel = self.findChild(QLabel, "cannoloLabel")
+        self.cannoloLineEdit = self.findChild(QLineEdit, "cannoloLineEdit")
+        self.cancelButton = self.findChild(QPushButton, "cancelButton")
+        self.saveButton = self.findChild(QPushButton, "saveButton")
 
         """ Defining widgets functions """
         self.saveButton.clicked.connect(self.save)
@@ -1075,10 +999,10 @@ class SettingsDialog(QtWidgets.QDialog):
             self.cannoloLineEdit.setReadOnly(False)
 
         """ Defining extremely important asd gif """
-        self.asdlabel = self.findChild(QtWidgets.QLabel, "asdLabel")
+        self.asdlabel = self.findChild(QLabel, "asdLabel")
         self.asdGif = QMovie(PATH["ASD"])
         self.asdGif.setScaledSize(
-            QtCore.QSize().scaled(
+            QSize().scaled(
                 self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio
             )
         )
@@ -1152,7 +1076,7 @@ class SettingsDialog(QtWidgets.QDialog):
                 Use with caution."""
 
         message = "Do you want to restore all settings to default?\nThis action is unrevocable."
-        if critical_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
+        if critical_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
             self.settings.clear()
             self.ipList.clear()
 
@@ -1164,7 +1088,7 @@ class SettingsDialog(QtWidgets.QDialog):
         except:
             return
         message = "Do you want to remove the selected configuration?"
-        if warning_dialog(message, dialog_type="yes_no") == QtWidgets.QMessageBox.Yes:
+        if warning_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
             for key in self.settings.childKeys():
                 if ip in key:
                     self.ipList.takeItem(self.ipList.row(self.ipList.currentItem()))
@@ -1180,7 +1104,7 @@ class SettingsDialog(QtWidgets.QDialog):
             message = "Do you want to overwrite the old configuration?"
             if (
                     warning_dialog(message, dialog_type="yes_no")
-                    == QtWidgets.QMessageBox.Yes
+                    == QMessageBox.Yes
             ):
                 self.settings.setValue("saved-" + ip, [ip, port])
         else:
@@ -1207,9 +1131,9 @@ class SettingsDialog(QtWidgets.QDialog):
                         directory += "/"
                     self.client.send("list_iso " + directory)
             else:
-                dialog = QtWidgets.QFileDialog()
+                dialog = QFileDialog()
                 directory = dialog.getExistingDirectory(
-                    self, "Open Directory", "/home", QtWidgets.QFileDialog.ShowDirsOnly
+                    self, "Open Directory", "/home", QFileDialog.ShowDirsOnly
                 )
                 self.cannoloLineEdit.setText(directory)
 
@@ -1230,10 +1154,10 @@ class SettingsDialog(QtWidgets.QDialog):
 
 
 class LocalServer(QThread):
-    update = QtCore.pyqtSignal(str, str, name="update")
+    update = pyqtSignal(str, str, name="update")
 
     def __init__(self, parent=None):
-        QtCore.QThread.__init__(self, parent)
+        QThread.__init__(self, parent)
         self.server: subprocess.Popen
         self.server = None
         self.running = False
@@ -1262,7 +1186,7 @@ def main():
     # noinspection PyBroadException
     try:
         load_dotenv(PATH["ENV"])
-        app = QtWidgets.QApplication(sys.argv)
+        app = QApplication(sys.argv)
         window = Ui(app)
         app.exec_()
 
