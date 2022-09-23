@@ -22,9 +22,11 @@ There is no authentication and no encryption of any message.
 
 ## Screenshots  
 
-![image](https://user-images.githubusercontent.com/39865402/130485205-2e5669df-9c13-49f7-9275-9bd141b3dec7.png)
-![image](https://user-images.githubusercontent.com/39865402/130485454-2e14848d-56b5-45ac-926d-e891d3972e65.png)
-![image](https://user-images.githubusercontent.com/39865402/130485478-73a0e3ff-87fa-46aa-8e4e-d20f46d6bad1.png)
+![Screenshot_20220923_104046](https://user-images.githubusercontent.com/39865402/191923572-3fef4ec4-a5c9-4ff8-aad2-2f5ef9c0667a.png)
+![Screenshot_20220923_104143](https://user-images.githubusercontent.com/39865402/191923577-c5d0baf1-5a94-48c0-9aaf-6b28f8304274.png)
+![Screenshot_20220923_104157](https://user-images.githubusercontent.com/39865402/191923589-4d1f9975-00e5-401c-bddd-434eb7f06396.png)
+![Screenshot_20220923_104400](https://user-images.githubusercontent.com/39865402/191923858-6c130e19-265c-4d15-8228-95e21658f04c.png)
+
 
 ## Client Installation
 To install the client, open a terminal and execute the following commands:
