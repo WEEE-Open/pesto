@@ -9,13 +9,16 @@ from typing import Optional, Callable, Dict, Set, List
 from pytarallo import Tarallo, Errors
 from dotenv import load_dotenv
 from io import StringIO
+
+from pytarallo.Errors import ValidationError, NotAuthorizedError
+from pytarallo.ItemToUpload import ItemToUpload
 from twisted.internet import reactor, protocol
 from twisted.protocols.basic import LineOnlyReceiver
 import threading
 import logging
 from datetime import datetime
 
-from read_smartctl import extract_smart_data, smart_health_status
+from read_smartctl import extract_smart_data, smart_health_status, parse_single_disk
 
 NAME = "basilico"
 # Use env vars, do not change the value here
@@ -207,6 +210,21 @@ class Disk:
         else:
             self._item = None
 
+    def create_on_tarallo(self, features: dict) -> Optional[str]:
+        # TODO: does this need any lock?
+        # with self._update_lock:
+        if self._tarallo:
+            disk = ItemToUpload()
+            for f, v in features.items():
+                disk.features[f] = v
+            success = self._tarallo.add_item(disk)
+            if success and isinstance(disk.code, str) and disk.code != "":
+                return disk.code
+        return None
+
+    def set_code(self, code: str):
+        self._code = code
+
 
 class ErrorThatCanBeManuallyFixed(BaseException):
     pass
@@ -297,6 +315,8 @@ class CommandRunner(threading.Thread):
             "queued_badblocks": self.badblocks,
             "queued_cannolo": self.cannolo,
             "queued_sleep": self.sleep,
+            "upload_to_tarallo": self.upload_to_tarallo,
+            "queued_upload_to_tarallo": self.queued_upload_to_tarallo,
             "get_disks": self.get_disks,
             "ping": self.ping,
             "close_at_end": self.close_at_end,
@@ -452,11 +472,6 @@ class CommandRunner(threading.Thread):
                 env=custom_env,
             )  # , stdout=subprocess.PIPE)
 
-            # TODO: restore this code and kill badblocks if it's too slow (the disk is probably broken)
-            # disk_gb = self.disk['features']['capacity-byte'] / 1024 ** 3
-            # mins_per_gb = 2  # TODO: could be set with a config file?
-            # timeout = 60 * mins_per_gb * disk_gb
-
             percent = 0.0
             reading_and_comparing = False
             errors = -1
@@ -607,7 +622,7 @@ class CommandRunner(threading.Thread):
             if success:
                 success = run_command_on_partition(dev, f"sudo growpart {dev} 1")
                 if success:
-                    success = run_command_on_partition(dev, f"sudo e2fsck -f {dev}1")
+                    success = run_command_on_partition(dev, f"sudo e2fsck -fy {dev}1")
                     if success:
                         success = run_command_on_partition(dev, f"sudo resize2fs {dev}1")
                         if success:
@@ -779,6 +794,89 @@ class CommandRunner(threading.Thread):
             "output": output,
             "stderr": stderr,
         }
+
+    # noinspection PyUnusedLocal
+    def queued_upload_to_tarallo(self, cmd: str, args: str):
+        self._upload_to_tarallo(args, True)
+
+    # noinspection PyUnusedLocal
+    def upload_to_tarallo(self, cmd: str, args: str):
+        self._upload_to_tarallo(args, False)
+
+    def _upload_to_tarallo(self, dev: str, queued: bool):
+        if TEST_MODE:
+            self._queued_command.notify_finish("This doesn't do anything when test mode is enabled")
+            return
+
+        if queued:
+            self._queued_command.notify_start("Preparing to upload")
+
+        # return {
+        #     "disk": dev,
+        #     "status": status,
+        #     "updated": updated,
+        #     "exitcode": exitcode,
+        #     "output": output,
+        #     "stderr": stderr,
+        # }
+        smartctl = self._get_smartctl(dev, False)
+
+        if queued:
+            self._queued_command.notify_percentage(50.0, "smartctl output obtained")
+
+        if queued and not smartctl.get("output"):
+            self._queued_command.notify_finish_with_error("Could not get smartctl output")
+            return
+
+        if queued and not smartctl.get("status"):
+            self._queued_command.notify_error("Could not determine disk status")
+
+        features = parse_single_disk(json.loads(smartctl.get("output", "")))
+
+        if queued:
+            self._queued_command.notify_percentage(75.0, "Parsing done")
+
+        with disks_lock:
+            # update_disks_if_needed(self)
+            disk_ref = disks[dev]
+
+        try:
+            code = disk_ref.create_on_tarallo(features)
+        except ValidationError as e:
+            if queued:
+                self.send_msg(
+                    "error_that_can_be_manually_fixed",
+                    {"message": "Upload failed due to validation error: " + str(e), "disk": dev},
+                )
+                self._queued_command.notify_finish_with_error("Upload failed due to validation error: " + str(e))
+            return
+        except NotAuthorizedError as e:
+            if queued:
+                self.send_msg(
+                    "error_that_can_be_manually_fixed",
+                    {"message": "Upload failed due to authorization error: " + str(e), "disk": dev},
+                )
+                self._queued_command.notify_finish_with_error("Upload failed due to authorization error: " + str(e))
+            return
+
+        with disks_lock:
+            if code:
+                disk_ref.set_code(code)
+
+            try:
+                disk_ref.update_from_tarallo_if_needed()
+            except ErrorThatCanBeManuallyFixed as e:
+                if queued:
+                    self.send_msg(
+                        "error_that_can_be_manually_fixed",
+                        {"message": str(e), "disk": dev},
+                    )
+                    self._queued_command.notify_finish_with_error("Upload succeeded, but an error was reported")
+                return
+
+        logging.info(f"[{self._the_id}] created {disk_ref.get_path()} on tarallo as {code if code else 'unknown code'}")
+        if queued:
+            self._queued_command.notify_finish("Upload done")
 
     @staticmethod
     def _encode_param(param):
@@ -1207,9 +1305,10 @@ def load_settings():
 def get_smartctl_status(smartctl_output: str) -> Optional[str]:
     # noinspection PyBroadException
     try:
-        parsed = json.loads(smartctl_output)
-        smart = extract_smart_data(parsed)
-        return smart_health_status(smart, False)
+        smartctl = json.loads(smartctl_output)
+        smart, failing_now = extract_smart_data(smartctl)
+        status = smart_health_status(smart, failing_now)
+        return status
     except BaseException as e:
         logging.error("Failed to parse smartctl output", exc_info=e)
         return None

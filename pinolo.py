@@ -47,7 +47,7 @@ class Ui(QMainWindow):
 
         self.critical_mounts = []
         self.smart_results = {}
-
+        
         self.settings = QSettings("WEEE-Open", "PESTO")
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
 
@@ -55,8 +55,7 @@ class Ui(QMainWindow):
         self.latest_conf()
         self.diff_widgets = {}
         self.smart_widgets = {}
-        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings,
-                                             self.client)
+        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings, self.client)
         self.settingsDialog.update.connect(self.update_settings)
 
         """ Defining all items in GUI """
@@ -179,7 +178,7 @@ class Ui(QMainWindow):
         self.sleep_action.triggered.connect(self.sleep)
         self.diskTable.addAction(self.sleep_action)
         self.sleep_action.setEnabled(False)
-        self.uploadToTarallo_action.triggered.connect(self.upload_to_tarallo)
+        self.uploadToTarallo_action.triggered.connect(self.upload_to_tarallo_selection)
         self.diskTable.addAction(self.uploadToTarallo_action)
         self.showSmartData_Action.triggered.connect(self.show_smart_data)
         self.diskTable.addAction(self.showSmartData_Action)
@@ -383,6 +382,28 @@ class Ui(QMainWindow):
 
         return drives
 
+    def get_selected_drive_rows(self):
+        """
+        Get a list of lists representing the table, with each full row that has at least one selected cell
+        :return:
+        """
+        encountered_rows = set()
+        rows = []
+        self.diskTable: QtWidgets.QTableWidget
+        for selectedIndex in self.diskTable.selectedIndexes():
+            r = selectedIndex.row()
+            if r in encountered_rows:
+                continue
+            encountered_rows.add(r)
+
+            row = []
+            cc = self.diskTable.columnCount()
+            for c in range(cc):
+                row.append(self.diskTable.item(r, c).text())
+            rows.append(row)
+
+        return rows
+
     def std_procedure(self):
         """This function send to the server a sequence of commands:
         - queued_badblocks
@@ -397,6 +418,7 @@ class Ui(QMainWindow):
             drives = self.get_multiple_drive_selection()
             for drive in drives:
                 if drive[1] == "":
+                    # TODO: allow to enter ID manually?
                     message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
                     dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
                     if dialog_result == QMessageBox.Yes:
@@ -407,6 +429,18 @@ class Ui(QMainWindow):
             self.smart(std=True, drives=drives)
             if dialog[1]:
                 self.cannolo(std=True, drives=drives)
+
+    @staticmethod
+    def get_wipe_disks_message(drives):
+        if len(drives) > 1:
+            message = f"Do you want to wipe these disks?"
+            for drive in drives:
+                message += f"\n{drive[0]}"
+        elif len(drives) > 0:
+            message = f"Do you want to wipe {drives[0][0]}?"
+        else:
+            message = f"Do you want to wipe selected disks?"
+        return message
 
     def erase(self, std=False, drives=None):
         """This function send to the server a queued_badblocks command.
@@ -433,6 +467,7 @@ class Ui(QMainWindow):
                 else:
                     message += f"Disk: {drives[0][0]}"
                 if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
+
                     return
             for drive in drives:
                 self.client.send("queued_badblocks " + drive[0])
@@ -507,20 +542,16 @@ class Ui(QMainWindow):
                 self.manual_cannolo = True
                 return
             for drive in drives:
-                print(
-                    f"GUI: Sending cannolo to {drive[0]} with {self.cannoloDir}"
-                )
-                self.client.send(
-                    f"queued_cannolo {drive[0]} {self.cannoloDir}"
-                )
+                print(f"GUI: Sending cannolo to {drive[0]} with {self.cannoloDir}")
+                self.client.send(f"queued_cannolo {drive[0]} {self.cannoloDir}")
 
         except BaseException:
             print("GUI: Error in cannolo function.")
-
-    def upload_to_tarallo(self, std=False, drive=None):
-        """This function send to the server a queued_upload_to_tarallo command.
-        If "std" is True it will skip the confirm dialog."""
-
+   
+    def upload_to_tarallo_selection(self):
+        for row in self.get_selected_drive_rows():
+            if row[0] == "":
+                self.upload_to_tarallo(row[0])
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
 
         if not std:
@@ -589,6 +620,8 @@ class Ui(QMainWindow):
                     label = "Cannolo"
                 elif mode == "queued_sleep":
                     label = "Sleep"
+                elif mode == "queued_upload_to_tarallo":
+                    label = "Upload"
                 else:
                     label = "Unknown"
             elif entry == "Disk":  # DISK
@@ -846,8 +879,7 @@ class Ui(QMainWindow):
             self.diskTable.resizeColumnToContents(1)
 
         elif cmd == "smartctl" or cmd == "queued_smartctl":
-            self.smart_results[params["disk"]] = {"output": params["output"],
-                                                  "status": params["status"]}
+            self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
 
         elif cmd == "connection_failed":
             message = params["reason"]
@@ -946,7 +978,6 @@ class SmartWidget(QWidget):
             elif isinstance(self.smart_results[data], int):
                 add_row(str(data), str(self.smart_results[data]))
         self.table.resizeColumnsToContents()
-
 
     def close_widget(self):
         self.hide()
@@ -1068,9 +1099,7 @@ class SettingsDialog(QDialog):
             self.portLineEdit.setText(str(self.port))
             self.saveButton.setEnabled(True)
             self.cannoloLineEdit.setReadOnly(False)
-            self.cannoloLabel.setText(
-                "When in remote mode, the user must insert manually the cannolo image directory."
-            )
+            self.cannoloLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
 
     def save(self):
         self.host = self.ipLineEdit.text()
@@ -1085,14 +1114,14 @@ class SettingsDialog(QDialog):
 
     def restore_config(self):
         """This function delete all the edits made in the host and port input
-                in the settings tab."""
+        in the settings tab."""
 
         self.ipLineEdit.setText(self.host)
         self.portLineEdit.setText(str(self.port))
 
     def default_config(self):
         """This function removes all the data from the qt settings file.
-                Use with caution."""
+        Use with caution."""
 
         message = "Do you want to restore all settings to default?\nThis action is unrevocable."
         if critical_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
@@ -1101,7 +1130,7 @@ class SettingsDialog(QDialog):
 
     def remove_config(self):
         """This function removes the selected configuration in the recent
-                ip list in the settings tab."""
+        ip list in the settings tab."""
         try:
             ip = self.ipList.currentItem().text()
         except:
