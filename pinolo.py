@@ -13,9 +13,28 @@ from dotenv import load_dotenv
 from PyQt5 import uic
 from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent, QColor
 from PyQt5.QtCore import Qt, QSettings, QSize, pyqtSignal, QThread, QUrl
-from PyQt5.QtWidgets import QTableWidgetItem, QAction, QPushButton, QTableWidget, QMenu, QMessageBox, QMainWindow,\
-    QApplication, QAbstractItemView, QHeaderView, QLabel, QVBoxLayout, QProgressBar, QLineEdit, QFileDialog, QWidget, \
-    QDialog, QRadioButton, QListWidget, QSplitter
+from PyQt5.QtWidgets import (
+    QTableWidgetItem,
+    QAction,
+    QPushButton,
+    QTableWidget,
+    QMenu,
+    QMessageBox,
+    QMainWindow,
+    QApplication,
+    QAbstractItemView,
+    QHeaderView,
+    QLabel,
+    QVBoxLayout,
+    QProgressBar,
+    QLineEdit,
+    QFileDialog,
+    QWidget,
+    QDialog,
+    QRadioButton,
+    QListWidget,
+    QSplitter,
+)
 from diff_dialog import DiffWidget
 from variables import *
 from datetime import datetime, timedelta
@@ -47,7 +66,7 @@ class Ui(QMainWindow):
 
         self.critical_mounts = []
         self.smart_results = {}
-        
+
         self.settings = QSettings("WEEE-Open", "PESTO")
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
 
@@ -547,7 +566,7 @@ class Ui(QMainWindow):
 
         except BaseException:
             print("GUI: Error in cannolo function.")
-   
+
     def upload_to_tarallo_selection(self):
         for row in self.get_selected_drive_rows():
             if row[0] == "":
@@ -728,9 +747,7 @@ class Ui(QMainWindow):
 
         self.settingsDialog.asdGif = QMovie(dir)
         self.settingsDialog.asdGif.setScaledSize(
-            QSize().scaled(
-                self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio
-            )
+            QSize().scaled(self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio)
         )
         self.settingsDialog.asdGif.start()
         self.settingsDialog.asdlabel.setMovie(self.settingsDialog.asdGif)
@@ -835,7 +852,7 @@ class Ui(QMainWindow):
                     deltatime = (datetime.now() - self.timeKeeper[param["id"]]["time"]).seconds
                     deltaperc = param["percentage"] - self.timeKeeper[param["id"]]["perc"]
                     try:
-                        seconds = (100 - param["percentage"])/(deltaperc/deltatime)
+                        seconds = (100 - param["percentage"]) / (deltaperc / deltatime)
                         eta = str(timedelta(seconds=seconds)).split(".")[0]
                     except ZeroDivisionError:
                         eta = eta_cell.text()
@@ -1051,11 +1068,7 @@ class SettingsDialog(QDialog):
         """ Defining extremely important asd gif """
         self.asdlabel = self.findChild(QLabel, "asdLabel")
         self.asdGif = QMovie(PATH["ASD"])
-        self.asdGif.setScaledSize(
-            QSize().scaled(
-                self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio
-            )
-        )
+        self.asdGif.setScaledSize(QSize().scaled(self.asdlabel.width(), self.asdlabel.height(), Qt.KeepAspectRatio))
 
         # configuration list
         for key in self.settings.childKeys():
@@ -1150,10 +1163,7 @@ class SettingsDialog(QDialog):
         port = self.portLineEdit.text()
         if self.ipList.findItems(ip, Qt.MatchExactly):
             message = "Do you want to overwrite the old configuration?"
-            if (
-                    warning_dialog(message, dialog_type="yes_no")
-                    == QMessageBox.Yes
-            ):
+            if warning_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
                 self.settings.setValue("saved-" + ip, [ip, port])
         else:
             self.ipList.addItem(ip)
@@ -1180,9 +1190,7 @@ class SettingsDialog(QDialog):
                     self.client.send("list_iso " + directory)
             else:
                 dialog = QFileDialog()
-                directory = dialog.getExistingDirectory(
-                    self, "Open Directory", "/home", QFileDialog.ShowDirsOnly
-                )
+                directory = dialog.getExistingDirectory(self, "Open Directory", "/home", QFileDialog.ShowDirsOnly)
                 self.cannoloLineEdit.setText(directory)
 
         except BaseException as ex:
