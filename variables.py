@@ -33,7 +33,7 @@ URL = {
     "source_code": "https://github.com/WEEE-Open/pesto",
 }
 
-QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Progress"]
+QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Eta", "Progress"]
 
 QUEUE_COMPLETED = "completed"
 QUEUE_PROGRESS = "progress"

@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import QTableWidgetItem, QAction, QPushButton, QTableWidget
     QDialog, QRadioButton, QListWidget, QSplitter
 from diff_dialog import DiffWidget
 from variables import *
+from datetime import datetime, timedelta
 import sys
 import traceback
 
@@ -42,6 +43,7 @@ class Ui(QMainWindow):
         self.pixmapAspectRatio = None
         self.pixmapResizingNeeded = None
         self.selected_drive = None
+        self.timeKeeper = {}
 
         self.critical_mounts = []
         self.smart_results = {}
@@ -189,7 +191,7 @@ class Ui(QMainWindow):
         self.queueTable.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.queueTable.setRowCount(0)
         self.resize_queue_table_to_contents()
-        self.queueTable.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.queueTable.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
 
         # queue table actions
         self.queueTable.setContextMenuPolicy(Qt.ActionsContextMenu)
@@ -601,6 +603,8 @@ class Ui(QMainWindow):
                     label: QLabel
                     label.setPixmap(QPixmap(PATH["PROGRESS"]).scaled(25, 25, Qt.KeepAspectRatio))
                     label.setObjectName(QUEUE_PROGRESS)
+            elif entry == "Eta":
+                label = "N/D"
             elif entry == "Progress":  # PROGRESS
                 label = QProgressBar()
                 label.setValue(0)
@@ -612,6 +616,10 @@ class Ui(QMainWindow):
                 label.setTextAlignment(Qt.AlignCenter)
                 self.queueTable.setItem(row, idx, label)
             elif entry == "Status":
+                label.setAlignment(Qt.AlignCenter)
+                self.queueTable.setCellWidget(row, idx, label)
+            elif entry == "Eta":
+                label = QLabel(label)
                 label.setAlignment(Qt.AlignCenter)
                 self.queueTable.setCellWidget(row, idx, label)
             else:
@@ -715,7 +723,7 @@ class Ui(QMainWindow):
                     disk_label = disk_label.text()
                     for queue_row in range(queue_rows + 1):
                         queue_disk_label = self.queueTable.item(queue_row, 2)
-                        queue_progress = self.queueTable.cellWidget(queue_row, 4)
+                        queue_progress = self.queueTable.cellWidget(queue_row, 5)
                         if self.diskTable.item(disk_row, 0).text() in self.critical_mounts:
                             continue
                         if queue_disk_label is not None and queue_progress is not None:
@@ -787,9 +795,20 @@ class Ui(QMainWindow):
                             mode=param["command"],
                         )
                         rows += 1
-                progress_bar = self.queueTable.cellWidget(row, 4).findChild(QProgressBar)
+                progress_bar = self.queueTable.cellWidget(row, 5).findChild(QProgressBar)
                 status_cell = self.queueTable.cellWidget(row, 3)
+                eta_cell = self.queueTable.cellWidget(row, 4)
+                if param["id"] in self.timeKeeper:
+                    deltatime = (datetime.now() - self.timeKeeper[param["id"]]["time"]).seconds
+                    deltaperc = param["percentage"] - self.timeKeeper[param["id"]]["perc"]
+                    try:
+                        seconds = (100 - param["percentage"])/(deltaperc/deltatime)
+                        eta = str(timedelta(seconds=seconds)).split(".")[0]
+                    except ZeroDivisionError:
+                        eta = eta_cell.text()
+                    eta_cell.setText(eta)
                 progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
+                self.timeKeeper[param["id"]] = {"perc": param["percentage"], "time": datetime.now()}
 
                 if param["stale"]:
                     pass
