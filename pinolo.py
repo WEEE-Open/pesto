@@ -826,114 +826,115 @@ class Ui(QMainWindow):
         except json.decoder.JSONDecodeError:
             print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
-        if cmd == "queue_status" or cmd == "get_queue":
-            if cmd == "queue_status":
-                params = [params]
-            for param in params:
-                param: dict
-                row = 0
-                rows = self.queueTable.rowCount()
-                for row in range(rows + 1):
-                    # Check if we already have that id
-                    item = self.queueTable.item(row, 0)
-                    if item is not None and item.text() == param["id"]:
-                        break
-                    elif item is None:
-                        self.update_queue(
-                            pid=param["id"],
-                            drive=param["target"],
-                            mode=param["command"],
-                        )
-                        rows += 1
-                progress_bar = self.queueTable.cellWidget(row, 5).findChild(QProgressBar)
-                status_cell = self.queueTable.cellWidget(row, 3)
-                eta_cell = self.queueTable.cellWidget(row, 4)
-                if param["id"] in self.timeKeeper:
-                    deltatime = (datetime.now() - self.timeKeeper[param["id"]]["time"]).seconds
-                    deltaperc = param["percentage"] - self.timeKeeper[param["id"]]["perc"]
-                    try:
-                        seconds = (100 - param["percentage"]) / (deltaperc / deltatime)
-                        eta = str(timedelta(seconds=seconds)).split(".")[0]
-                    except ZeroDivisionError:
-                        eta = eta_cell.text()
-                    eta_cell.setText(eta)
-                progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
-                self.timeKeeper[param["id"]] = {"perc": param["percentage"], "time": datetime.now()}
+        match cmd:
+            case 'queue_status' | 'get_queue':
+                if cmd == "queue_status":
+                    params = [params]
+                for param in params:
+                    param: dict
+                    row = 0
+                    rows = self.queueTable.rowCount()
+                    for row in range(rows + 1):
+                        # Check if we already have that id
+                        item = self.queueTable.item(row, 0)
+                        if item is not None and item.text() == param["id"]:
+                            break
+                        elif item is None:
+                            self.update_queue(
+                                pid=param["id"],
+                                drive=param["target"],
+                                mode=param["command"],
+                            )
+                            rows += 1
+                    progress_bar = self.queueTable.cellWidget(row, 5).findChild(QProgressBar)
+                    status_cell = self.queueTable.cellWidget(row, 3)
+                    eta_cell = self.queueTable.cellWidget(row, 4)
+                    if param["id"] in self.timeKeeper:
+                        deltatime = (datetime.now() - self.timeKeeper[param["id"]]["time"]).seconds
+                        deltaperc = param["percentage"] - self.timeKeeper[param["id"]]["perc"]
+                        try:
+                            seconds = (100 - param["percentage"]) / (deltaperc / deltatime)
+                            eta = str(timedelta(seconds=seconds)).split(".")[0]
+                        except ZeroDivisionError:
+                            eta = eta_cell.text()
+                        eta_cell.setText(eta)
+                    progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
+                    self.timeKeeper[param["id"]] = {"perc": param["percentage"], "time": datetime.now()}
 
-                if param["stale"]:
-                    pass
-                elif param["stopped"]:
-                    # TODO: we don't have an icon for this, maybe we should
-                    status_cell.setPixmap(QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
-                    status_cell.setObjectName(QUEUE_COMPLETED)
-                elif param["error"]:
-                    status_cell.setPixmap(QPixmap(PATH["ERROR"]).scaledToHeight(25, Qt.SmoothTransformation))
-                    status_cell.setObjectName(QUEUE_COMPLETED)
-                elif param["finished"]:  # and not error
-                    status_cell.setPixmap(QPixmap(PATH["OK"]).scaledToHeight(25, Qt.SmoothTransformation))
-                    status_cell.setObjectName(QUEUE_COMPLETED)
-                elif param["started"]:
-                    status_cell.setPixmap(QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
-                    status_cell.setObjectName(QUEUE_PROGRESS)
-                    self.resize_queue_table_to_contents()
-                else:
-                    status_cell.setPixmap(QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
-                    status_cell.setObjectName(QUEUE_QUEUED)
+                    if param["stale"]:
+                        pass
+                    elif param["stopped"]:
+                        # TODO: we don't have an icon for this, maybe we should
+                        status_cell.setPixmap(QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
+                        status_cell.setObjectName(QUEUE_COMPLETED)
+                    elif param["error"]:
+                        status_cell.setPixmap(QPixmap(PATH["ERROR"]).scaledToHeight(25, Qt.SmoothTransformation))
+                        status_cell.setObjectName(QUEUE_COMPLETED)
+                    elif param["finished"]:  # and not error
+                        status_cell.setPixmap(QPixmap(PATH["OK"]).scaledToHeight(25, Qt.SmoothTransformation))
+                        status_cell.setObjectName(QUEUE_COMPLETED)
+                    elif param["started"]:
+                        status_cell.setPixmap(QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
+                        status_cell.setObjectName(QUEUE_PROGRESS)
+                        self.resize_queue_table_to_contents()
+                    else:
+                        status_cell.setPixmap(QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
+                        status_cell.setObjectName(QUEUE_QUEUED)
 
-                if "text" in param:
-                    status_cell.setToolTip(param["text"])
+                    if "text" in param:
+                        status_cell.setToolTip(param["text"])
 
-        elif cmd == "get_disks":
-            drives = params
-            if len(drives) <= 0:
+            case 'get_disks':
+                drives = params
+                if len(drives) <= 0:
+                    self.diskTable.setRowCount(0)
+                    return
+                    # compile disks table with disks list
+                for row, d in enumerate(drives):
+                    d: dict
+                    self.set_disk_table_item(self.diskTable, row, d)
+                self.diskTable.resizeColumnToContents(0)
+                self.diskTable.resizeColumnToContents(1)
+
+            case 'smartctl' | 'queued_smartctl':
+                self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
+
+            case ' connection_failed':
+                message = params["reason"]
+                if not self.remoteMode:
+                    print("GUI: Connection Failed: Local server not running.")
+                    print("GUI: Trying to start local server...")
+                    self.localServer.start()
+                    return
+                if "Connection was refused by other side" in message:
+                    message = "Cannot find BASILICO server.\nCheck if it's running in the " "targeted machine."
+                warning_dialog(message, dialog_type="ok")
+
+            case 'connection_lost':
+                self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
+                self.queueTable.setRowCount(0)
                 self.diskTable.setRowCount(0)
-                return
-            # compile disks table with disks list
-            for row, d in enumerate(drives):
-                d: dict
-                self.set_disk_table_item(self.diskTable, row, d)
-            self.diskTable.resizeColumnToContents(0)
-            self.diskTable.resizeColumnToContents(1)
 
-        elif cmd == "smartctl" or cmd == "queued_smartctl":
-            self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
+            case 'connection_made':
+                self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
 
-        elif cmd == "connection_failed":
-            message = params["reason"]
-            if not self.remoteMode:
-                print("GUI: Connection Failed: Local server not running.")
-                print("GUI: Trying to start local server...")
-                self.localServer.start()
-                return
-            if "Connection was refused by other side" in message:
-                message = "Cannot find BASILICO server.\nCheck if it's running in the " "targeted machine."
-            warning_dialog(message, dialog_type="ok")
+            case 'list_iso':
+                self.dialog = CannoloDialog(self.settingsDialog, PATH, params)
+                if self.manual_cannolo:
+                    self.dialog.update.connect(self.use_cannolo_img)
+                    self.manual_cannolo = False
+                else:
+                    self.dialog.update.connect(self.settingsDialog.set_default_cannolo)
 
-        elif cmd == "connection_lost":
-            self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
-            self.queueTable.setRowCount(0)
-            self.diskTable.setRowCount(0)
+            case 'error':
+                message = f"{params['message']}"
+                if "command" in params:
+                    message += f":\n{params['command']}"
+                critical_dialog(message, dialog_type="ok")
 
-        elif cmd == "connection_made":
-            self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
-
-        elif cmd == "list_iso":
-            self.dialog = CannoloDialog(self.settingsDialog, PATH, params)
-            if self.manual_cannolo:
-                self.dialog.update.connect(self.use_cannolo_img)
-                self.manual_cannolo = False
-            else:
-                self.dialog.update.connect(self.settingsDialog.set_default_cannolo)
-
-        elif cmd == "error":
-            message = f"{params['message']}"
-            if "command" in params:
-                message += f":\n{params['command']}"
-            critical_dialog(message, dialog_type="ok")
-
-        elif cmd == "error_that_can_be_manually_fixed":
-            message = params["message"]
-            warning_dialog(message, dialog_type="ok")
+            case 'error_that_can_be_manually_fixed':
+                message = params["message"]
+                warning_dialog(message, dialog_type="ok")
 
         self.check_disk_usage()
 
