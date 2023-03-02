@@ -486,7 +486,6 @@ class Ui(QMainWindow):
                 else:
                     message += f"Disk: {drives[0][0]}"
                 if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
-
                     return
             for drive in drives:
                 self.client.send("queued_badblocks " + drive[0])
