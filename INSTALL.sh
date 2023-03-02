@@ -40,7 +40,21 @@ sudo cp /opt/$FOLDER_NAME/basilico.service /etc/systemd/system/
 
 echo "Generating python virtual environment ..."
 
-sudo python -m venv /opt/$FOLDER_NAME/venv
+PYTHON_VERSION=$(python3 -c 'import sys; print(sys.version_info[1])')
+if [[ "$PYTHON_VERSION" -ge 10 ]]; then
+  sudo python3 -m venv /opt/$FOLDER_NAME/venv
+elif [[ "$(which python3.10)" != "" ]]; then
+  sudo python3.10 -m venv /opt/$FOLDER_NAME/venv
+else
+  tput setab $RED
+  tput setaf $BLACK
+  echo "                                     "
+  echo "Python 3.10.0 or higher is needed for installation."
+  echo "Installation aborted. Terminating ..."
+  echo "                                     "
+  tput sgr0
+  exit 1
+fi
 sudo chown -R $USERNAME:$USERNAME /opt/pesto
 source /opt/$FOLDER_NAME/venv/bin/activate
 pip install -r /opt/$FOLDER_NAME/requirements_client.txt
