@@ -7,8 +7,7 @@ Requires=network.target
 Type=simple
 Restart=on-failure
 RestartSec=1
-User=pesto
-ExecStart=sudo /opt/pesto/venv/bin/python /opt/pesto/basilico.py
+ExecStart=/opt/pesto/venv/bin/python /opt/pesto/basilico.py
 StandardOutput=journal
 StandardError=journal
 

@@ -1285,7 +1285,7 @@ def load_settings():
     load_dotenv(f"~/.conf/WEEE-Open/{NAME}.conf")
     load_dotenv(f"/etc/{NAME}.conf")
     # Defaults
-    config = StringIO("IP=127.0.0.1\nPORT=1030\nLOGLEVEL=INFO")
+    config = StringIO("IP=0.0.0.0\nPORT=1030\nLOGLEVEL=INFO")
     load_dotenv(stream=config)
 
     logging.basicConfig(format="%(message)s", level=getattr(logging, os.getenv("LOGLEVEL").upper()))
