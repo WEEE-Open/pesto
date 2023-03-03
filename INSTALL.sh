@@ -61,6 +61,10 @@ pip install -r /opt/$FOLDER_NAME/requirements_client.txt
 pip install -r /opt/$FOLDER_NAME/requirements_server.txt
 deactivate
 
+echo "Installing system dependencies"
+sudo apt update
+sudo apt install cloud-utils smartmontools
+
 echo "Updating systemd services ..."
 sudo systemctl daemon-reload
 
