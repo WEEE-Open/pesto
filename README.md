@@ -20,41 +20,17 @@ PESTO is a utility software that allows you to make some operations on hard disk
 **It's highly discouraged to use the client outside a local network for security reasons.**  
 There is no authentication and no encryption of any message.
 
-## Screenshots  
+## Installation
 
-![Screenshot_20220923_104046](https://user-images.githubusercontent.com/39865402/191923572-3fef4ec4-a5c9-4ff8-aad2-2f5ef9c0667a.png)
-![Screenshot_20220923_104143](https://user-images.githubusercontent.com/39865402/191923577-c5d0baf1-5a94-48c0-9aaf-6b28f8304274.png)
-![Screenshot_20220923_104157](https://user-images.githubusercontent.com/39865402/191923589-4d1f9975-00e5-401c-bddd-434eb7f06396.png)
-![Screenshot_20220923_104400](https://user-images.githubusercontent.com/39865402/191923858-6c130e19-265c-4d15-8228-95e21658f04c.png)
-
-
-## Client Installation
-To install the client, open a terminal and execute the following commands:
-
-1. `git clone https://github.com/WEEE-Open/pesto.git`
-2. `cd pesto`
-3. In program folder: `./INSTALL.sh`
-
-PINOLO installs its dependencies automatically.  
-If you need to do it manually:
+To install pesto in the system:
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements_client.txt
+git clone https://github.com/WEEE-Open/pesto.git
+cd pesto
+./INSTALL.sh
 ```
 
-## Server Installation
-
-To install the server in a remote machine:
-1. `git clone https://github.com/WEEE-Open/pesto.git`
-2. `cd pesto`
-3. `python -m venv venv`
-4. `source venv/bin/activate`
-5. `pip install -r requirements_server.txt`
-6. In program folder: `./basilico.py`
-
-To update dependencies: ` pip install --upgrade -r requirements_server.txt`
+The script installs the software in `/opt/pesto` and generates the virtual environment with the necessary dependencies. 
 
 ### Server configuration
 
@@ -85,6 +61,19 @@ TARALLO_TOKEN=yoLeCHmEhNNseN0BlG0s3A:ksfPYziGg7ebj0goT0Zc7pbmQEIYvZpRTIkwuscAM_k
 # If true, no destructive actions will be performed: no badblocks, no trimming, no cannolo. Default false.
 TEST_MODE=1
 ```
+
+Immediately after the installation, you may need to copy the `.env.example` file in the same path as `.env`.
+Then you can edit the `.env` file to set your configuration. Generally, the default configuration is good but to use
+TARALLO features you have to set the TARALLO_URL and TARALLO_TOKEN environment variables.
+
+## Screenshots  
+
+![Screenshot_20220923_104046](https://user-images.githubusercontent.com/39865402/191923572-3fef4ec4-a5c9-4ff8-aad2-2f5ef9c0667a.png)
+![Screenshot_20220923_104143](https://user-images.githubusercontent.com/39865402/191923577-c5d0baf1-5a94-48c0-9aaf-6b28f8304274.png)
+![Screenshot_20220923_104157](https://user-images.githubusercontent.com/39865402/191923589-4d1f9975-00e5-401c-bddd-434eb7f06396.png)
+![Screenshot_20220923_104400](https://user-images.githubusercontent.com/39865402/191923858-6c130e19-265c-4d15-8228-95e21658f04c.png)
+
+
 
 ## Credits and license
 
