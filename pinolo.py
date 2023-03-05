@@ -8,6 +8,7 @@ Created on Fri Jul 30 10:54:18 2021
 import json
 from client import *
 from utilities import *
+from widgets.smart import SmartWidget
 from typing import Union
 from dotenv import load_dotenv
 from PyQt5 import uic
@@ -34,6 +35,7 @@ from PyQt5.QtWidgets import (
     QRadioButton,
     QListWidget,
     QSplitter,
+    QTreeView,
 )
 from diff_dialog import DiffWidget
 from variables import *
@@ -523,7 +525,9 @@ class Ui(QMainWindow):
             else:
                 self.selected_drive = self.selected_drive.text()
             if self.selected_drive in self.smart_results:
-                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive, self.smart_results[self.selected_drive])
+                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive,
+                                                                      self.smart_results[self.selected_drive]
+                                                                      )
                 self.smart_widgets[self.selected_drive].close_signal.connect(self.remove_smart_widget)
 
         except BaseException as exc:
@@ -566,7 +570,8 @@ class Ui(QMainWindow):
         except BaseException:
             print("GUI: Error in cannolo function.")
 
-    def upload_to_tarallo_selection(self):
+    def upload_to_tarallo_selection(self, std: bool = False):
+        # TODO: check if it's really working
         for row in self.get_selected_drive_rows():
             if row[0] == "":
                 self.upload_to_tarallo(row[0])
@@ -582,9 +587,9 @@ class Ui(QMainWindow):
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
-        if drive is None:
+        if self.selected_drive is None:
             self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
-        self.client.send(f"queued_upload_to_tarallo {drive}")
+        self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
 
     def sleep(self, std=False):
         """This function send to the server a queued_sleep command.
@@ -950,60 +955,6 @@ class Ui(QMainWindow):
         # self.settings.setValue("cannoloDir", self.cannoloLineEdit.text())
         # self.settings.setValue("theme", self.themeSelector.currentText())
         # self.client.stop(self.remoteMode)
-
-
-class SmartWidget(QWidget):
-    close_signal = pyqtSignal(str, name="close")
-
-    def __init__(self, drive: str, smart_results: dict):
-        super(SmartWidget, self).__init__()
-        uic.loadUi(PATH["SMART_UI"], self)
-        self.drive = drive
-        self.smart_results = json.loads(smart_results["output"])
-
-        self.setWindowTitle(f"SMART data - {self.drive}")
-
-        self.closeButton = self.findChild(QPushButton, "closeButton")
-        self.exportButton = self.findChild(QPushButton, "exportButton")
-        self.table = self.findChild(QTableWidget, "tableWidget")
-        self.statusLineEdit = self.findChild(QLineEdit, "statusLineEdit")
-        self.statusLineEdit.setText(smart_results["status"])
-        if smart_results["status"] == "ok":
-            self.statusLineEdit.setStyleSheet("background-color: green; color: black;")
-        elif smart_results["status"] == "old":
-            self.statusLineEdit.setStyleSheet("background-color: yellow; color: black;")
-        else:
-            self.statusLineEdit.setStyleSheet("background-color: red; color: black;")
-        self.closeButton.clicked.connect(self.close)
-
-        self.setup()
-
-        self.show()
-
-    def setup(self):
-        def add_row(type_value: str, value: str):
-            self.table.setRowCount(self.table.rowCount() + 1)
-            self.table.setItem(self.table.rowCount() - 1, 0, QTableWidgetItem(type_value))
-            self.table.setItem(self.table.rowCount() - 1, 1, QTableWidgetItem(value))
-
-        for data in self.smart_results:
-            if isinstance(self.smart_results[data], dict):
-                for line in self.smart_results[data]:
-                    add_row(f"{data} {line}", str(self.smart_results[data][line]))
-            elif isinstance(self.smart_results[data], str):
-                add_row(str(data), self.smart_results[data])
-            elif isinstance(self.smart_results[data], int):
-                add_row(str(data), str(self.smart_results[data]))
-        self.table.resizeColumnsToContents()
-
-    def close_widget(self):
-        self.hide()
-        self.close_signal.emit(self.drive)
-
-
-class SmartTable(QTableWidget):
-    def __init__(self, data: dict):
-        super(SmartTable, self).__init__()
 
 
 class SettingsDialog(QDialog):

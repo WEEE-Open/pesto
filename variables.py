@@ -33,6 +33,12 @@ URL = {
     "source_code": "https://github.com/WEEE-Open/pesto",
 }
 
+IGNORE_SMART_RESULTS = [
+    "json_format_version",
+    "smartctl",
+    "local_time",
+]
+
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Eta", "Progress"]
 
 QUEUE_COMPLETED = "completed"
