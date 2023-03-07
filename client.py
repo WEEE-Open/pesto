@@ -9,8 +9,6 @@ Created on Fri Aug 20 12:35:26 2021
 """
 import builtins
 import json
-
-import twisted.internet.error
 from twisted.internet import reactor, protocol
 from PyQt5.QtCore import QThread
 from PyQt5 import QtCore
