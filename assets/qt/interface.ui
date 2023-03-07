@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>PINOLO</string>
+   <string>Pinolo</string>
   </property>
   <property name="autoFillBackground">
    <bool>true</bool>
@@ -342,7 +342,7 @@
      <x>0</x>
      <y>0</y>
      <width>960</width>
-     <height>27</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
