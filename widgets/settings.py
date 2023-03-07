@@ -1,14 +1,7 @@
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal, QSettings, QSize, Qt
 from PyQt5.QtGui import QMovie
-from PyQt5.QtWidgets import (
-    QDialog,
-    QRadioButton,
-    QLineEdit,
-    QPushButton,
-    QListWidget,
-    QLabel, QMessageBox, QFileDialog
-)
+from PyQt5.QtWidgets import QDialog, QRadioButton, QLineEdit, QPushButton, QListWidget, QLabel, QMessageBox, QFileDialog
 from client import ReactorThread
 from utilities import critical_dialog, warning_dialog
 from variables import *
