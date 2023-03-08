@@ -445,7 +445,6 @@ class CommandRunner(threading.Thread):
                 if progress == 100:
                     final_message = f"Finished with {progress/10} errors!"
 
-
             completed = True
             all_ok = False
         else:
