@@ -269,6 +269,9 @@ class CommandRunner(threading.Thread):
     def get_cmd(self):
         return self._cmd
 
+    def get_queued_command(self):
+        return self._queued_command
+
     def run(self):
         try:
             # Stop immediately if nothing was dispatched
@@ -326,6 +329,7 @@ class CommandRunner(threading.Thread):
             "remove_completed": self.remove_all_from_queue,
             "remove_queued": self.remove_all_from_queue,
             "list_iso": self.list_iso,
+            "stop": self.stop_process,
         }
         logging.debug(f"[{self._the_id}] Received command {cmd}{' with args' if len(args) > 0 else ''}")
         if cmd.startswith("queued_"):
@@ -431,21 +435,16 @@ class CommandRunner(threading.Thread):
 
         self._queued_command.notify_start("Running badblocks")
         if TEST_MODE:
-            self._queued_command.notify_percentage(10, "0 errors")
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(20, "0 errors")
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(30, "2 errors")
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(42, "2 errors")
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(60, "2 errors")
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(80, "2 errors")
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(99, "3 errors")
-            threading.Event().wait(2)
-            final_message = "Finished with 3 errors"
+            final_message = ""
+            for progress in range(0, 100, 10):
+                if self._go:
+                    self._queued_command.notify_percentage(progress, f"{progress/10} errors")
+                    threading.Event().wait(2)
+                else:
+                    final_message = "Process interrupted by user."
+                if progress == 100:
+                    final_message = f"Finished with {progress/10} errors!"
+
 
             completed = True
             all_ok = False
@@ -478,6 +477,11 @@ class CommandRunner(threading.Thread):
             deleting = False
             buffer = bytearray()
             for char in iter(lambda: pipe.stderr.read(1), b""):
+                if not self._go:
+                    pipe.terminate()
+                    print(f"Killed badblocks process {self.get_queued_command().id()}")
+                    self._queued_command.notify_finish_with_error("Process terminated by user.")
+                    return
                 if char == b"":
                     if pipe.poll() is not None:
                         break
@@ -951,6 +955,11 @@ class CommandRunner(threading.Thread):
         else:
             return False
 
+    def stop_process(self, cmd: str, args: str):
+        logging.debug(f"Received stop request for {args}")
+        thread = find_thread_from_pid(args)
+        thread.stop_asap()
+
 
 class QueuedCommand:
     def __init__(self, disk: Disk, command_runner: CommandRunner):
@@ -976,6 +985,9 @@ class QueuedCommand:
 
     def id_is(self, the_id: str):
         return self._id == the_id
+
+    def id(self):
+        return self._id
 
     def lock_notifications(self):
         self._notifications_lock.acquire()
@@ -1240,6 +1252,16 @@ def scan_for_disks():
 def get_disks(path: Optional[str] = None):
     disks_lsblk = get_disks_linux(path)
     return disks_lsblk
+
+
+def find_thread_from_pid(pinolo_pid: str) -> CommandRunner:
+    for thread in threading.enumerate():
+        if isinstance(thread, CommandRunner):
+            command = thread.get_queued_command()
+            if command is None:
+                continue
+            if command.id() == pinolo_pid:
+                return thread
 
 
 def main():
