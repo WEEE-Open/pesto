@@ -62,8 +62,19 @@ pip install -r /opt/$FOLDER_NAME/requirements_server.txt
 deactivate
 
 echo "Installing system dependencies"
-sudo apt update
-sudo apt install cloud-utils smartmontools
+if [[ "$(where apt)" != "" ]]; then
+  sudo apt update
+  sudo apt install cloud-utils smartmontools
+elif [["$(where pacman)" != "" ]]; then
+  sudo pacman -Sy cloud-utils smartmontools
+else
+  tput setab $RED
+  tput setaf $BLACK
+  echo "Cannot install system dependencies. User have to install manually the following packages:"
+  echo "     cloud-utils"
+  echo "     smartmontools"
+  tput sgr0
+fi
 
 echo "Updating systemd services ..."
 sudo systemctl daemon-reload
