@@ -477,7 +477,8 @@ class CommandRunner(threading.Thread):
             buffer = bytearray()
             for char in iter(lambda: pipe.stderr.read(1), b""):
                 if not self._go:
-                    pipe.terminate()
+                    pipe.kill()
+                    pipe.wait()
                     print(f"Killed badblocks process {self.get_queued_command().id()}")
                     self._queued_command.notify_finish_with_error("Process terminated by user.")
                     return
