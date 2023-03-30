@@ -217,6 +217,7 @@ class Disk:
             disk = ItemToUpload()
             for f, v in features.items():
                 disk.features[f] = v
+            disk.set_parent("Box16")
             success = self._tarallo.add_item(disk)
             if success and isinstance(disk.code, str) and disk.code != "":
                 return disk.code
