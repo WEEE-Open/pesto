@@ -565,9 +565,10 @@ class PinoloMainWindow(QMainWindow):
 
     def upload_to_tarallo_selection(self, std: bool = False):
         # TODO: check if it's really working
-        for row in self.get_selected_drive_rows():
-            if row[0] == "":
-                self.upload_to_tarallo(row[0])
+        #for row in self.get_selected_drive_rows():
+            #if row[1] == "":
+                # self.upload_to_tarallo(row[0])
+        #self.selected_drive = self.selected_drive.text();
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
 
         if not std:
@@ -581,8 +582,8 @@ class PinoloMainWindow(QMainWindow):
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
         if self.selected_drive is None:
-            self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
-        self.client.send(f"queued_upload_to_tarallo {self.selected_drive}")
+            self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()}")
+        self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()}")
 
     def sleep(self, std=False):
         """This function send to the server a queued_sleep command.
