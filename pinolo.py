@@ -30,6 +30,8 @@ from PyQt5.QtWidgets import (
     QProgressBar,
     QWidget,
     QSplitter,
+    QInputDialog,
+    QLineEdit,
 )
 from diff_dialog import DiffWidget
 from variables import *
@@ -581,9 +583,14 @@ class PinoloMainWindow(QMainWindow):
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
+        loc, ok = QInputDialog().getText(self, "Location",
+                                     "Location:", QLineEdit.Normal)
+        if not ok:
+            return
+
         if self.selected_drive is None:
             self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()}")
-        self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()}")
+        self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()} {loc}")
 
     def sleep(self, std=False):
         """This function send to the server a queued_sleep command.

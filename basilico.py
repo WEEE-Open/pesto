@@ -210,17 +210,19 @@ class Disk:
         else:
             self._item = None
 
-    def create_on_tarallo(self, features: dict) -> Optional[str]:
+    def create_on_tarallo(self, features: dict, loc: str = None) -> Optional[str]:
         # TODO: does this need any lock?
         # with self._update_lock:
         if self._tarallo:
             disk = ItemToUpload()
             for f, v in features.items():
                 disk.features[f] = v
-            disk.set_parent("Box16")
+            disk.set_parent(loc)
+            print(loc)
             success = self._tarallo.add_item(disk)
             if success and isinstance(disk.code, str) and disk.code != "":
                 return disk.code
+            #success = self._tarallo.bulk_add(disk.serializable())
         return None
 
     def set_code(self, code: str):
@@ -809,6 +811,11 @@ class CommandRunner(threading.Thread):
         self._upload_to_tarallo(args, False)
 
     def _upload_to_tarallo(self, dev: str, queued: bool):
+
+        list_dev = dev.split(" ")
+        dev = list_dev[0]
+        loc = list_dev[1]
+        print(loc + " " + dev)
         if TEST_MODE:
             self._queued_command.notify_finish("This doesn't do anything when test mode is enabled")
             return
@@ -846,7 +853,7 @@ class CommandRunner(threading.Thread):
             disk_ref = disks[dev]
 
         try:
-            code = disk_ref.create_on_tarallo(features)
+            code = disk_ref.create_on_tarallo(features, loc)
         except ValidationError as e:
             if queued:
                 self.send_msg(
