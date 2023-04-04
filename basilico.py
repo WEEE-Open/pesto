@@ -218,7 +218,6 @@ class Disk:
             for f, v in features.items():
                 disk.features[f] = v
             disk.set_parent(loc)
-            print(loc)
             success = self._tarallo.add_item(disk)
             if success and isinstance(disk.code, str) and disk.code != "":
                 return disk.code
@@ -815,7 +814,6 @@ class CommandRunner(threading.Thread):
         list_dev = dev.split(" ")
         dev = list_dev[0]
         loc = list_dev[1]
-        print(loc + " " + dev)
         if TEST_MODE:
             self._queued_command.notify_finish("This doesn't do anything when test mode is enabled")
             return

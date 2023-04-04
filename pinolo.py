@@ -30,8 +30,6 @@ from PyQt5.QtWidgets import (
     QProgressBar,
     QWidget,
     QSplitter,
-    QInputDialog,
-    QLineEdit,
 )
 from diff_dialog import DiffWidget
 from variables import *
@@ -583,9 +581,13 @@ class PinoloMainWindow(QMainWindow):
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
-        loc, ok = QInputDialog().getText(self, "Location",
-                                     "Location:", QLineEdit.Normal)
-        if not ok:
+        loc, ok = input_dialog("Location");
+
+        # If no location is provided or cancel is selected,
+        # cancel the operation
+        if not ok or loc == "":
+            message = "Canceled upload"
+            info_dialog(message)
             return
 
         if self.selected_drive is None:
