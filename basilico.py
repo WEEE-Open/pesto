@@ -221,7 +221,7 @@ class Disk:
             success = self._tarallo.add_item(disk)
             if success and isinstance(disk.code, str) and disk.code != "":
                 return disk.code
-            #success = self._tarallo.bulk_add(disk.serializable())
+            # success = self._tarallo.bulk_add(disk.serializable())
         return None
 
     def set_code(self, code: str):
@@ -810,7 +810,6 @@ class CommandRunner(threading.Thread):
         self._upload_to_tarallo(args, False)
 
     def _upload_to_tarallo(self, dev: str, queued: bool):
-
         list_dev = dev.split(" ")
         dev = list_dev[0]
         loc = list_dev[1]
