@@ -581,9 +581,18 @@ class PinoloMainWindow(QMainWindow):
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
+        loc, ok = input_dialog("Location");
+
+        # If no location is provided or cancel is selected,
+        # cancel the operation
+        if not ok or loc == "":
+            message = "Canceled upload"
+            info_dialog(message)
+            return
+
         if self.selected_drive is None:
             self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()}")
-        self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()}")
+        self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()} {loc}")
 
     def sleep(self, std=False):
         """This function send to the server a queued_sleep command.

@@ -59,6 +59,12 @@ def warning_dialog(message: str, dialog_type: str):
         return dialog.exec_()
 
 
+def input_dialog(message: str):
+    dialog = QtWidgets.QInputDialog()
+    loc, ok = dialog.getText(dialog, "Input dialog", message, QtWidgets.QLineEdit.Normal)
+    return loc, ok
+
+
 class CannoloDialog(QtWidgets.QDialog):
     update = QtCore.pyqtSignal(str, str, name="event")
 
