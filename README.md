@@ -81,4 +81,4 @@ TARALLO features you have to set the TARALLO_URL and TARALLO_TOKEN environment v
 <div>Icons made by <a href="https://roundicons.com/" title="Roundicons">Roundicons</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>  
 <a href='https://www.freepik.com/vectors/background'>Background vector created by starline - www.freepik.com</a>
 
-Everything else licensed as in the LICENSE file.
+Everything else licensed as in the LICENSE file..
