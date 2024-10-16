@@ -522,9 +522,7 @@ class PinoloMainWindow(QMainWindow):
             else:
                 self.selected_drive = self.selected_drive.text()
             if self.selected_drive in self.smart_results:
-                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive,
-                                                                      self.smart_results[self.selected_drive]
-                                                                      )
+                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive, self.smart_results[self.selected_drive])
                 self.smart_widgets[self.selected_drive].close_signal.connect(self.remove_smart_widget)
 
         except BaseException as exc:
@@ -569,10 +567,10 @@ class PinoloMainWindow(QMainWindow):
 
     def upload_to_tarallo_selection(self, std: bool = False):
         # TODO: check if it's really working
-        #for row in self.get_selected_drive_rows():
-            #if row[1] == "":
-                # self.upload_to_tarallo(row[0])
-        #self.selected_drive = self.selected_drive.text();
+        # for row in self.get_selected_drive_rows():
+        # if row[1] == "":
+        # self.upload_to_tarallo(row[0])
+        # self.selected_drive = self.selected_drive.text();
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
 
         if not std:
@@ -585,7 +583,7 @@ class PinoloMainWindow(QMainWindow):
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
-        loc, ok = input_dialog("Location");
+        loc, ok = input_dialog("Location")
 
         # If no location is provided or cancel is selected,
         # cancel the operation
@@ -838,7 +836,7 @@ class PinoloMainWindow(QMainWindow):
             print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
         match cmd:
-            case 'queue_status' | 'get_queue':
+            case "queue_status" | "get_queue":
                 if cmd == "queue_status":
                     params = [params]
                 for param in params:
@@ -895,7 +893,7 @@ class PinoloMainWindow(QMainWindow):
                     if "text" in param:
                         status_cell.setToolTip(param["text"])
 
-            case 'get_disks':
+            case "get_disks":
                 drives = params
                 if len(drives) <= 0:
                     self.diskTable.setRowCount(0)
@@ -907,10 +905,10 @@ class PinoloMainWindow(QMainWindow):
                 self.diskTable.resizeColumnToContents(0)
                 self.diskTable.resizeColumnToContents(1)
 
-            case 'smartctl' | 'queued_smartctl':
+            case "smartctl" | "queued_smartctl":
                 self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
 
-            case ' connection_failed':
+            case " connection_failed":
                 message = params["reason"]
                 if not self.remoteMode:
                     print("GUI: Connection Failed: Local server not running.")
@@ -921,15 +919,15 @@ class PinoloMainWindow(QMainWindow):
                     message = "Cannot find BASILICO server.\nCheck if it's running in the " "targeted machine."
                 warning_dialog(message, dialog_type="ok")
 
-            case 'connection_lost':
+            case "connection_lost":
                 self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
                 self.queueTable.setRowCount(0)
                 self.diskTable.setRowCount(0)
 
-            case 'connection_made':
+            case "connection_made":
                 self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
 
-            case 'list_iso':
+            case "list_iso":
                 self.dialog = CannoloDialog(self.settingsDialog, PATH, params)
                 if self.manual_cannolo:
                     self.dialog.update.connect(self.use_cannolo_img)
@@ -937,13 +935,13 @@ class PinoloMainWindow(QMainWindow):
                 else:
                     self.dialog.update.connect(self.settingsDialog.set_default_cannolo)
 
-            case 'error':
+            case "error":
                 message = f"{params['message']}"
                 if "command" in params:
                     message += f":\n{params['command']}"
                 critical_dialog(message, dialog_type="ok")
 
-            case 'error_that_can_be_manually_fixed':
+            case "error_that_can_be_manually_fixed":
                 message = params["message"]
                 warning_dialog(message, dialog_type="ok")
 
