@@ -113,19 +113,15 @@ class PinoloMainWindow(QMainWindow):
         self.setup()
 
     def setup(self):
-        """This method must be called in the __init__ function of the Ui class
-        to initialize the pinolo session"""
+        """This method must be called in __init__ function of Ui class
+        to initialize pinolo session"""
 
         # Check if the host and port field are set
         if self.host is None and self.port is None:
             message = "The host and port combination is not set.\nPlease visit the settings section."
             warning_dialog(message, dialog_type="ok")
 
-        """
-        The client try to connect to the BASILICO. If it can't and the client is in remote mode, then 
-        a critical error is shown and the client goes in idle. If the client is in local mode and it cannot reach a
-        BASILICO server, a new BASILICO process is instantiated.
-        """
+        # Start client thread
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
