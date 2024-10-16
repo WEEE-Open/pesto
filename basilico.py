@@ -1274,7 +1274,7 @@ def main():
     ip = os.getenv("IP")
     port = os.getenv("PORT")
     global TEST_MODE
-    TEST_MODE = bool(os.getenv("TEST_MODE", False))
+    TEST_MODE = bool(int(os.getenv("TEST_MODE", False)))
 
     if TEST_MODE:
         logging.warning("Test mode is enabled, no destructive actions will be performed")
