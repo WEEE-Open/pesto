@@ -383,8 +383,8 @@ class PinoloMainWindow(QMainWindow):
     def umount_disk(self):
         dialog = warning_dialog(
             "Are you really sure you want to umount this disk?\nThis is generally not a good idea, proceed only if you are really sure of what are you doing.",
-            "yes_no"
-                           )
+            "yes_no",
+        )
 
         if dialog == QMessageBox.Yes:
             drives = self.get_multiple_drive_selection()

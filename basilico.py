@@ -678,7 +678,7 @@ class CommandRunner(threading.Thread):
 
     def _umount_internal(self, dev):
         try:
-            result = subprocess.run(['lsblk', '-J', dev], capture_output=True, text=True)
+            result = subprocess.run(["lsblk", "-J", dev], capture_output=True, text=True)
 
             if result.returncode != 0:
                 return False
@@ -686,11 +686,11 @@ class CommandRunner(threading.Thread):
             lsblk_output = json.loads(result.stdout)
 
             partitions_to_unmount = []
-            blockdevices = lsblk_output.get('blockdevices', [])
+            blockdevices = lsblk_output.get("blockdevices", [])
             for device in blockdevices:
-                if 'children' in device:
-                    for partition in device['children']:
-                        if 'mountpoints' in partition and len(partition['mountpoints']) > 0:
+                if "children" in device:
+                    for partition in device["children"]:
+                        if "mountpoints" in partition and len(partition["mountpoints"]) > 0:
                             partitions_to_unmount.append(f"/dev/{partition['name']}")
                     break
 
