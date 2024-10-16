@@ -65,7 +65,7 @@ class PinoloMainWindow(QMainWindow):
         self.settings = QSettings("WEEE-Open", "PESTO")
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
 
-        " Utilities Widgets "
+        """ Utilities Widgets """
         self.latest_conf()
         self.diff_widgets = {}
         self.smart_widgets = {}
