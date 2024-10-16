@@ -1,0 +1,7 @@
+- smartctl errore 4 quando il disco ha problemi -> il pinolo muore ma il pesto rimane in vita
+- lorenzo filomena dischi uefi
+- selezione cartella immagini da mettere nel config
+
+Workstation:
+weeeadmin nepoeeew
+venv di basilico
