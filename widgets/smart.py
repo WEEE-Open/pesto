@@ -4,13 +4,7 @@ from variables import *
 from typing import Any, Iterable, List, Dict, Union
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal, QAbstractItemModel, QModelIndex, QObject, Qt, QFileInfo
-from PyQt5.QtWidgets import (
-    QWidget,
-    QPushButton,
-    QTreeView,
-    QLineEdit,
-    QTreeWidget
-)
+from PyQt5.QtWidgets import QWidget, QPushButton, QTreeView, QLineEdit, QTreeWidget
 
 
 class SmartWidget(QWidget):
@@ -43,9 +37,9 @@ class SmartWidget(QWidget):
         # status line setup
         self.statusLineEdit.setText(self.smart_status)
         match self.smart_status:
-            case 'ok':
+            case "ok":
                 self.statusLineEdit.setStyleSheet("background-color: green; color: black;")
-            case 'old':
+            case "old":
                 self.statusLineEdit.setStyleSheet("background-color: yellow; color: black;")
             case _:
                 self.statusLineEdit.setStyleSheet("background-color: red; color: black;")
@@ -119,9 +113,7 @@ class TreeItem:
         self._value_type = value
 
     @classmethod
-    def load(
-        cls, value: Union[List, Dict], parent: "TreeItem" = None, sort=True
-    ) -> "TreeItem":
+    def load(cls, value: Union[List, Dict], parent: "TreeItem" = None, sort=True) -> "TreeItem":
         """Create a 'root' TreeItem from a nested list or a nested dictonary
 
         Examples:
@@ -161,7 +153,7 @@ class TreeItem:
 
 
 class JsonModel(QAbstractItemModel):
-    """ An editable model of Json data """
+    """An editable model of Json data"""
 
     def __init__(self, parent: QObject = None):
         super().__init__(parent)
@@ -170,7 +162,7 @@ class JsonModel(QAbstractItemModel):
         self._headers = ("key", "value")
 
     def clear(self):
-        """ Clear data from the model """
+        """Clear data from the model"""
         self.load({})
 
     def load(self, document: dict):
@@ -180,9 +172,7 @@ class JsonModel(QAbstractItemModel):
             document (dict): JSON-compatible dictionary
         """
 
-        assert isinstance(
-            document, (dict, list, tuple)
-        ), "`document` must be of dict, list or tuple, " f"not {type(document)}"
+        assert isinstance(document, (dict, list, tuple)), "`document` must be of dict, list or tuple, " f"not {type(document)}"
 
         self.beginResetModel()
 
@@ -199,8 +189,8 @@ class JsonModel(QAbstractItemModel):
         for key in IGNORE_SMART_RESULTS:
             document.pop(key, None)
 
-        if 'ata_smart_attributes' in document:
-            attributes =  {}
+        if "ata_smart_attributes" in document:
+            attributes = {}
             for key in document["ata_smart_attributes"]["table"]:
                 attributes[key["name"]] = key["value"]
             document.pop("ata_smart_attributes", None)
@@ -254,9 +244,7 @@ class JsonModel(QAbstractItemModel):
 
         return False
 
-    def headerData(
-            self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole
-    ):
+    def headerData(self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole):
         """Override from QAbstractItemModel
 
         For the JsonModel, it returns only data for columns (orientation = Horizontal)
