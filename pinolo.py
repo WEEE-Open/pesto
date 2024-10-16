@@ -394,15 +394,9 @@ class PinoloMainWindow(QMainWindow):
     def get_multiple_drive_selection(self):
         """This method returns a list with the names of the selected drives on disk_table"""
         drives = []
-        selected_items = self.diskTable.selectedItems()
-        columns = self.diskTable.columnCount()
-        for idx in range(len(selected_items) // columns):
-            drives.append(
-                [
-                    selected_items[idx * columns].text(),
-                    selected_items[(idx * columns) + 1].text(),
-                ]
-            )
+        selected_rows = self.diskTable.selectionModel().selectedRows()
+        for row in selected_rows:
+            drives.append(row.data())
 
         return drives
 
