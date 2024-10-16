@@ -97,6 +97,7 @@ class PinoloMainWindow(QMainWindow):
         self.sleep_action = QAction("Sleep", self)
         self.uploadToTarallo_action = QAction("Upload to TARALLO", self)
         self.showSmartData_Action = QAction("Show SMART data", self)
+        self.umount_action = QAction("Umount disk", self)
         self.stop_action = QAction("Stop", self)
         self.remove_action = QAction("Remove", self)
         self.remove_all_action = QAction("Remove All", self)
@@ -197,6 +198,8 @@ class PinoloMainWindow(QMainWindow):
         self.showSmartData_Action.triggered.connect(self.show_smart_data)
         self.diskTable.addAction(self.showSmartData_Action)
         self.uploadToTarallo_action.setEnabled(False)
+        self.diskTable.addAction(self.umount_action)
+        self.umount_action.triggered.connect(self.umount_disk)
 
         self.diskTable.selectionModel().selectionChanged.connect(self.on_table_select)
 
@@ -380,6 +383,17 @@ class PinoloMainWindow(QMainWindow):
             message += "Wipe off all data in the selected drive."
         info_dialog(message)
         self.deselect()
+
+    def umount_disk(self):
+        dialog = warning_dialog(
+            "Are you really sure you want to umount this disk?\nThis is generally not a good idea, proceed only if you are really sure of what are you doing.",
+            "yes_no"
+                           )
+
+        if dialog == QMessageBox.Yes:
+            drives = self.get_multiple_drive_selection()
+            for drive in drives:
+                self.client.send("queued_umount " + drive)
 
     def get_multiple_drive_selection(self):
         """This method returns a list with the names of the selected drives on disk_table"""
