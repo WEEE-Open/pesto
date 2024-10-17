@@ -628,7 +628,7 @@ class CommandRunner(threading.Thread):
         else:
             success = self.dd(iso, dev)
             if success:
-                success = run_command_on_partition(dev, f"sudo growpart {dev} 1") #FIXME: se ha più partizioni non funziona
+                success = run_command_on_partition(dev, f"sudo growpart {dev} 1")  # FIXME: se ha più partizioni non funziona
                 if success:
                     success = run_command_on_partition(dev, f"sudo e2fsck -fy {dev}1")
                     if success:
