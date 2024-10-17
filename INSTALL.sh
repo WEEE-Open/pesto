@@ -19,7 +19,7 @@ tput sgr0
 
 read -r CONFIRM
 
-if [[ "$CONFIRM" != 'y' && "$CONFIRM" != 'Y' && "$CONFIRM" != "" ]]; then
+if [[ "$CONFIRM" != 'y' && "$CONFIRM" != 'Y' && "$CONFIRM" = "" ]]; then
   tput setab $RED
   tput setaf $BLACK
   echo "                                     "
