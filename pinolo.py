@@ -65,7 +65,7 @@ class PinoloMainWindow(QMainWindow):
         self.settings = QSettings("WEEE-Open", "PESTO")
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
 
-        " Utilities Widgets "
+        """ Utilities Widgets """
         self.latest_conf()
         self.diff_widgets = {}
         self.smart_widgets = {}
@@ -97,6 +97,7 @@ class PinoloMainWindow(QMainWindow):
         self.sleep_action = QAction("Sleep", self)
         self.uploadToTarallo_action = QAction("Upload to TARALLO", self)
         self.showSmartData_Action = QAction("Show SMART data", self)
+        self.umount_action = QAction("Umount disk", self)
         self.stop_action = QAction("Stop", self)
         self.remove_action = QAction("Remove", self)
         self.remove_all_action = QAction("Remove All", self)
@@ -112,19 +113,15 @@ class PinoloMainWindow(QMainWindow):
         self.setup()
 
     def setup(self):
-        """This method must be called in the __init__ function of the Ui class
-        to initialize the pinolo session"""
+        """This method must be called in __init__ function of Ui class
+        to initialize pinolo session"""
 
         # Check if the host and port field are set
         if self.host is None and self.port is None:
             message = "The host and port combination is not set.\nPlease visit the settings section."
             warning_dialog(message, dialog_type="ok")
 
-        """
-        The client try to connect to the BASILICO. If it can't and the client is in remote mode, then 
-        a critical error is shown and the client goes in idle. If the client is in local mode and it cannot reach a
-        BASILICO server, a new BASILICO process is instantiated.
-        """
+        # Start client thread
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
@@ -197,6 +194,8 @@ class PinoloMainWindow(QMainWindow):
         self.showSmartData_Action.triggered.connect(self.show_smart_data)
         self.diskTable.addAction(self.showSmartData_Action)
         self.uploadToTarallo_action.setEnabled(False)
+        self.diskTable.addAction(self.umount_action)
+        self.umount_action.triggered.connect(self.umount_disk)
 
         self.diskTable.selectionModel().selectionChanged.connect(self.on_table_select)
 
@@ -381,18 +380,23 @@ class PinoloMainWindow(QMainWindow):
         info_dialog(message)
         self.deselect()
 
+    def umount_disk(self):
+        dialog = warning_dialog(
+            "Are you really sure you want to umount this disk?\nThis is generally not a good idea, proceed only if you are really sure of what are you doing.",
+            "yes_no",
+        )
+
+        if dialog == QMessageBox.Yes:
+            drives = self.get_multiple_drive_selection()
+            for drive in drives:
+                self.client.send("queued_umount " + drive)
+
     def get_multiple_drive_selection(self):
         """This method returns a list with the names of the selected drives on disk_table"""
         drives = []
-        selected_items = self.diskTable.selectedItems()
-        columns = self.diskTable.columnCount()
-        for idx in range(len(selected_items) // columns):
-            drives.append(
-                [
-                    selected_items[idx * columns].text(),
-                    selected_items[(idx * columns) + 1].text(),
-                ]
-            )
+        selected_rows = self.diskTable.selectionModel().selectedRows()
+        for row in selected_rows:
+            drives.append(row.data())
 
         return drives
 
@@ -518,9 +522,7 @@ class PinoloMainWindow(QMainWindow):
             else:
                 self.selected_drive = self.selected_drive.text()
             if self.selected_drive in self.smart_results:
-                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive,
-                                                                      self.smart_results[self.selected_drive]
-                                                                      )
+                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive, self.smart_results[self.selected_drive])
                 self.smart_widgets[self.selected_drive].close_signal.connect(self.remove_smart_widget)
 
         except BaseException as exc:
@@ -565,10 +567,10 @@ class PinoloMainWindow(QMainWindow):
 
     def upload_to_tarallo_selection(self, std: bool = False):
         # TODO: check if it's really working
-        #for row in self.get_selected_drive_rows():
-            #if row[1] == "":
-                # self.upload_to_tarallo(row[0])
-        #self.selected_drive = self.selected_drive.text();
+        # for row in self.get_selected_drive_rows():
+        # if row[1] == "":
+        # self.upload_to_tarallo(row[0])
+        # self.selected_drive = self.selected_drive.text();
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
 
         if not std:
@@ -581,7 +583,7 @@ class PinoloMainWindow(QMainWindow):
                 return
         elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
             return
-        loc, ok = input_dialog("Location");
+        loc, ok = input_dialog("Location")
 
         # If no location is provided or cancel is selected,
         # cancel the operation
@@ -834,7 +836,7 @@ class PinoloMainWindow(QMainWindow):
             print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
         match cmd:
-            case 'queue_status' | 'get_queue':
+            case "queue_status" | "get_queue":
                 if cmd == "queue_status":
                     params = [params]
                 for param in params:
@@ -891,7 +893,7 @@ class PinoloMainWindow(QMainWindow):
                     if "text" in param:
                         status_cell.setToolTip(param["text"])
 
-            case 'get_disks':
+            case "get_disks":
                 drives = params
                 if len(drives) <= 0:
                     self.diskTable.setRowCount(0)
@@ -903,10 +905,10 @@ class PinoloMainWindow(QMainWindow):
                 self.diskTable.resizeColumnToContents(0)
                 self.diskTable.resizeColumnToContents(1)
 
-            case 'smartctl' | 'queued_smartctl':
+            case "smartctl" | "queued_smartctl":
                 self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
 
-            case ' connection_failed':
+            case " connection_failed":
                 message = params["reason"]
                 if not self.remoteMode:
                     print("GUI: Connection Failed: Local server not running.")
@@ -917,15 +919,15 @@ class PinoloMainWindow(QMainWindow):
                     message = "Cannot find BASILICO server.\nCheck if it's running in the " "targeted machine."
                 warning_dialog(message, dialog_type="ok")
 
-            case 'connection_lost':
+            case "connection_lost":
                 self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
                 self.queueTable.setRowCount(0)
                 self.diskTable.setRowCount(0)
 
-            case 'connection_made':
+            case "connection_made":
                 self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
 
-            case 'list_iso':
+            case "list_iso":
                 self.dialog = CannoloDialog(self.settingsDialog, PATH, params)
                 if self.manual_cannolo:
                     self.dialog.update.connect(self.use_cannolo_img)
@@ -933,13 +935,13 @@ class PinoloMainWindow(QMainWindow):
                 else:
                     self.dialog.update.connect(self.settingsDialog.set_default_cannolo)
 
-            case 'error':
+            case "error":
                 message = f"{params['message']}"
                 if "command" in params:
                     message += f":\n{params['command']}"
                 critical_dialog(message, dialog_type="ok")
 
-            case 'error_that_can_be_manually_fixed':
+            case "error_that_can_be_manually_fixed":
                 message = params["message"]
                 warning_dialog(message, dialog_type="ok")
 

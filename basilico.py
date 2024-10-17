@@ -3,6 +3,7 @@ import json
 import subprocess
 import stat
 import os
+import sys
 import time
 from collections import deque
 from typing import Optional, Callable, Dict, Set, List
@@ -96,7 +97,7 @@ class Disk:
                     next_in_line.start()
             else:
                 if cmd_runner.get_cmd() != "queued_sleep":
-                    cmd_runner.call_hdparm_for_sleep(self._path)
+                    cmd_runner._call_hdparm_for_sleep(self._path)
 
     def get_path(self):
         return self._path
@@ -320,6 +321,7 @@ class CommandRunner(threading.Thread):
             "queued_badblocks": self.badblocks,
             "queued_cannolo": self.cannolo,
             "queued_sleep": self.sleep,
+            "queued_umount": self.umount,
             "upload_to_tarallo": self.upload_to_tarallo,
             "queued_upload_to_tarallo": self.queued_upload_to_tarallo,
             "get_disks": self.get_disks,
@@ -665,6 +667,47 @@ class CommandRunner(threading.Thread):
         else:
             self._queued_command.notify_finish()
 
+    def umount(self, _cmd: str, dev: str):
+        self._queued_command.notify_start("Calling umount")
+        success = self._umount_internal(dev)
+        self._queued_command.disk.update_mountpoints()
+        if success:
+            self._queued_command.notify_finish(f"Disk {dev} umounted")
+        else:
+            self._queued_command.notify_finish_with_error(f"umount failed")
+
+    def _umount_internal(self, dev):
+        try:
+            result = subprocess.run(["lsblk", "-J", dev], capture_output=True, text=True)
+
+            if result.returncode != 0:
+                return False
+
+            lsblk_output = json.loads(result.stdout)
+
+            partitions_to_unmount = []
+            blockdevices = lsblk_output.get("blockdevices", [])
+            for device in blockdevices:
+                if "children" in device:
+                    for partition in device["children"]:
+                        if "mountpoints" in partition and len(partition["mountpoints"]) > 0:
+                            partitions_to_unmount.append(f"/dev/{partition['name']}")
+                    break
+
+            if not partitions_to_unmount:
+                return True
+
+            for partition in partitions_to_unmount:
+                rc = self._call_shell_command(("sudo", "umount", partition))
+
+                if rc != 0:
+                    return False
+
+        except Exception as _:
+            return False
+
+        return True
+
     def _unswap(self) -> bool:
         if TEST_MODE:
             return True
@@ -694,26 +737,14 @@ class CommandRunner(threading.Thread):
 
     def sleep(self, _cmd: str, dev: str):
         self._queued_command.notify_start("Calling hdparm")
-        exitcode = self.call_hdparm_for_sleep(dev)
+        exitcode = self._call_hdparm_for_sleep(dev)
         if exitcode == 0:
             self._queued_command.notify_finish("Good night!")
         else:
             self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
 
-    def call_hdparm_for_sleep(self, dev):
-        if TEST_MODE:
-            logging.debug(f"Fake putting {dev} to sleep")
-            return 0
-        logging.debug(f"[{self._the_id}] Putting {dev} to sleep")
-        res = subprocess.Popen(
-            ("sudo", "hdparm", "-Y", dev),
-            stderr=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-        )
-        exitcode = res.wait()
-        if exitcode != 0:
-            logging.warning(f"[{self._the_id}] hdparm for {dev} returned {str(exitcode)}")
-        return exitcode
+    def _call_hdparm_for_sleep(self, dev: str):
+        return self._call_shell_command(("sudo", "hdparm", "-Y", dev))
 
     def get_smartctl(self, cmd: str, args: str):
         params = self._get_smartctl(args, False)
@@ -964,6 +995,26 @@ class CommandRunner(threading.Thread):
         logging.debug(f"Received stop request for {args}")
         thread = find_thread_from_pid(args)
         thread.stop_asap()
+
+    def _call_shell_command(self, command: tuple):
+        if TEST_MODE:
+            logging.debug(f"Simulating command: {' '.join(command)}")
+            return 0
+        logging.debug(f"[{self._the_id}] Running command {' '.join(command)}")
+
+        try:
+            res = subprocess.Popen(
+                command,
+                stderr=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+            )
+        except FileNotFoundError as _:
+            return sys.maxsize
+
+        exitcode = res.wait()
+        if exitcode != 0:
+            logging.warning(f"[{self._the_id}] Command '{' '.join(command)}' returned {str(exitcode)}")
+        return exitcode
 
 
 class QueuedCommand:
@@ -1274,7 +1325,7 @@ def main():
     ip = os.getenv("IP")
     port = os.getenv("PORT")
     global TEST_MODE
-    TEST_MODE = bool(os.getenv("TEST_MODE", False))
+    TEST_MODE = bool(int(os.getenv("TEST_MODE", False)))
 
     if TEST_MODE:
         logging.warning("Test mode is enabled, no destructive actions will be performed")
