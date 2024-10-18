@@ -74,24 +74,24 @@ class PinoloMainWindow(QMainWindow):
 
         """ Defining all items in GUI """
         self.gif = QMovie(PATH["ASD"])
-        self.splitter = self.findChild(QSplitter, "splitter")
-        self.diskTable = self.findChild(QTableWidget, "diskTable")
-        self.queueTable = self.findChild(QTableWidget, "queueTable")
-        self.refreshButton = self.findChild(QPushButton, "refreshButton")
-        self.eraseButton = self.findChild(QPushButton, "eraseButton")
-        self.smartButton = self.findChild(QPushButton, "smartButton")
-        self.cannoloButton = self.findChild(QPushButton, "cannoloButton")
-        self.stdProcedureButton = self.findChild(QPushButton, "stdProcButton")
+        self.splitter: QSplitter = self.findChild(QSplitter, "splitter")
+        self.diskTable: QTableWidget = self.findChild(QTableWidget, "diskTable")
+        self.queueTable: QTableWidget = self.findChild(QTableWidget, "queueTable")
+        self.refreshButton: QPushButton = self.findChild(QPushButton, "refreshButton")
+        self.eraseButton: QPushButton = self.findChild(QPushButton, "eraseButton")
+        self.smartButton: QPushButton = self.findChild(QPushButton, "smartButton")
+        self.cannoloButton: QPushButton = self.findChild(QPushButton, "cannoloButton")
+        self.stdProcedureButton: QPushButton = self.findChild(QPushButton, "stdProcButton")
 
         """ Defining menu actions """
-        self.newSessionAction = self.findChild(QAction, "newSessionAction")
-        self.refreshAction = self.findChild(QAction, "refreshAction")
-        self.exitAction = self.findChild(QAction, "exitAction")
-        self.networkSettingsAction = self.findChild(QAction, "networkSettingsAction")
-        self.themeMenu = self.findChild(QMenu, "themeMenu")
-        self.aboutUsAction = self.findChild(QAction, "actionAboutUs")
-        self.sourceCodeAction = self.findChild(QAction, "actionSourceCode")
-        self.versionAction = self.findChild(QAction, "actionVersion")
+        self.newSessionAction: QAction = self.findChild(QAction, "newSessionAction")
+        self.refreshActionobject: QAction = self.findChild(QAction, "refreshAction")
+        self.exitAction: QAction = self.findChild(QAction, "exitAction")
+        self.networkSettingsAction: QAction = self.findChild(QAction, "networkSettingsAction")
+        self.themeMenu: QAction = self.findChild(QMenu, "themeMenu")
+        self.aboutUsAction: QAction = self.findChild(QAction, "actionAboutUs")
+        self.sourceCodeAction: QAction = self.findChild(QAction, "actionSourceCode")
+        self.versionAction: QAction = self.findChild(QAction, "actionVersion")
 
         """ Defining context menu actions """
         self.sleep_action = QAction("Sleep", self)
@@ -151,12 +151,14 @@ class PinoloMainWindow(QMainWindow):
             self.info_action.setEnabled(False)
             self.sleep_action.setEnabled(False)
             self.uploadToTarallo_action.setEnabled(False)
+            self.umount_action.setEnabled(False)
         else:
             self.stop_action.setEnabled(True)
             self.remove_action.setEnabled(True)
             self.info_action.setEnabled(True)
             self.sleep_action.setEnabled(True)
             self.uploadToTarallo_action.setEnabled(True)
+            self.umount_action.setEnabled(True)
 
     # noinspection DuplicatedCode
     def set_items_functions(self):
@@ -187,15 +189,20 @@ class PinoloMainWindow(QMainWindow):
 
         # disk table actions
         self.sleep_action.triggered.connect(self.sleep)
-        self.diskTable.addAction(self.sleep_action)
         self.sleep_action.setEnabled(False)
+        self.diskTable.addAction(self.sleep_action)
+
         self.uploadToTarallo_action.triggered.connect(self.upload_to_tarallo_selection)
-        self.diskTable.addAction(self.uploadToTarallo_action)
-        self.showSmartData_Action.triggered.connect(self.show_smart_data)
-        self.diskTable.addAction(self.showSmartData_Action)
         self.uploadToTarallo_action.setEnabled(False)
-        self.diskTable.addAction(self.umount_action)
+        self.diskTable.addAction(self.uploadToTarallo_action)
+
+        self.showSmartData_Action.triggered.connect(self.show_smart_data)
+        self.showSmartData_Action.setEnabled(False)
+        self.diskTable.addAction(self.showSmartData_Action)
+
         self.umount_action.triggered.connect(self.umount_disk)
+        self.umount_action.setEnabled(False)
+        self.diskTable.addAction(self.umount_action)
 
         self.diskTable.selectionModel().selectionChanged.connect(self.on_table_select)
 
