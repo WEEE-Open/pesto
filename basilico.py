@@ -1477,6 +1477,20 @@ def run_command_on_partition(dev: str, cmd: str) -> bool:
     return False
 
 
+def user_groups_checks():
+    try:
+        res = subprocess.getoutput("groups $USER")
+    except FileNotFoundError as _:
+        logging.error("Unknown subprocess error in init_checks()")
+        return
+    if not "disk" in res.split(":")[1]:
+        user = os.getenv("USER")
+        logging.warning(f"  User {user} is not in disk group and it may not have sufficient permissions to use smartctl.\n"
+                        f"You can add it in with the command\n\n"
+                        f"\tsudo usermod -a -G disk $USER\n\n"
+                        f"and restarting the user session (logout and login).")
+
+
 TARALLO = None
 CLOSE_AT_END = False
 CLOSE_AT_END_LOCK = threading.Lock()
@@ -1496,6 +1510,7 @@ queued_commands_lock = threading.Lock()
 
 
 if __name__ == "__main__":
+    user_groups_checks()
     load_settings()
     if bool(os.getenv("DAEMONIZE", False)):
         import daemon
