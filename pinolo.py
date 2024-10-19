@@ -7,45 +7,42 @@ Created on Fri Jul 30 10:54:18 2021
 """
 from client import *
 from utilities import *
-from widgets.smart import SmartWidget
-from widgets.settings import SettingsDialog
+from ui.smart import SmartWidget
+from ui.PinoloMainWindow import Ui_MainWindow
 from typing import Union
 from dotenv import load_dotenv
-from PyQt5 import uic
 from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent, QColor
 from PyQt5.QtCore import Qt, QSettings, QSize, pyqtSignal, QThread, QUrl
 from PyQt5.QtWidgets import (
     QTableWidgetItem,
-    QAction,
-    QPushButton,
     QTableWidget,
     QMenu,
     QMessageBox,
     QMainWindow,
-    QApplication,
     QAbstractItemView,
     QHeaderView,
     QLabel,
     QVBoxLayout,
     QProgressBar,
     QWidget,
-    QSplitter,
 )
 from diff_dialog import DiffWidget
 from variables import *
 from datetime import datetime, timedelta
 import sys
-import traceback
+import getpass
+
+
 
 absolute_path(PATH)
 
 
 # UI class
-class PinoloMainWindow(QMainWindow):
-    def __init__(self, app: QApplication) -> None:
+class PinoloMainWindow(QMainWindow, Ui_MainWindow):
+    def __init__(self):
         super(PinoloMainWindow, self).__init__()
-        uic.loadUi(PATH["UI"], self)
-        self.app = app
+        self.setupUi(self)
+
         self.host = DEFAULT_IP
         self.port = DEFAULT_PORT
         self.cannoloDir = ""
@@ -53,7 +50,6 @@ class PinoloMainWindow(QMainWindow):
         self.manual_cannolo = False
         self.active_theme = None
         self.dialog = None
-        self.pixmap = None
         self.pixmapAspectRatio = None
         self.pixmapResizingNeeded = None
         self.selected_drive = None
@@ -66,53 +62,73 @@ class PinoloMainWindow(QMainWindow):
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
 
         """ Utilities Widgets """
-        self.latest_conf()
-        self.diff_widgets = {}
+        # self.latest_conf()
+        # self.diff_widgets = {}
         self.smart_widgets = {}
-        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings, self.client)
-        self.settingsDialog.update.connect(self.update_settings)
+        # self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings, self.client)
+        # self.settingsDialog.update.connect(self.update_settings)
 
         """ Defining all items in GUI """
-        self.gif = QMovie(PATH["ASD"])
-        self.splitter: QSplitter = self.findChild(QSplitter, "splitter")
-        self.diskTable: QTableWidget = self.findChild(QTableWidget, "diskTable")
-        self.queueTable: QTableWidget = self.findChild(QTableWidget, "queueTable")
-        self.refreshButton: QPushButton = self.findChild(QPushButton, "refreshButton")
-        self.eraseButton: QPushButton = self.findChild(QPushButton, "eraseButton")
-        self.smartButton: QPushButton = self.findChild(QPushButton, "smartButton")
-        self.cannoloButton: QPushButton = self.findChild(QPushButton, "cannoloButton")
-        self.stdProcedureButton: QPushButton = self.findChild(QPushButton, "stdProcButton")
+        # self.gif = QMovie(PATH["ASD"])
+        # self.splitter: QSplitter = self.findChild(QSplitter, "splitter")
+        # self.queueTable: QTableWidget = self.findChild(QTableWidget, "queueTable")
+        # self.refreshButton: QPushButton = self.findChild(QPushButton, "refreshButton")
+        # self.eraseButton: QPushButton = self.findChild(QPushButton, "eraseButton")
+        # self.smartButton: QPushButton = self.findChild(QPushButton, "smartButton")
+        # self.cannoloButton: QPushButton = self.findChild(QPushButton, "cannoloButton")
+        # self.stdProcedureButton: QPushButton = self.findChild(QPushButton, "stdProcButton")
 
         """ Defining menu actions """
-        self.newSessionAction: QAction = self.findChild(QAction, "newSessionAction")
-        self.refreshActionobject: QAction = self.findChild(QAction, "refreshAction")
-        self.exitAction: QAction = self.findChild(QAction, "exitAction")
-        self.networkSettingsAction: QAction = self.findChild(QAction, "networkSettingsAction")
-        self.themeMenu: QAction = self.findChild(QMenu, "themeMenu")
-        self.aboutUsAction: QAction = self.findChild(QAction, "actionAboutUs")
-        self.sourceCodeAction: QAction = self.findChild(QAction, "actionSourceCode")
-        self.versionAction: QAction = self.findChild(QAction, "actionVersion")
+        # self.newSessionAction: QAction = self.findChild(QAction, "newSessionAction")
+        # self.refreshActionobject: QAction = self.findChild(QAction, "refreshAction")
+        # self.exitAction: QAction = self.findChild(QAction, "exitAction")
+        # self.networkSettingsAction: QAction = self.findChild(QAction, "networkSettingsAction")
+        # self.themeMenu: QAction = self.findChild(QMenu, "themeMenu")
+        # self.aboutUsAction: QAction = self.findChild(QAction, "actionAboutUs")
+        # self.sourceCodeAction: QAction = self.findChild(QAction, "actionSourceCode")
+        # self.versionAction: QAction = self.findChild(QAction, "actionVersion")
 
         """ Defining context menu actions """
-        self.sleep_action = QAction("Sleep", self)
-        self.uploadToTarallo_action = QAction("Upload to TARALLO", self)
-        self.showSmartData_Action = QAction("Show SMART data", self)
-        self.umount_action = QAction("Umount disk", self)
-        self.stop_action = QAction("Stop", self)
-        self.remove_action = QAction("Remove", self)
-        self.remove_all_action = QAction("Remove All", self)
-        self.remove_completed_action = QAction("Remove Completed", self)
-        self.remove_queued_action = QAction("Remove Queued", self)
-        self.info_action = QAction("Info", self)
+        # self.sleep_action = QAction("Sleep", self)
+        # self.uploadToTarallo_action = QAction("Upload to TARALLO", self)
+        # self.showSmartData_Action = QAction("Show SMART data", self)
+        # self.umount_action = QAction("Umount disk", self)
+        # self.stop_action = QAction("Stop", self)
+        # self.remove_action = QAction("Remove", self)
+        # self.remove_all_action = QAction("Remove All", self)
+        # self.remove_completed_action = QAction("Remove Completed", self)
+        # self.remove_queued_action = QAction("Remove Queued", self)
+        # self.info_action = QAction("Info", self)
 
         """ Initialization operations """
-        self.set_items_functions()
+        # self.set_items_functions()
         self.localServer = LocalServer()
         self.localServer.update.connect(self.server_com)
-        self.show()
+
         self.setup()
+        self.start_client()
 
     def setup(self):
+        # Disk table
+        self.diskTable.addActions([
+            self.actionSleep,
+            self.actionUmount,
+            self.actionShow_SMART_data,
+            self.actionUpload_to_Tarallo
+        ])
+        self.actionSleep.triggered.connect(self.sleep)
+        self.actionUmount.triggered.connect(self.umount)
+        self.actionShow_SMART_data.triggered.connect(self.show_smart_data)
+        self.actionUpload_to_Tarallo.triggered.connect(self.upload_to_tarallo)
+
+        # Buttons
+        self.standardProcedureButton.clicked.connect(self.standard_procedure)
+        self.eraseButton.clicked.connect(self.erase)
+        self.smartCheckButton.clicked.connect(self.smart_check)
+        self.loadSystemButton.clicked.connect(self.load_system)
+        self.refreshButton.clicked.connect(self.refresh)
+
+    def start_client(self):
         """This method must be called in __init__ function of Ui class
         to initialize pinolo session"""
 
@@ -125,15 +141,26 @@ class PinoloMainWindow(QMainWindow):
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
-
         # Actions setup
-        action = list()
-        action.append(self.themeMenu.addAction("Default"))
-        action[-1].triggered.connect(lambda: self.set_theme("default"))
-        for theme_file in os.listdir(PATH["THEMES"]):
-            theme = theme_file.rstrip(".css")
-            action.append(self.themeMenu.addAction(theme))
-            action[-1].triggered.connect((lambda t: lambda: self.set_theme(t))(theme))
+        # action = list()
+        # # action.append(self.themeMenu.addAction("Default"))
+        # action[-1].triggered.connect(lambda: self.set_theme("default"))
+        # for theme_file in os.listdir(PATH["THEMES"]):
+        #     theme = theme_file.rstrip(".css")
+        #     action.append(self.themeMenu.addAction(theme))
+        #     action[-1].triggered.connect((lambda t: lambda: self.set_theme(t))(theme))
+
+    def show_context_menu(self, pos):
+        # Crea il menu contestuale
+        context_menu = QMenu(self)
+
+        # Connetti le azioni a slot o metodi
+        self.actionSleep.triggered.connect(self.sleep)
+
+        context_menu.addAction(self.actionSleep)
+
+        # Mostra il menu contestuale
+        context_menu.exec_(self.diskTable.mapToGlobal(pos))
 
     def update_settings(self, host: str, port: int, remote_mode: bool, cannoloDir: str):
         self.host = host
@@ -177,34 +204,10 @@ class PinoloMainWindow(QMainWindow):
         self.sourceCodeAction.triggered.connect(self.open_source_code)
         self.versionAction.triggered.connect(self.show_version)
 
-        # disk table
-        self.diskTable.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.diskTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.diskTable.resizeColumnToContents(1)
-        self.diskTable.setColumnWidth(1, self.diskTable.columnWidth(1) + 40)
-        self.diskTable.resizeColumnToContents(2)
-        self.diskTable.setColumnWidth(2, self.diskTable.columnWidth(2) + 20)
-        self.diskTable.cellClicked.connect(self.greyout_buttons)
-        self.diskTable.setContextMenuPolicy(Qt.ActionsContextMenu)
 
-        # disk table actions
-        self.sleep_action.triggered.connect(self.sleep)
-        self.sleep_action.setEnabled(False)
-        self.diskTable.addAction(self.sleep_action)
+        self.diskTable.addAction(self.actionSleep)
 
-        self.uploadToTarallo_action.triggered.connect(self.upload_to_tarallo_selection)
-        self.uploadToTarallo_action.setEnabled(False)
-        self.diskTable.addAction(self.uploadToTarallo_action)
-
-        self.showSmartData_Action.triggered.connect(self.show_smart_data)
-        self.showSmartData_Action.setEnabled(False)
-        self.diskTable.addAction(self.showSmartData_Action)
-
-        self.umount_action.triggered.connect(self.umount_disk)
-        self.umount_action.setEnabled(False)
-        self.diskTable.addAction(self.umount_action)
-
-        self.diskTable.selectionModel().selectionChanged.connect(self.on_table_select)
+        # self.diskTable.selectionModel().selectionChanged.connect(self.on_table_select)
 
         # queue table
         self.queueTable.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -242,13 +245,13 @@ class PinoloMainWindow(QMainWindow):
         self.eraseButton.clicked.connect(self.erase)
 
         # smart button
-        self.smartButton.clicked.connect(self.smart)
+        self.smartButton.clicked.connect(self.smart_check)
 
         # cannolo button
-        self.cannoloButton.clicked.connect(self.cannolo)
+        self.cannoloButton.clicked.connect(self.load_system)
 
         # standard procedure button
-        self.stdProcedureButton.clicked.connect(self.std_procedure)
+        self.stdProcedureButton.clicked.connect(self.standard_procedure)
 
         # find button
         # self.findButton.clicked.connect(self.find_image)
@@ -387,7 +390,7 @@ class PinoloMainWindow(QMainWindow):
         info_dialog(message)
         self.deselect()
 
-    def umount_disk(self):
+    def umount(self):
         dialog = warning_dialog(
             "Are you really sure you want to umount this disk?\nThis is generally not a good idea, proceed only if you are really sure of what are you doing.",
             "yes_no",
@@ -429,7 +432,7 @@ class PinoloMainWindow(QMainWindow):
 
         return rows
 
-    def std_procedure(self):
+    def standard_procedure(self):
         """This function send to the server a sequence of commands:
         - queued_badblocks
         - queued_smartctl
@@ -451,9 +454,9 @@ class PinoloMainWindow(QMainWindow):
                     elif dialog_result == QMessageBox.Cancel:
                         continue
             self.erase(std=True, drives=drives)
-            self.smart(std=True, drives=drives)
+            self.smart_check(is_standard_procedure=True, drives=drives)
             if dialog[1]:
-                self.cannolo(std=True, drives=drives)
+                self.load_system(std=True, drives=drives)
 
     @staticmethod
     def get_wipe_disks_message(drives):
@@ -529,7 +532,8 @@ class PinoloMainWindow(QMainWindow):
             else:
                 self.selected_drive = self.selected_drive.text()
             if self.selected_drive in self.smart_results:
-                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive, self.smart_results[self.selected_drive])
+                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive,
+                                                                      self.smart_results[self.selected_drive])
                 self.smart_widgets[self.selected_drive].close_signal.connect(self.remove_smart_widget)
 
         except BaseException as exc:
@@ -545,7 +549,7 @@ class PinoloMainWindow(QMainWindow):
     def remove_diff_widget(self, drive: str):
         del self.diff_widgets[drive]
 
-    def cannolo(self, std=False, drives=None):
+    def load_system(self, std=False, drives=None):
         """This function send to the server a queued_cannolo command.
         If "std" is True it will skip the cannolo dialog."""
 
@@ -572,7 +576,7 @@ class PinoloMainWindow(QMainWindow):
         except BaseException:
             print("GUI: Error in cannolo function.")
 
-    def upload_to_tarallo_selection(self, std: bool = False):
+    def upload_to_tarallo(self, std: bool = False):
         # TODO: check if it's really working
         # for row in self.get_selected_drive_rows():
         # if row[1] == "":
@@ -706,7 +710,8 @@ class PinoloMainWindow(QMainWindow):
         if self.selected_drive is not None:
             self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if self.selected_drive in self.critical_mounts:
-                self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
+                self.statusbar.showMessage(
+                    f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
                 self.eraseButton.setEnabled(False)
                 self.stdProcedureButton.setEnabled(False)
                 self.cannoloButton.setEnabled(False)
@@ -725,7 +730,7 @@ class PinoloMainWindow(QMainWindow):
         for drive in drives:
             ids += f"{drive[0]}, "
         ids.rstrip(", ")
-        self.statusBar().showMessage(f"Sending cannolo to {ids} with {img}")
+        self.statusbar.showMessage(f"Sending cannolo to {ids} with {img}")
         for drive in drives:
             self.client.send(f"queued_cannolo {drive[0]} {directory}")
 
@@ -733,8 +738,6 @@ class PinoloMainWindow(QMainWindow):
         """This function gets the stylesheet of the theme and sets the widgets aspect.
         Only for the Vaporwave theme, it will search a .mp3 file that will be played in background.
         Just for the meme. asd"""
-
-        self.pixmap = None
 
         if theme == "default":
             self.app.setStyleSheet("")
@@ -763,7 +766,8 @@ class PinoloMainWindow(QMainWindow):
 
         self.settingsDialog.asdGif = QMovie(dir)
         self.settingsDialog.asdGif.setScaledSize(
-            QSize().scaled(self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio)
+            QSize().scaled(self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(),
+                           Qt.KeepAspectRatio)
         )
         self.settingsDialog.asdGif.start()
         self.settingsDialog.asdlabel.setMovie(self.settingsDialog.asdGif)
@@ -927,12 +931,12 @@ class PinoloMainWindow(QMainWindow):
                 warning_dialog(message, dialog_type="ok")
 
             case "connection_lost":
-                self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
+                self.statusbar.showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
                 self.queueTable.setRowCount(0)
                 self.diskTable.setRowCount(0)
 
             case "connection_made":
-                self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
+                self.statusbar.showMessage(f"Connected to {params['host']}:{params['port']}")
 
             case "list_iso":
                 self.dialog = CannoloDialog(self.settingsDialog, PATH, params)
@@ -963,7 +967,7 @@ class PinoloMainWindow(QMainWindow):
         self.settings.setValue("remoteIp", self.host)
         self.settings.setValue("remotePort", self.port)
         self.settings.setValue("cannoloDir", self.cannoloDir)
-        self.settingsDialog.close()
+        # self.settingsDialog.close()
         # self.settings.setValue("cannoloDir", self.cannoloLineEdit.text())
         # self.settings.setValue("theme", self.themeSelector.currentText())
         # self.client.stop(self.remoteMode)
@@ -998,20 +1002,18 @@ class LocalServer(QThread):
         self.running = False
 
 
-def main():
+if __name__ == "__main__":
     # noinspection PyBroadException
     try:
         load_dotenv(PATH["ENV"])
-        app = QApplication(sys.argv)
-        window = PinoloMainWindow(app)
-        app.exec_()
+        # app = QApplication(sys.argv)
+        # window = PinoloMainWindow()
+        # window.show()
+        # app.exec_()
+        app = QtWidgets.QApplication(sys.argv)
+        window = PinoloMainWindow()
+        window.show()
+        sys.exit(app.exec_())
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
-
-    except BaseException:
-        print(traceback.print_exc(file=sys.stdout))
-
-
-if __name__ == "__main__":
-    main()
