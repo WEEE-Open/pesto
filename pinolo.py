@@ -7,8 +7,8 @@ Created on Fri Jul 30 10:54:18 2021
 """
 from client import *
 from utilities import *
-from ui.smart import SmartWidget
 from ui.PinoloMainWindow import Ui_MainWindow
+from widgets.smart import SmartWidget
 from typing import Union
 from dotenv import load_dotenv
 from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent, QColor
@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QVBoxLayout,
     QProgressBar,
-    QWidget,
+    QWidget, QInputDialog, QLineEdit,
 )
 from diff_dialog import DiffWidget
 from variables import *
@@ -61,7 +61,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.settings = QSettings("WEEE-Open", "PESTO")
         self.client = ReactorThread(self.host, self.port, self.remoteMode)
 
-        """ Utilities Widgets """
+        """ Windows handlers """
         # self.latest_conf()
         # self.diff_widgets = {}
         self.smart_widgets = {}
@@ -326,10 +326,19 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.client.send(f"stop {pid}")
         self.deselect()
 
-    def queue_remove(self):
+    def queue_remove(self, pid=None, disk=None):
         """This function set the "remove" button behaviour on the queue table
         context menu."""
-
+        if disk is not None and pid is not None:
+            for row in range(self.queueTable.rowCount()):
+                pid_item = self.queueTable.item(row, 0)
+                if pid_item and f"{pid}" == pid_item.text().split("-")[1]:
+                    disk_item = self.queueTable.item(row, 2)
+                    if disk_item and disk == disk_item.text():
+                        self.client.send(f"remove {pid_item.text()}")
+                        self.queueTable.removeRow(row)
+                        return
+            return
         pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = "With this action you will also stop the process (ID: " + pid + ")\n"
         message += "Do you want to proceed?"
@@ -493,32 +502,33 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     for drive in drives:
                         message += f" {drive[0]}"
                 else:
-                    message += f"Disk: {drives[0][0]}"
+                    message += f"Disk: {drives[0]}"
                 if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
                     return
             for drive in drives:
-                self.client.send("queued_badblocks " + drive[0])
+                self.client.send("queued_badblocks " + drive)
 
         except BaseException:
             print("GUI: Error in erase Function")
 
-    def smart(self, std=False, drives=None):
+    def smart_check(self, is_standard_procedure=False, passwd=None):
         """This function send to the server a queued_smartctl command.
         If "std" is True it will skip the "no drive selected" check."""
 
         # noinspection PyBroadException
         try:
-            if drives is None:
-                drives = self.get_multiple_drive_selection()
-            drives_qty = len(drives)
-            if drives_qty == 0:
-                if not std:
-                    message = "There are no selected drives."
-                    warning_dialog(message, dialog_type="ok")
+            drives = self.get_multiple_drive_selection()
+            if len(drives) == 0:
+                if is_standard_procedure:
                     return
-                return
+                message = "There are no selected drives."
+                warning_dialog(message, dialog_type="ok")
+
             for drive in drives:
-                self.client.send("queued_smartctl " + drive[0])
+                if passwd is not None:
+                    self.client.send(f"queued_smartctl {drive} {passwd}")
+                    return
+                self.client.send("queued_smartctl " + drive)
 
         except BaseException:
             print("GUI: Error in smart function.")
@@ -917,6 +927,13 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.diskTable.resizeColumnToContents(1)
 
             case "smartctl" | "queued_smartctl":
+                if params["status"] == "password_required":
+                    passwd, ok = QInputDialog.getText(self, 'Input Password', 'Enter server sudo password:',
+                                             QLineEdit.Password)
+                    if ok:
+                        self.smart_check(False, passwd)
+                        self.queue_remove(params["pid"], params["disk"])
+                    return
                 self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
 
             case " connection_failed":

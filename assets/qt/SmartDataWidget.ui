@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Form</class>
- <widget class="QWidget" name="Form">
+ <class>SmartDataWidget</class>
+ <widget class="QWidget" name="SmartDataWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,11 +11,41 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>SMART Data - ?</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QTreeView" name="treeView"/>
+    <widget class="QLineEdit" name="searchLineEdit">
+     <property name="text">
+      <string/>
+     </property>
+     <property name="placeholderText">
+      <string>Search key ...</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTreeWidget" name="treeWidget">
+     <property name="contextMenuPolicy">
+      <enum>Qt::ActionsContextMenu</enum>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>5</width>
+       <height>5</height>
+      </size>
+     </property>
+     <column>
+      <property name="text">
+       <string notr="true">Key</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>Value</string>
+      </property>
+     </column>
+    </widget>
    </item>
    <item>
     <layout class="QFormLayout" name="formLayout">
@@ -73,6 +103,16 @@
     </layout>
    </item>
   </layout>
+  <action name="actionCollapse_All">
+   <property name="text">
+    <string>Collapse All</string>
+   </property>
+  </action>
+  <action name="actionExpand_All">
+   <property name="text">
+    <string>Expand All</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
