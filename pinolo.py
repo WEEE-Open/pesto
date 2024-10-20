@@ -88,6 +88,22 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.actionShow_SMART_data.triggered.connect(self.show_smart_data)
         self.actionUpload_to_Tarallo.triggered.connect(self.upload_to_tarallo)
 
+        # Queue table
+        self.queueTable.addActions([
+            self.actionStop,
+            self.actionRemove,
+            self.actionRemove_All,
+            self.actionRemove_completed,
+            self.actionRemove_Queued,
+            self.actionInfo
+        ])
+        self.actionStop.triggered.connect(self.queue_stop)
+        self.actionRemove.triggered.connect(self.queue_remove)
+        self.actionRemove_All.triggered.connect(self.queue_clear)
+        self.actionRemove_completed.triggered.connect(self.queue_clear_completed)
+        self.actionRemove_Queued.triggered.connect(self.queue_clear_queued)
+        self.actionInfo.triggered.connect(self.queue_info)
+
         # Buttons
         self.standardProcedureButton.clicked.connect(self.standard_procedure)
         self.eraseButton.clicked.connect(self.erase)
