@@ -150,7 +150,8 @@
            <string>Standard procedure</string>
           </property>
           <property name="icon">
-           <iconset theme="edit-delete"/>
+           <iconset theme="edit-delete">
+            <normaloff>.</normaloff>.</iconset>
           </property>
           <property name="shortcut">
            <string>Ctrl+S</string>
@@ -171,7 +172,8 @@
              <string>Refresh</string>
             </property>
             <property name="icon">
-             <iconset theme="media-playlist-repeat"/>
+             <iconset theme="media-playlist-repeat">
+              <normaloff>.</normaloff>.</iconset>
             </property>
            </widget>
           </item>
@@ -201,7 +203,8 @@
                <string>Erase</string>
               </property>
               <property name="icon">
-               <iconset theme="edit-clear"/>
+               <iconset theme="edit-clear">
+                <normaloff>.</normaloff>.</iconset>
               </property>
               <property name="shortcut">
                <string>Ctrl+E</string>
@@ -226,7 +229,8 @@
                <string>Smart check</string>
               </property>
               <property name="icon">
-               <iconset theme="drive-harddisk"/>
+               <iconset theme="drive-harddisk">
+                <normaloff>.</normaloff>.</iconset>
               </property>
               <property name="shortcut">
                <string>Ctrl+Alt+S</string>
@@ -248,7 +252,8 @@
                <string>Load system</string>
               </property>
               <property name="icon">
-               <iconset theme="go-up"/>
+               <iconset theme="go-up">
+                <normaloff>.</normaloff>.</iconset>
               </property>
               <property name="shortcut">
                <string>Ctrl+C</string>
@@ -376,20 +381,11 @@
      <height>21</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuFile">
+   <widget class="QMenu" name="menuSettings">
     <property name="title">
-     <string>File</string>
+     <string>Settings</string>
     </property>
-    <addaction name="newSessionAction"/>
-    <addaction name="actionRefresh"/>
-    <addaction name="separator"/>
-    <addaction name="exitAction"/>
-   </widget>
-   <widget class="QMenu" name="menuOptions">
-    <property name="title">
-     <string>Options</string>
-    </property>
-    <addaction name="networkSettingsAction"/>
+    <addaction name="actionNetworkSettings"/>
     <addaction name="actionTheme"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -401,8 +397,7 @@
     <addaction name="separator"/>
     <addaction name="actionVersion"/>
    </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuOptions"/>
+   <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
   <action name="newSessionAction">
@@ -426,7 +421,10 @@
     <string>Exit</string>
    </property>
   </action>
-  <action name="networkSettingsAction">
+  <action name="actionNetworkSettings">
+   <property name="icon">
+    <iconset theme="network-wired"/>
+   </property>
    <property name="text">
     <string>Network settings</string>
    </property>
@@ -451,7 +449,8 @@
   </action>
   <action name="actionSleep">
    <property name="icon">
-    <iconset theme="face-tired"/>
+    <iconset theme="face-tired">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Sleep</string>
@@ -459,7 +458,8 @@
   </action>
   <action name="actionUpload_to_Tarallo">
    <property name="icon">
-    <iconset theme="emblem-synchronized"/>
+    <iconset theme="emblem-synchronized">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Upload to Tarallo</string>
@@ -467,7 +467,8 @@
   </action>
   <action name="actionUmount">
    <property name="icon">
-    <iconset theme="drive-removable-media"/>
+    <iconset theme="drive-removable-media">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Umount</string>
@@ -475,7 +476,8 @@
   </action>
   <action name="actionShow_SMART_data">
    <property name="icon">
-    <iconset theme="drive-harddisk"/>
+    <iconset theme="drive-harddisk">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Show SMART data</string>
@@ -484,6 +486,60 @@
   <action name="actionTheme">
    <property name="text">
     <string>Theme</string>
+   </property>
+  </action>
+  <action name="actionStop">
+   <property name="icon">
+    <iconset theme="process-stop">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Stop</string>
+   </property>
+  </action>
+  <action name="actionRemove">
+   <property name="icon">
+    <iconset theme="list-remove">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Remove</string>
+   </property>
+  </action>
+  <action name="actionRemove_All">
+   <property name="icon">
+    <iconset theme="user-trash">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Remove All</string>
+   </property>
+  </action>
+  <action name="actionRemove_completed">
+   <property name="icon">
+    <iconset theme="emblem-default">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Remove completed</string>
+   </property>
+  </action>
+  <action name="actionRemove_Queued">
+   <property name="icon">
+    <iconset theme="document-open-recent">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Remove Queued</string>
+   </property>
+  </action>
+  <action name="actionInfo">
+   <property name="icon">
+    <iconset theme="dialog-information">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Info</string>
    </property>
   </action>
  </widget>
