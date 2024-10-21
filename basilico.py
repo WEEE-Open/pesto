@@ -1510,10 +1510,17 @@ def user_groups_checks():
     except FileNotFoundError as _:
         logging.error("Unknown subprocess error in init_checks()")
         return
-    if not "disk" in res.split(":")[1]:
+    warn = False
+    if ":" in res:
+        if "disk" not in res.split(":")[1]:
+            warn = True
+    else:
+        if "disk" not in res.split(" "):
+            warn = True
+    if warn:
         user = os.getenv("USER")
         logging.warning(
-            f"  User {user} is not in disk group and it may not have sufficient permissions to use smartctl.\n"
+            f"User {user} on the server is not in disk group and it may not have sufficient permissions to use smartctl.\n"
             f"You can add it in with the command\n\n"
             f"\tsudo usermod -a -G disk $USER\n\n"
             f"and restarting the user session (logout and login)."
