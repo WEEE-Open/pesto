@@ -760,13 +760,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                             queue_disk_label = queue_disk_label.text()
                             queue_progress = queue_progress.findChild(QProgressBar).value()
                             if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
-                                self.diskTable.item(disk_row, 0).setBackground(Qt.yellow)
-                                self.diskTable.item(disk_row, 0).setForeground(Qt.black)
+                                self._decorate_disk(self.diskTable.item, True)
                                 break
                         if queue_row == queue_rows:
-                            default_foreground = self.diskTable.item(disk_row, 1).foreground()
-                            self.diskTable.item(disk_row, 0).setBackground(Qt.transparent)
-                            self.diskTable.item(disk_row, 0).setForeground(default_foreground)
+                            self._decorate_disk(self.diskTable.item, False)
 
     def set_disk_table_item(self, table: QTableWidget, row: int, drive: dict):
         table.setRowCount(row + 1)
@@ -779,12 +776,20 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         )
         if drive["mountpoint"]:
             self.current_mountpoints[drive["path"]] = drive["mountpoint"]
-            item = table.item(row, 0)
-            item.setBackground(QColor(255, 165, 0, 255))
-            item.setForeground(Qt.black)
-            item.setToolTip("Disk has critical mountpoints, some action are restricted.")
+            self._decorate_disk(table.item(row, 0), False)
         else:
             del self.current_mountpoints[drive["path"]]
+
+    def _decorate_disk(self, item: QTableWidgetItem, something_in_progress: bool):
+        if something_in_progress:
+            item.setIcon(QIcon(QPixmap(PATH["PROGRESS"])))
+            item.setToolTip(None)
+        elif item.text() in self.current_mountpoints:
+            item.setIcon(QIcon.fromTheme("data-warning"))
+            item.setToolTip("Disk has critical mountpoints, some action are restricted.")
+        else:
+            item.setIcon(QIcon())
+            item.setToolTip(None)
 
     def resize_queue_table_to_contents(self):
         for col in range(self.queueTable.columnCount() - 1):
@@ -866,8 +871,13 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     if "text" in param:
                         status_cell.setToolTip(param["text"])
 
+            case "queued_umount":
+                self.send_msg("get_disks")
+
             case "get_disks":
                 drives = params
+
+                self.current_mountpoints = dict()
 
                 if len(drives) <= 0:
                     self.diskTable.setRowCount(0)
