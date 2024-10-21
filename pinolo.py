@@ -73,6 +73,13 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.localServer = LocalServer()
         self.localServer.update.connect(self.server_com)
 
+        """ Icons """
+        if QIcon.hasThemeIcon("data-warning"):
+            self._mount_warning_icon = QIcon.fromTheme("data-warning")
+        else:
+            self._mount_warning_icon = QIcon.fromTheme("security-medium")
+        self._progress_icon = QIcon(QPixmap(PATH["PROGRESS"]))
+
         self.setup()
         self.start_client()
 
@@ -771,10 +778,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def _decorate_disk(self, item: QTableWidgetItem, something_in_progress: bool):
         if something_in_progress:
-            item.setIcon(QIcon(QPixmap(PATH["PROGRESS"])))
+            item.setIcon(self._progress_icon)
             item.setToolTip(None)
         elif item.text() in self.current_mountpoints:
-            item.setIcon(QIcon.fromTheme("data-warning"))
+            item.setIcon(self._mount_warning_icon)
             item.setToolTip("Disk has critical mountpoints, some action are restricted.")
         else:
             item.setIcon(QIcon())
