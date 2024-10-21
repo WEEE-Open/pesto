@@ -784,18 +784,18 @@ class CommandRunner(threading.Thread):
             exitcode = pipe.wait()
 
             if exitcode == 1:
-                if stderr.count("password") <= 1:   # condition required to check if sudo password entered correctly
+                if stderr.count("password") <= 1:  # condition required to check if sudo password entered correctly
                     exitcode = 0
                 else:
                     return {
-                                "pid": self._the_id,
-                                "disk": args[0],
-                                "status": "password_required",
-                                "updated": None,
-                                "exitcode": 1,
-                                "output": output,
-                                "stderr": stderr,
-                            }
+                        "pid": self._the_id,
+                        "disk": args[0],
+                        "status": "password_required",
+                        "updated": None,
+                        "exitcode": 1,
+                        "output": output,
+                        "stderr": stderr,
+                    }
             if exitcode == 0:
                 smartctl_returned_valid = True
             else:

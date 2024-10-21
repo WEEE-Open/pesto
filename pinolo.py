@@ -25,13 +25,14 @@ from PyQt5.QtWidgets import (
     QLabel,
     QVBoxLayout,
     QProgressBar,
-    QWidget, QInputDialog, QLineEdit,
+    QWidget,
+    QInputDialog,
+    QLineEdit,
 )
 from diff_dialog import DiffWidget
 from constants import *
 from datetime import datetime, timedelta
 import sys
-
 
 
 absolute_path(PATH)
@@ -77,26 +78,16 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def setup(self):
         # Disk table
-        self.diskTable.addActions([
-            self.actionSleep,
-            self.actionUmount,
-            self.actionShow_SMART_data,
-            self.actionUpload_to_Tarallo
-        ])
+        self.diskTable.addActions([self.actionSleep, self.actionUmount, self.actionShow_SMART_data, self.actionUpload_to_Tarallo])
         self.actionSleep.triggered.connect(self.sleep)
         self.actionUmount.triggered.connect(self.umount)
         self.actionShow_SMART_data.triggered.connect(self.show_smart_data)
         self.actionUpload_to_Tarallo.triggered.connect(self.upload_to_tarallo)
 
         # Queue table
-        self.queueTable.addActions([
-            self.actionStop,
-            self.actionRemove,
-            self.actionRemove_All,
-            self.actionRemove_completed,
-            self.actionRemove_Queued,
-            self.actionInfo
-        ])
+        self.queueTable.addActions(
+            [self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued, self.actionInfo]
+        )
         self.actionStop.triggered.connect(self.queue_stop)
         self.actionRemove.triggered.connect(self.queue_remove)
         self.actionRemove_All.triggered.connect(self.queue_clear)
@@ -492,8 +483,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             else:
                 self.selected_drive = self.selected_drive.text()
             if self.selected_drive in self.smart_results:
-                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive,
-                                                                      self.smart_results[self.selected_drive])
+                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive, self.smart_results[self.selected_drive])
                 self.smart_widgets[self.selected_drive].close_signal.connect(self.remove_smart_widget)
 
         except BaseException as exc:
@@ -670,8 +660,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if self.selected_drive is not None:
             self.selected_drive = self.selected_drive.text().lstrip("Disk ")
             if self.selected_drive in self.current_mountpoints:
-                self.statusbar.showMessage(
-                    f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
+                self.statusbar.showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
                 self.eraseButton.setEnabled(False)
                 self.stdProcedureButton.setEnabled(False)
                 self.cannoloButton.setEnabled(False)
@@ -726,8 +715,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         self.settingsDialog.asdGif = QMovie(dir)
         self.settingsDialog.asdGif.setScaledSize(
-            QSize().scaled(self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(),
-                           Qt.KeepAspectRatio)
+            QSize().scaled(self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio)
         )
         self.settingsDialog.asdGif.start()
         self.settingsDialog.asdlabel.setMovie(self.settingsDialog.asdGif)
@@ -891,8 +879,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
             case "smartctl" | "queued_smartctl":
                 if params["status"] == "password_required":
-                    passwd, ok = QInputDialog.getText(self, 'Input Password', 'Enter server sudo password:',
-                                             QLineEdit.Password)
+                    passwd, ok = QInputDialog.getText(self, "Input Password", "Enter server sudo password:", QLineEdit.Password)
                     if ok:
                         self.smart_check(False, passwd)
                         self.queue_remove(params["pid"], params["disk"])

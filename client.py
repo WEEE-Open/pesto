@@ -19,6 +19,7 @@ receiver = None
 
 class Client(LineOnlyReceiver):
     """Qui arrivano i comandi (comunicazione)"""
+
     MAX_LENGTH = 32768  # value in bytes - Increased to avoid connection drop due to smartctl message lengths
 
     def lineLengthExceeded(self, line):

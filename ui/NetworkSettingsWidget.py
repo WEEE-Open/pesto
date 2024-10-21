@@ -117,6 +117,7 @@ class Ui_NetworkSettingsWidget(object):
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     NetworkSettingsWidget = QtWidgets.QDialog()
     ui = Ui_NetworkSettingsWidget()

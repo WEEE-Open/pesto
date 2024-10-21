@@ -3,8 +3,20 @@ import logging
 from PyQt5 import uic
 from PyQt5.QtCore import pyqtSignal, QSettings, QSize, Qt
 from PyQt5.QtGui import QMovie
-from PyQt5.QtWidgets import QDialog, QRadioButton, QLineEdit, QPushButton, QListWidget, QLabel, QMessageBox, \
-    QFileDialog, QWidget, QMainWindow, QDial, QCompleter
+from PyQt5.QtWidgets import (
+    QDialog,
+    QRadioButton,
+    QLineEdit,
+    QPushButton,
+    QListWidget,
+    QLabel,
+    QMessageBox,
+    QFileDialog,
+    QWidget,
+    QMainWindow,
+    QDial,
+    QCompleter,
+)
 from client import ReactorThread
 from utilities import critical_dialog, warning_dialog
 from constants import *
@@ -221,7 +233,7 @@ class SettingsDialog(QDialog):
 class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
     update = pyqtSignal(str, int, bool, str, name="update_settings")
 
-    def __init__(self, parent: 'PinoloMainWindow'):
+    def __init__(self, parent: "PinoloMainWindow"):
         super(NetworkSettings, self).__init__()
         self.setupUi(self)
 
@@ -255,7 +267,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
             self.serverIpLineEdit.setReadOnly(True)
             self.defaultSystemLabel.setText("")
 
-        elif self.remoteServerRadioButton.isChecked():   # Remote mode
+        elif self.remoteServerRadioButton.isChecked():  # Remote mode
             if not self.parent.serverMode:
                 try:
                     self.parent.host = self.settings.value(LATEST_SERVER_IP)
@@ -303,7 +315,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
             self.defaultSystemLineEdit.setReadOnly(False)
 
     def init_asd(self):
-        """ Init the asd """
+        """Init the asd"""
         self.asdGif.setScaledSize(QSize().scaled(self.asdLabel.width(), self.asdLabel.height(), Qt.KeepAspectRatio))
         self.asdGif.start()
         self.asdLabel.setMovie(self.asdGif)
@@ -327,14 +339,14 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
 
     def save_config(self):
         """This function saves the active host and port configuration in the qt settings
-                file, showing them in the recent ip list."""
+        file, showing them in the recent ip list."""
 
         ip = self.serverIpLineEdit.text()
         port = self.serverPortLineEdit.text()
 
         self.settings.beginGroup(QSETTINGS_IP_GROUP)
         for key in self.settings.childKeys():
-            config = self.settings.value(key)   # [ip, port]
+            config = self.settings.value(key)  # [ip, port]
             if ip in config:
                 message = "Do you want to overwrite the old configuration?"
                 if warning_dialog(message, dialog_type="yes_no") == QMessageBox.No:
@@ -373,7 +385,6 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
                     break
         self.settings.endGroup()
         self.load_completer()
-
 
     def load_completer(self):
         self.settings.beginGroup(QSETTINGS_IP_GROUP)

@@ -139,9 +139,8 @@ class SmartWidget(QWidget, Ui_SmartDataWidget):
 
     def export_data(self):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getSaveFileName(self, "Select File", "", "JSON Files (*.json);;All Files (*)",
-                                                   options=options)
+        file_path, _ = QFileDialog.getSaveFileName(self, "Select File", "", "JSON Files (*.json);;All Files (*)", options=options)
 
         if file_path:
-            with open(f"{file_path}.json", 'w') as json_file:
+            with open(f"{file_path}.json", "w") as json_file:
                 json.dump(self.smart_results, json_file, indent=4)
