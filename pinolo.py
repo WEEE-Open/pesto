@@ -55,7 +55,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.selected_drive = None
         self.timeKeeper = {}
 
-        self.critical_mounts = []
+        self.current_mountpoints = dict()
         self.smart_results = {}
 
         self.settings = QSettings()
@@ -329,13 +329,34 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.deselect()
 
     def umount(self):
+        drives = self.get_multiple_drive_selection()
+
+        drives_as_text = " and ".join(drives)
+        mountpoints = []
+        for drive in drives:
+            try:
+                for mp in self.current_mountpoints[drive]:
+                    mountpoints.append(mp)
+            except IndexError:
+                pass
+        mountpoints_as_text = "\n".join(sorted(mountpoints))
+
+        message = f"Are you really sure you want to manually umount {drives_as_text}?\n"
+        # I love reinventing gettext and solving problems that have been solved since 1995
+        # (maybe we should use the real gettext at some point, even if we don't have translations)
+        if len(drives) <= 1:
+            message += "It has the following mountpoints:\n"
+        else:
+            message += "They have the following mountpoints:\n"
+        message += mountpoints_as_text
+        message += "\nBe careful not to unmount and erase something important."
+
         dialog = warning_dialog(
-            "Are you really sure you want to umount this disk?\nThis is generally not a good idea, proceed only if you are really sure of what are you doing.",
+            message,
             "yes_no",
         )
 
         if dialog == QMessageBox.Yes:
-            drives = self.get_multiple_drive_selection()
             for drive in drives:
                 self.client.send("queued_umount " + drive)
 
@@ -648,7 +669,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
         if self.selected_drive is not None:
             self.selected_drive = self.selected_drive.text().lstrip("Disk ")
-            if self.selected_drive in self.critical_mounts:
+            if self.selected_drive in self.current_mountpoints:
                 self.statusbar.showMessage(
                     f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
                 self.eraseButton.setEnabled(False)
@@ -733,7 +754,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     for queue_row in range(queue_rows + 1):
                         queue_disk_label = self.queueTable.item(queue_row, 2)
                         queue_progress = self.queueTable.cellWidget(queue_row, 5)
-                        if self.diskTable.item(disk_row, 0).text() in self.critical_mounts:
+                        if self.diskTable.item(disk_row, 0).text() in self.current_mountpoints:
                             continue
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
@@ -757,11 +778,13 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             QTableWidgetItem(str(int(int(drive["size"]) / 1000000000)) + " GB"),
         )
         if drive["mountpoint"]:
-            self.critical_mounts.append(drive["path"])
+            self.current_mountpoints[drive["path"]] = drive["mountpoint"]
             item = table.item(row, 0)
             item.setBackground(QColor(255, 165, 0, 255))
             item.setForeground(Qt.black)
-            item.setToolTip("Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh.")
+            item.setToolTip("Disk has critical mountpoints, some action are restricted.")
+        else:
+            del self.current_mountpoints[drive["path"]]
 
     def resize_queue_table_to_contents(self):
         for col in range(self.queueTable.columnCount() - 1):
