@@ -766,7 +766,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.current_mountpoints[drive["path"]] = drive["mountpoint"]
             self._decorate_disk(table.item(row, 0), False)
         else:
-            del self.current_mountpoints[drive["path"]]
+            if drive["path"] in self.current_mountpoints:
+                del self.current_mountpoints[drive["path"]]
 
     def _decorate_disk(self, item: QTableWidgetItem, something_in_progress: bool):
         if something_in_progress:
