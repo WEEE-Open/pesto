@@ -156,10 +156,8 @@ class Disk:
     def _get_code(self, stop_on_error: bool = True):
         if not self._tarallo:
             if TEST_MODE:
-                if "nvme" in self._path:
-                    num = ord(self._path[-3])
-                else:
-                    num = ord(self._path[-1])
+                import binascii
+                num = binascii.crc32(self._path.encode('utf-8')) % 300
                 if num % 2:
                     self._code = "H" + str(num)
                 else:
