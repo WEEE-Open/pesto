@@ -1478,18 +1478,6 @@ def try_stop_at_end():
         reactor.callLater(CLOSE_AT_END_TIMER, try_stop_at_end)
 
 
-def format_size(size: int):
-    notation = ["b", "kiB", "MiB", "GiB", "TiB"]
-    index = 0
-    for count in range(0, len(notation)):
-        if size >> (10 * count) == 0:
-            index = count - 1
-            break
-    size = size / (1024**index)
-    result = "{:.2f}".format(size) + f" {notation[index]}"
-    return result
-
-
 def get_block_size(path):
     """Return device size in bytes."""
     with open(path, "rb") as f:

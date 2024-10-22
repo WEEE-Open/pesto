@@ -337,9 +337,15 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     mountpoints.append(mp)
             except IndexError:
                 pass
+            except KeyError:
+                pass
+
+        if len(mountpoints) <= 0:
+            return
+
         mountpoints_as_text = "\n".join(sorted(mountpoints))
 
-        message = f"Are you really sure you want to manually umount {drives_as_text}?\n"
+        message = f"Are you really sure you want to unmount all partitions of {drives_as_text}?\n"
         # I love reinventing gettext and solving problems that have been solved since 1995
         # (maybe we should use the real gettext at some point, even if we don't have translations)
         if len(drives) <= 1:
@@ -767,7 +773,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         table.setItem(
             row,
             2,
-            QTableWidgetItem(str(int(int(drive["size"]) / 1000000000)) + " GB"),
+            QTableWidgetItem(format_size(drive["size"], True, False)),
         )
         if drive["mountpoint"]:
             self.current_mountpoints[drive["path"]] = drive["mountpoint"]

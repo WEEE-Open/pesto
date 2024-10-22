@@ -147,3 +147,25 @@ class SmartTabs(QtWidgets.QTabWidget):
         widget.setLayout(layout)
         self.addTab(widget, drive)
         self.tabs.append(widget)
+
+
+def format_size(size: int, round_the_result: bool = False, power_of_2: bool = True) -> str:
+    if power_of_2:
+        notation = ["B", "kiB", "MiB", "GiB", "TiB"]
+        thousand = 1024
+    else:
+        notation = ["B", "kB", "MB", "GB", "TB"]
+        thousand = 1000
+
+    index = 0
+    for count in range(0, len(notation)):
+        if size >> (10 * count) == 0:
+            index = count - 1
+            break
+    size = size / (thousand**index)
+    if round_the_result:
+        result = str(int(round(size)))
+    else:
+        result = "{:.2f}".format(size)
+    result += f" {notation[index]}"
+    return result
