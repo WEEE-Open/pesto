@@ -278,8 +278,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function set the "remove all" button behaviour on the queue table
         context menu."""
 
-        self.queueTable.setRowCount(0)
         self.client.send("remove_all")
+        self.queueTable.setRowCount(0)
 
     def queue_clear_completed(self):
         """This function set the "remove completed" button behaviour on the queue table
@@ -794,7 +794,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def gui_update(self, cmd: str, params: str):
         """
-        This function gets all the server responses and update, if possible, the UI. "
+        This function gets all the server responses and update, if possible, the UI.
 
         Typical param str is:
             cmd [{param_1: 'text'}, {param_2: 'text'}, {param_3: 'text'}, ...]
@@ -845,9 +845,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     self.timeKeeper[param["id"]] = {"perc": param["percentage"], "time": datetime.now()}
 
                     if param["stale"]:
+                        # TODO: we don't have an icon for this, maybe we should
                         pass
                     elif param["stopped"]:
-                        # TODO: we don't have an icon for this, maybe we should
                         status_cell.setPixmap(QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
                         status_cell.setObjectName(QUEUE_COMPLETED)
                     elif param["error"]:
