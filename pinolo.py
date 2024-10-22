@@ -761,10 +761,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                             queue_disk_label = queue_disk_label.text()
                             queue_progress = queue_progress.findChild(QProgressBar).value()
                             if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
-                                self._decorate_disk(self.diskTable.item, True)
+                                self._decorate_disk(self.diskTable.item.item(disk_row, 0), True)
                                 break
                         if queue_row == queue_rows:
-                            self._decorate_disk(self.diskTable.item, False)
+                            self._decorate_disk(self.diskTable.item.item(disk_row, 0), False)
 
     def set_disk_table_item(self, table: QTableWidget, row: int, drive: dict):
         table.setRowCount(row + 1)

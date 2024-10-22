@@ -157,7 +157,8 @@ class Disk:
         if not self._tarallo:
             if TEST_MODE:
                 import binascii
-                num = binascii.crc32(self._path.encode('utf-8')) % 300
+
+                num = binascii.crc32(self._path.encode("utf-8")) % 300
                 if num % 2:
                     self._code = "H" + str(num)
                 else:
