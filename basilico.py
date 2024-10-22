@@ -582,6 +582,19 @@ class CommandRunner(threading.Thread):
         # noinspection PyUnresolvedReferences
         reactor.callFromThread(reactor.callLater, CLOSE_AT_END_TIMER, try_stop_at_end)
 
+    @staticmethod
+    def _get_last_linux_partition_path_and_number(dev: str) -> tuple[str, str] | tuple[None, None]:
+        # Use PTTYPE to get MBR/GPT (dos/gpt are the possible values)
+        # PARTTYPENAME could be useful, too
+        output = subprocess.getoutput(f"lsblk -o PATH,PARTN,PARTTYPE -J {dev}")
+        jsonized = json.loads(output)
+        for entry in reversed(jsonized["blockdevices"]):
+            if entry["partn"] and entry["path"]:  # lsblk also returns the device itself, which has no partitions
+                # GPT or MBR Linux partition ID
+                if entry["parttype"] == "0fc63daf-8483-4772-8e79-3d69d8477de4" or entry["parttype"] == "0x83":
+                    return entry["path"], entry["partn"]
+        return None, None
+
     def cannolo(self, _cmd: str, dev_and_iso: str):
         parts: list[Optional[str]] = dev_and_iso.split(" ", 1)
         while len(parts) < 2:
@@ -628,11 +641,13 @@ class CommandRunner(threading.Thread):
         else:
             success = self.dd(iso, dev)
             if success:
-                success = run_command_on_partition(dev, f"sudo growpart {dev} 1")  # FIXME: se ha più partizioni non funziona
+                part_path, part_number = self._get_last_linux_partition_path_and_number(dev)
+
+                success = run_command_on_partition(dev, f"sudo growpart {dev} {part_number}")
                 if success:
-                    success = run_command_on_partition(dev, f"sudo e2fsck -fy {dev}1")
+                    success = run_command_on_partition(dev, f"sudo e2fsck -fy {part_path}")
                     if success:
-                        success = run_command_on_partition(dev, f"sudo resize2fs {dev}1")
+                        success = run_command_on_partition(dev, f"sudo resize2fs {part_path}")
                         if success:
                             pass
                         else:
