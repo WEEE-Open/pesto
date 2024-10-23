@@ -77,7 +77,7 @@ class SmartWidget(QWidget, Ui_SmartDataWidget):
                 for sub_item in value:
                     if isinstance(sub_item, dict):
                         # Create a parent item for this dictionary
-                        dict_item = QTreeWidgetItem([f"{key} (Dict)"])  # Indicate that it's a dict
+                        dict_item = QTreeWidgetItem([str(key)])
                         item.addChild(dict_item)
                         self.populate_tree_widget(sub_item, dict_item)
                     else:

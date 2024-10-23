@@ -8,6 +8,7 @@ import time
 from collections import deque
 from typing import Optional, Callable, Dict, Set, List
 
+from docutils.parsers.rst.directives import encoding
 from pytarallo import Tarallo, Errors
 from dotenv import load_dotenv
 from io import StringIO
@@ -232,6 +233,13 @@ class Disk:
         self._code = code
 
 
+class SudoSessionKeeper(threading.Thread):
+    def run(self):
+        while True:
+            process = subprocess.run(["sudo", "-nv"])
+            threading.Event().wait(241)
+
+
 class ErrorThatCanBeManuallyFixed(BaseException):
     pass
 
@@ -319,6 +327,7 @@ class CommandRunner(threading.Thread):
 
     def dispatch_command(self, cmd: str, args: str) -> (Optional[Callable[[str, str], None]], Optional[str]):
         commands = {
+            "sudo_password": self.sudo_password,
             "smartctl": self.get_smartctl,
             "queued_smartctl": self.queued_get_smartctl,
             "queued_badblocks": self.badblocks,
@@ -761,6 +770,28 @@ class CommandRunner(threading.Thread):
         else:
             self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
 
+    def sudo_password(self, _cmd: str, password: str):
+        global needs_sudo
+        with clients_lock:
+            if not needs_sudo:
+                return
+
+            result = subprocess.run(
+                ["sudo", "-vS"],
+                input=password+"\n",
+                encoding="utf-8",
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+            )
+            # output, stderr = pipe.communicate(password.encode() + b"\n")
+            # exitcode = pipe.wait()
+
+            if result.returncode == 0:
+                needs_sudo = False
+                SudoSessionKeeper().start()
+            else:
+                self.send_msg("sudo_password")
+
     def _call_hdparm_for_sleep(self, dev: str):
         return self._call_shell_command(("sudo", "hdparm", "-Y", dev))
 
@@ -774,107 +805,83 @@ class CommandRunner(threading.Thread):
         if params:
             self.send_msg(cmd, params)
 
-    def _get_smartctl(self, args: str, queued: bool):
-        try:
-            if queued:
-                self._queued_command.notify_start("Getting smarter")
+    def _get_smartctl(self, dev: str, queued: bool):
+        if queued:
+            self._queued_command.notify_start("Getting smarter")
 
-            args = args.split()
-            dev = args[0]
-            if len(args) > 1:
-                passwd = args[1]
+        pipe = subprocess.Popen(
+            ("sudo", "-n", "smartctl", "-j", "-a", dev),
+            stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
+        output = pipe.stdout.read().decode("utf-8")
+        stderr = pipe.stderr.read().decode("utf-8")
+        exitcode = pipe.wait()
+
+        if exitcode == 0:
+            smartctl_returned_valid = True
+        else:
+            exitcode_bytes = exitcode.to_bytes(8, "little")
+            if exitcode_bytes[0] == 1 or exitcode_bytes[1] == 1 or exitcode_bytes[2] == 1:
+                smartctl_returned_valid = False
             else:
-                passwd = ""
+                # TODO: parse remaining bits (https://github.com/WEEE-Open/pesto/issues/71)
+                smartctl_returned_valid = True
 
-            pipe = subprocess.Popen(
-                ("sudo", "-S", "smartctl", "-j", "-a", dev),
-                stdin=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-            )
-            output, stderr = pipe.communicate(passwd.encode() + b"\n")
-            output = output.decode("utf-8")
-            stderr = stderr.decode("utf-8")
-            exitcode = pipe.wait()
+        updated = False
+        status = None
 
-            if exitcode == 1:
-                if stderr.count("password") <= 1:  # condition required to check if sudo password entered correctly
-                    exitcode = 0
-                else:
+        if smartctl_returned_valid:
+            status = get_smartctl_status(output)
+            if queued:
+                if not status:
+                    self._queued_command.notify_error("Error while parsing smartctl status")
                     return {
-                        "pid": self._the_id,
-                        "disk": args[0],
-                        "status": "password_required",
-                        "updated": None,
-                        "exitcode": 1,
+                        "disk": dev,
+                        "status": status,
+                        "updated": updated,
+                        "exitcode": exitcode,
                         "output": output,
                         "stderr": stderr,
                     }
-            if exitcode == 0:
-                smartctl_returned_valid = True
-            else:
-                exitcode_bytes = exitcode.to_bytes(8, "little")
-                if exitcode_bytes[0] == 1 or exitcode_bytes[1] == 1 or exitcode_bytes[2] == 1:
-                    smartctl_returned_valid = False
-                else:
-                    # TODO: parse remaining bits (https://github.com/WEEE-Open/pesto/issues/65)
-                    smartctl_returned_valid = True
-
-            updated = False
-            status = None
-
-            if smartctl_returned_valid:
-                status = get_smartctl_status(output)
-                if queued:
-                    if not status:
-                        self._queued_command.notify_error("Error while parsing smartctl status")
-                        return {
-                            "disk": args[0],
-                            "status": status,
-                            "updated": updated,
-                            "exitcode": exitcode,
-                            "output": output,
-                            "stderr": stderr,
-                        }
-            else:
-                if queued:
-                    self._queued_command.notify_error("smartctl failed")
-                return {
-                    "disk": args[0],
-                    "status": status,
-                    "updated": updated,
-                    "exitcode": exitcode,
-                    "output": output,
-                    "stderr": stderr,
-                }
-
-            if queued and status:
-                self._queued_command.notify_percentage(50.0, "Updating tarallo if needed")
-
-                with disks_lock:
-                    update_disks_if_needed(self)
-                    disk_ref = disks[args[0]]
-
-                # noinspection PyBroadException
-                try:
-                    updated = disk_ref.update_status(status)
-                except BaseException as e:
-                    self._queued_command.notify_error("Error during upload")
-                    logging.warning(
-                        f"[{self._the_id}] Can't update status of {args[0]} on tarallo",
-                        exc_info=e,
-                    )
-                self._queued_command.notify_finish(f"Disk is {status}")
+        else:
+            if queued:
+                self._queued_command.notify_error("smartctl failed")
             return {
-                "disk": args[0],
+                "disk": dev,
                 "status": status,
                 "updated": updated,
                 "exitcode": exitcode,
                 "output": output,
                 "stderr": stderr,
             }
-        except Exception as e:
-            print(e)
+
+        if queued and status:
+            self._queued_command.notify_percentage(50.0, "Updating tarallo if needed")
+
+            with disks_lock:
+                update_disks_if_needed(self)
+                disk_ref = disks[dev]
+
+            # noinspection PyBroadException
+            try:
+                updated = disk_ref.update_status(status)
+            except BaseException as e:
+                self._queued_command.notify_error("Error during upload")
+                logging.warning(
+                    f"[{self._the_id}] Can't update status of {dev} on tarallo",
+                    exc_info=e,
+                )
+            self._queued_command.notify_finish(f"Disk is {status}")
+        return {
+            "disk": dev,
+            "status": status,
+            "updated": updated,
+            "exitcode": exitcode,
+            "output": output,
+            "stderr": stderr,
+        }
 
     # noinspection PyUnusedLocal
     def queued_upload_to_tarallo(self, cmd: str, args: str):
@@ -1213,9 +1220,11 @@ class QueuedCommand:
 
 class TurboProtocol(LineOnlyReceiver):
     def __init__(self):
+        global needs_sudo
         self._id = -1
         self.delimiter = b"\n"
         self._delimiter_found = False
+        needs_sudo = self.sudo_needs_password()
 
     def connectionMade(self):
         self._id = self.factory.conn_id
@@ -1245,6 +1254,10 @@ class TurboProtocol(LineOnlyReceiver):
                 logging.debug(f"[{str(self._id)}] Client has delimiter \\n")
             self._delimiter_found = True
 
+            global needs_sudo
+            if needs_sudo:
+                self.send_msg("sudo_password")
+
         # Strip \r on first message (if \r\n) and any trailing whitespace
         line = line.strip()
         if line.startswith("exit"):
@@ -1263,6 +1276,10 @@ class TurboProtocol(LineOnlyReceiver):
             self.sendLine(response.encode("utf-8"))
         else:
             logging.warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
+
+    def sudo_needs_password(self):
+        exitcode = subprocess.run(["sudo", "-nv"])
+        return exitcode.returncode != 0
 
 
 def update_disks_if_needed(this_thread: Optional[CommandRunner], send: bool = True):  # , disk: Optional[str] = None):
@@ -1536,6 +1553,8 @@ TARALLO = None
 CLOSE_AT_END = False
 CLOSE_AT_END_LOCK = threading.Lock()
 CLOSE_AT_END_TIMER = 5
+
+needs_sudo = False
 
 clients: Dict[int, TurboProtocol] = {}
 clients_lock = threading.Lock()

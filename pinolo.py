@@ -10,6 +10,7 @@ from utilities import *
 from ui.PinoloMainWindow import Ui_MainWindow
 from widgets.NetworkSettings import NetworkSettings
 from widgets.SmartWidget import SmartWidget
+from widgets.SelectSystem import SelectSystemDialog
 from typing import Union
 from dotenv import load_dotenv
 from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent, QColor
@@ -20,8 +21,6 @@ from PyQt5.QtWidgets import (
     QMenu,
     QMessageBox,
     QMainWindow,
-    QAbstractItemView,
-    QHeaderView,
     QLabel,
     QVBoxLayout,
     QProgressBar,
@@ -46,11 +45,11 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         self.host = DEFAULT_IP
         self.port = DEFAULT_PORT
-        self.default_system_path = DEFAULT_SYSTEM_PATH
+        self.default_system_path = None
         self.serverMode = None
-        self.manual_cannolo = False
+        self.manual_load_system = False
         self.active_theme = None
-        self.dialog = None
+        self.select_system_dialog: SelectSystemDialog = None
         self.pixmapAspectRatio = None
         self.pixmapResizingNeeded = None
         self.selected_drive = None
@@ -63,13 +62,11 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.client = ReactorThread(self.host, self.port, self.serverMode)
 
         """ Windows handlers """
-        self.latest_conf()
-        # self.diff_widgets = {}
+        self.load_latest_configuration()
         self.smart_widgets = {}
-        self.network_settings_widget = NetworkSettings(self)
+        self.network_settings_dialog = NetworkSettings(self)
 
         """ Initialization operations """
-        # self.set_items_functions()
         self.localServer = LocalServer()
         self.localServer.update.connect(self.server_com)
 
@@ -77,13 +74,16 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if QIcon.hasThemeIcon("data-warning"):
             self._mount_warning_icon = QIcon.fromTheme("data-warning")
         else:
-            self._mount_warning_icon = QIcon.fromTheme("security-medium")
+            self._mount_warning_icon = QIcon.fromTheme("dialog-warning")
         self._progress_icon = QIcon(QPixmap(PATH["PROGRESS"]))
 
         self.setup()
         self.start_client()
 
     def setup(self):
+        # initialize attributes with latest session parameters (host, port and default system path)
+        self.load_latest_configuration()
+
         # Disk table
         self.diskTable.addActions([self.actionSleep, self.actionUmount, self.actionShow_SMART_data, self.actionUpload_to_Tarallo])
         self.actionSleep.triggered.connect(self.sleep)
@@ -111,7 +111,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         # Menu bar
         self.actionNetworkSettings.triggered.connect(self.open_network_settings)
-
+        self.actionSourceCode.triggered.connect(self.open_source_code)
+        self.actionAboutUs.triggered.connect(self.open_website)
+        self.actionVersion.triggered.connect(self.show_version)
+        
     def start_client(self):
         """This method must be called in __init__ function of Ui class
         to initialize pinolo session"""
@@ -125,14 +128,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.client = ReactorThread(self.host, self.port, self.serverMode)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
-        # Actions setup
-        # action = list()
-        # # action.append(self.themeMenu.addAction("Default"))
-        # action[-1].triggered.connect(lambda: self.set_theme("default"))
-        # for theme_file in os.listdir(PATH["THEMES"]):
-        #     theme = theme_file.rstrip(".css")
-        #     action.append(self.themeMenu.addAction(theme))
-        #     action[-1].triggered.connect((lambda t: lambda: self.set_theme(t))(theme))
 
     def show_context_menu(self, pos):
         # Crea il menu contestuale
@@ -202,7 +197,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         # else:
         #     self.cannoloLabel.setText("")
 
-    def latest_conf(self):
+    def load_latest_configuration(self):
         """This function try to set the remote configuration used in the last
         pinolo session"""
 
@@ -221,7 +216,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.port = 1030
 
     def open_network_settings(self):
-        self.network_settings_widget.show()
+        self.network_settings_dialog.show()
 
     def open_url(self, url_type: str):
         url = QUrl(url_type)
@@ -413,11 +408,11 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
                     dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
                     if dialog_result == QMessageBox.Yes:
-                        self.upload_to_tarallo(std=True, drive=drive[0])
+                        self.upload_to_tarallo(std=True)
                     elif dialog_result == QMessageBox.Cancel:
                         continue
             self.erase(std=True, drives=drives)
-            self.smart_check(is_standard_procedure=True, drives=drives)
+            self.smart_check(is_standard_procedure=True)
             if dialog[1]:
                 self.load_system(std=True, drives=drives)
 
@@ -465,7 +460,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         except BaseException:
             print("GUI: Error in erase Function")
 
-    def smart_check(self, is_standard_procedure=False, passwd=None):
+    def smart_check(self, is_standard_procedure=False):
         """This function send to the server a queued_smartctl command.
         If "std" is True it will skip the "no drive selected" check."""
 
@@ -479,9 +474,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 warning_dialog(message, dialog_type="ok")
 
             for drive in drives:
-                if passwd is not None:
-                    self.client.send(f"queued_smartctl {drive} {passwd}")
-                    return
                 self.client.send("queued_smartctl " + drive)
 
         except BaseException:
@@ -521,7 +513,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             if drives is None:
                 drives = self.get_multiple_drive_selection()
             drives_qty = len(drives)
-            directory = self.default_system_path.rsplit("/", 1)[0] + "/"
+            if self.default_system_path:
+                directory = self.default_system_path.rsplit("/", 1)[0] + "/"
+            else:
+                critical_dialog(
+                    "There is no default image set in Pinolo settings.",
+                    dialog_type="ok"
+                )
+                return
             if drives_qty == 0:
                 if not std:
                     message = "There are no selected drives."
@@ -530,14 +529,30 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 return
             if not std:
                 self.client.send(f"list_iso {directory}")
-                self.manual_cannolo = True
+                if self.select_system_dialog:
+                    self.select_system_dialog.close()
+                self.select_system_dialog = SelectSystemDialog(self, True, directory)
                 return
             for drive in drives:
-                print(f"GUI: Sending cannolo to {drive[0]} with {self.default_system_path}")
-                self.client.send(f"queued_cannolo {drive[0]} {self.default_system_path}")
+                print(f"GUI: Sending cannolo to {drive} with {self.default_system_path}")
+                self.client.send(f"queued_cannolo {drive} {self.default_system_path}")
 
-        except BaseException:
-            print("GUI: Error in cannolo function.")
+        except BaseException as e:
+            print(f"GUI: Error in load_system function. Traceback: {e}")
+
+    def load_selected_system(self, directory: str, img: str):
+        """This function sends to the server a queued_cannolo with the selected drive
+        and the directory of the selected cannolo image. This is specific of the
+        non-standard procedure cannolo."""
+
+        drives = self.get_multiple_drive_selection()
+        ids = ""
+        for drive in drives:
+            ids += f"{drive}, "
+        ids.rstrip(", ")
+        self.statusbar.showMessage(f"Sending cannolo to {ids} with {img}")
+        for drive in drives:
+            self.client.send(f"queued_cannolo {drive} {directory}")
 
     def upload_to_tarallo(self, std: bool = False):
         # TODO: check if it's really working
@@ -619,7 +634,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 elif mode == "queued_smartctl" or mode == "smartctl":
                     label = "Smart check"
                 elif mode == "queued_cannolo":
-                    label = "Cannolo"
+                    label = "Load system"
                 elif mode == "queued_sleep":
                     label = "Sleep"
                 elif mode == "queued_upload_to_tarallo":
@@ -681,20 +696,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.eraseButton.setEnabled(True)
                 self.stdProcedureButton.setEnabled(True)
                 self.cannoloButton.setEnabled(True)
-
-    def use_cannolo_img(self, directory: str, img: str):
-        """This function sends to the server a queued_cannolo with the selected drive
-        and the directory of the selected cannolo image. This is specific of the
-        non-standard procedure cannolo."""
-
-        drives = self.get_multiple_drive_selection()
-        ids = ""
-        for drive in drives:
-            ids += f"{drive[0]}, "
-        ids.rstrip(", ")
-        self.statusbar.showMessage(f"Sending cannolo to {ids} with {img}")
-        for drive in drives:
-            self.client.send(f"queued_cannolo {drive[0]} {directory}")
 
     def set_theme(self, theme: str):
         """This function gets the stylesheet of the theme and sets the widgets aspect.
@@ -761,10 +762,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                             queue_disk_label = queue_disk_label.text()
                             queue_progress = queue_progress.findChild(QProgressBar).value()
                             if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
-                                self._decorate_disk(self.diskTable.item.item(disk_row, 0), True)
+                                self._decorate_disk(self.diskTable.item(disk_row, 0), True)
                                 break
                         if queue_row == queue_rows:
-                            self._decorate_disk(self.diskTable.item.item(disk_row, 0), False)
+                            self._decorate_disk(self.diskTable.item(disk_row, 0), False)
 
     def set_disk_table_item(self, table: QTableWidget, row: int, drive: dict):
         table.setRowCount(row + 1)
@@ -798,6 +799,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.queueTable.resizeColumnToContents(col)
             self.queueTable.setColumnWidth(col, self.queueTable.columnWidth(col) + 20)
 
+    def _send_sudo_password(self, password: str):
+        # password = password.replace('\\', '\\\\').replace(" ", "\\ ")
+        self.client.send(f'sudo_password {password}')
+
     def gui_update(self, cmd: str, params: str):
         """
         This function gets all the server responses and update, if possible, the UI.
@@ -809,11 +814,12 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             queue_status --> Information about badblocks process
 
         """
-        try:
-            params = json.loads(params)
-            params: Union[dict, list]
-        except json.decoder.JSONDecodeError:
-            print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
+        if len(params) > 0:
+            try:
+                params = json.loads(params)
+                params: Union[dict, list]
+            except json.decoder.JSONDecodeError:
+                print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
         match cmd:
             case "queue_status" | "get_queue":
@@ -878,7 +884,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
             case "get_disks":
                 drives = params
-
                 self.current_mountpoints = dict()
 
                 if len(drives) <= 0:
@@ -892,12 +897,12 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.diskTable.resizeColumnToContents(1)
 
             case "smartctl" | "queued_smartctl":
-                if params["status"] == "password_required":
-                    passwd, ok = QInputDialog.getText(self, "Input Password", "Enter server sudo password:", QLineEdit.Password)
-                    if ok:
-                        self.smart_check(False, passwd)
-                        self.queue_remove(params["pid"], params["disk"])
-                    return
+                # if params["status"] == "password_required":
+                #     passwd, ok = QInputDialog.getText(self, "Input Password", "Enter server sudo password:", QLineEdit.Password)
+                #     if ok:
+                #         self.smart_check(False, passwd)
+                #         self.queue_remove(params["pid"], params["disk"])
+                #     return
                 self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
 
             case " connection_failed":
@@ -920,12 +925,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.statusbar.showMessage(f"Connected to {params['host']}:{params['port']}")
 
             case "list_iso":
-                self.dialog = CannoloDialog(self.settingsDialog, PATH, params)
-                if self.manual_cannolo:
-                    self.dialog.update.connect(self.use_cannolo_img)
-                    self.manual_cannolo = False
-                else:
-                    self.dialog.update.connect(self.settingsDialog.set_default_cannolo)
+                self.select_system_dialog.ask_for_image(params)
 
             case "error":
                 message = f"{params['message']}"
@@ -936,6 +936,18 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             case "error_that_can_be_manually_fixed":
                 message = params["message"]
                 warning_dialog(message, dialog_type="ok")
+
+            case "sudo_password":
+                passwd, ok = QInputDialog.getText(self, "Input Password", "Enter server sudo password:", QLineEdit.Password)
+                if ok:
+                    self._send_sudo_password(passwd)
+                else:
+                    warning_dialog(
+                        "You did not enter the root password.\n"
+                        "Some commands may not work correctly.\n"
+                        "Refresh to insert the password.",
+                        dialog_type="ok"
+                    )
 
         self.check_disk_usage()
 

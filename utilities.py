@@ -2,7 +2,7 @@ import subprocess
 import os
 import datetime
 from typing import Optional
-from PyQt5 import QtWidgets, QtGui, uic, QtCore
+from PyQt5 import QtWidgets, QtGui
 
 
 def critical_dialog(message, dialog_type):
@@ -62,45 +62,6 @@ def input_dialog(message: str):
     dialog = QtWidgets.QInputDialog()
     loc, ok = dialog.getText(dialog, "Input dialog", message, QtWidgets.QLineEdit.Normal)
     return loc, ok
-
-
-class CannoloDialog(QtWidgets.QDialog):
-    update = QtCore.pyqtSignal(str, str, name="event")
-
-    def __init__(self, parent: QtWidgets.QDialog, path, images: list):
-        super(CannoloDialog, self).__init__()
-        self._parent = parent
-        self.path = path
-        self.images = images
-        self.files = []
-        uic.loadUi(self.path["CANNOLOUI"], self)
-
-        self.setWindowTitle("Select default image")
-
-        self.label = self.findChild(QtWidgets.QLabel, "dialogLabel")
-        self.isoList = self.findChild(QtWidgets.QListWidget, "isoList")
-        for img in self.images:
-            img = img.rsplit("/", 1)[1]
-            img = img.rsplit(".")
-            if len(img) > 1:
-                if img[1] == "iso" or img[1] == "img":
-                    self.files.append(f"{img[0]}.{img[1]}")
-        self.isoList.addItems(self.files)
-        self.selectButton = self.findChild(QtWidgets.QPushButton, "selectButton")
-        self.selectButton.clicked.connect(self.select)
-        self.cancelButton = self.findChild(QtWidgets.QPushButton, "cancelButton")
-        self.cancelButton.clicked.connect(self.close)
-        self.show()
-
-    def select(self):
-        if self.isoList.currentItem() is None:
-            print("GUI: No image selected.")
-            return
-        iso = self.isoList.currentItem().text()
-        for iso_dir in self.images:
-            if iso in iso_dir:
-                self.update.emit(iso_dir, iso)
-        self.close()
 
 
 def check_requirements(requirements_path):
