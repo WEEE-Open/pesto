@@ -1421,10 +1421,10 @@ def find_mounts(el: dict):
 
 def get_disks_linux(path: Optional[str] = None) -> list:
     # Name is required, otherwise the tree is flattened
-    # To filter out ODDs and tape drives: --exclude 9,11
+    # To filter out loop devices, ODDs, tape drives and network devices: --exclude 7,9,11,43
     # See: https://www.kernel.org/doc/Documentation/admin-guide/devices.txt
     # Also: https://unix.stackexchange.com/a/610634
-    output = subprocess.getoutput(f"lsblk --exclude 9,11 -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT,SIZE -J {path if path else ''}")
+    output = subprocess.getoutput(f"lsblk --exclude 7,9,11,43 -b -o NAME,PATH,VENDOR,MODEL,SERIAL,HOTPLUG,ROTA,MOUNTPOINT,SIZE -J {path if path else ''}")
     jsonized = json.loads(output)
     if "blockdevices" in jsonized:
         result = jsonized["blockdevices"]
