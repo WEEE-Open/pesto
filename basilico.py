@@ -778,7 +778,7 @@ class CommandRunner(threading.Thread):
 
             result = subprocess.run(
                 ["sudo", "-vS"],
-                input=password+"\n",
+                input=password + "\n",
                 encoding="utf-8",
                 stderr=subprocess.PIPE,
                 stdout=subprocess.PIPE,

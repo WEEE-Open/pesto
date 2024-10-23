@@ -184,17 +184,14 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
 
     def find_image(self):
         """
-            This function opens a different dialog if
-            the user is in local or remote mode to search for a cannolo image.
+        This function opens a different dialog if
+        the user is in local or remote mode to search for a cannolo image.
         """
 
         if self.parent.serverMode == REMOTE_MODE:
             directory = self.defaultSystemLineEdit.text()
-            if directory ==  '':
-                warning_dialog(
-                    "Il path per l'immagine di sistema di default è vuoto. Impostalo plz.",
-                    dialog_type="ok"
-                )
+            if directory == "":
+                warning_dialog("Il path per l'immagine di sistema di default è vuoto. Impostalo plz.", dialog_type="ok")
                 return
             splitted_dir = directory.rsplit("/", 1)
             if len(splitted_dir[1].split(".")) > 1:

@@ -8,15 +8,9 @@ if TYPE_CHECKING:
     from pinolo import PinoloMainWindow
     from widgets.NetworkSettings import NetworkSettings
 
+
 class SelectSystemDialog(QDialog, Ui_SelectSystemDialog):
-    def __init__(
-            self,
-            parent: QObject,
-            is_load_system: bool,
-            path: str,
-            images: list = None,
-            network_settings_dialog: 'NetworkSettings' = None
-    ):
+    def __init__(self, parent: QObject, is_load_system: bool, path: str, images: list = None, network_settings_dialog: "NetworkSettings" = None):
         super(SelectSystemDialog, self).__init__(parent)
         self.setupUi(self)
 
@@ -47,7 +41,7 @@ class SelectSystemDialog(QDialog, Ui_SelectSystemDialog):
 
     def select(self):
         """
-            Selected iso from isoList is set as default system path in network settings.
+        Selected iso from isoList is set as default system path in network settings.
         """
 
         if self.isoList.currentItem() is None:
@@ -58,11 +52,11 @@ class SelectSystemDialog(QDialog, Ui_SelectSystemDialog):
         for iso_dir in self.images:
             if iso in iso_dir:
                 if self.is_load_system:
-                    pinolo: 'PinoloMainWindow' = self.parent()
+                    pinolo: "PinoloMainWindow" = self.parent()
                     pinolo.load_selected_system(iso_dir, iso)
                     break
                 else:
-                    network_settings: 'NetworkSettings' = self.parent()
+                    network_settings: "NetworkSettings" = self.parent()
                     network_settings.defaultSystemLineEdit.setText(iso_dir)
                     break
 

@@ -114,7 +114,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.actionSourceCode.triggered.connect(self.open_source_code)
         self.actionAboutUs.triggered.connect(self.open_website)
         self.actionVersion.triggered.connect(self.show_version)
-        
+
     def start_client(self):
         """This method must be called in __init__ function of Ui class
         to initialize pinolo session"""
@@ -516,10 +516,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             if self.default_system_path:
                 directory = self.default_system_path.rsplit("/", 1)[0] + "/"
             else:
-                critical_dialog(
-                    "There is no default image set in Pinolo settings.",
-                    dialog_type="ok"
-                )
+                critical_dialog("There is no default image set in Pinolo settings.", dialog_type="ok")
                 return
             if drives_qty == 0:
                 if not std:
@@ -801,7 +798,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def _send_sudo_password(self, password: str):
         # password = password.replace('\\', '\\\\').replace(" ", "\\ ")
-        self.client.send(f'sudo_password {password}')
+        self.client.send(f"sudo_password {password}")
 
     def gui_update(self, cmd: str, params: str):
         """
@@ -943,10 +940,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     self._send_sudo_password(passwd)
                 else:
                     warning_dialog(
-                        "You did not enter the root password.\n"
-                        "Some commands may not work correctly.\n"
-                        "Refresh to insert the password.",
-                        dialog_type="ok"
+                        "You did not enter the root password.\n" "Some commands may not work correctly.\n" "Refresh to insert the password.", dialog_type="ok"
                     )
 
         self.check_disk_usage()
