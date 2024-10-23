@@ -20,6 +20,18 @@ PESTO is a utility software that allows you to make some operations on hard disk
 **It's highly discouraged to use the client outside a local network for security reasons.**  
 There is no authentication and no encryption of any message.
 
+## Development
+You can edit the user interface in two ways:
+- Graphics editing: use `pyqt5-tools designer` and open the .ui file that you need to modify
+- Functional editing: edit code in `pinolo.py`
+
+To build `.ui` files:
+```
+pyuic5 -x assets/qt/<file>.ui -o ui/<file>.py
+```
+
+Compiled UI files must be located inside the `ui` folder.
+
 ## Installation
 
 To install pesto in the system:

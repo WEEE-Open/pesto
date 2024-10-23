@@ -25,6 +25,10 @@
   <property name="windowTitle">
    <string>Pinolo</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>../icon.png</normaloff>../icon.png</iconset>
+  </property>
   <property name="autoFillBackground">
    <bool>true</bool>
   </property>
@@ -57,6 +61,9 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
+          <property name="contextMenuPolicy">
+           <enum>Qt::ActionsContextMenu</enum>
+          </property>
           <property name="styleSheet">
            <string notr="true"/>
           </property>
@@ -78,6 +85,9 @@
           <property name="selectionMode">
            <enum>QAbstractItemView::ExtendedSelection</enum>
           </property>
+          <property name="selectionBehavior">
+           <enum>QAbstractItemView::SelectRows</enum>
+          </property>
           <property name="textElideMode">
            <enum>Qt::ElideMiddle</enum>
           </property>
@@ -98,6 +108,9 @@
           </property>
           <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
            <bool>false</bool>
+          </attribute>
+          <attribute name="horizontalHeaderStretchLastSection">
+           <bool>true</bool>
           </attribute>
           <attribute name="verticalHeaderVisible">
            <bool>false</bool>
@@ -123,7 +136,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="stdProcButton">
+         <widget class="QPushButton" name="standardProcedureButton">
           <property name="maximumSize">
            <size>
             <width>16777215</width>
@@ -135,6 +148,10 @@
           </property>
           <property name="text">
            <string>Standard procedure</string>
+          </property>
+          <property name="icon">
+           <iconset theme="edit-delete">
+            <normaloff>.</normaloff>.</iconset>
           </property>
           <property name="shortcut">
            <string>Ctrl+S</string>
@@ -153,6 +170,10 @@
             </property>
             <property name="text">
              <string>Refresh</string>
+            </property>
+            <property name="icon">
+             <iconset theme="media-playlist-repeat">
+              <normaloff>.</normaloff>.</iconset>
             </property>
            </widget>
           </item>
@@ -181,13 +202,17 @@
               <property name="text">
                <string>Erase</string>
               </property>
+              <property name="icon">
+               <iconset theme="edit-clear">
+                <normaloff>.</normaloff>.</iconset>
+              </property>
               <property name="shortcut">
                <string>Ctrl+E</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="smartButton">
+             <widget class="QPushButton" name="smartCheckButton">
               <property name="maximumSize">
                <size>
                 <width>16777215</width>
@@ -203,13 +228,17 @@
               <property name="text">
                <string>Smart check</string>
               </property>
+              <property name="icon">
+               <iconset theme="drive-harddisk">
+                <normaloff>.</normaloff>.</iconset>
+              </property>
               <property name="shortcut">
                <string>Ctrl+Alt+S</string>
               </property>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="cannoloButton">
+             <widget class="QPushButton" name="loadSystemButton">
               <property name="maximumSize">
                <size>
                 <width>16777215</width>
@@ -221,6 +250,10 @@
               </property>
               <property name="text">
                <string>Load system</string>
+              </property>
+              <property name="icon">
+               <iconset theme="go-up">
+                <normaloff>.</normaloff>.</iconset>
               </property>
               <property name="shortcut">
                <string>Ctrl+C</string>
@@ -239,6 +272,9 @@
          <width>580</width>
          <height>0</height>
         </size>
+       </property>
+       <property name="contextMenuPolicy">
+        <enum>Qt::ActionsContextMenu</enum>
        </property>
        <property name="autoFillBackground">
         <bool>false</bool>
@@ -271,7 +307,7 @@
         <enum>QAbstractItemView::ExtendedSelection</enum>
        </property>
        <property name="selectionBehavior">
-        <enum>QAbstractItemView::SelectItems</enum>
+        <enum>QAbstractItemView::SelectRows</enum>
        </property>
        <property name="showGrid">
         <bool>false</bool>
@@ -292,7 +328,7 @@
         <bool>true</bool>
        </attribute>
        <attribute name="horizontalHeaderStretchLastSection">
-        <bool>false</bool>
+        <bool>true</bool>
        </attribute>
        <attribute name="verticalHeaderVisible">
         <bool>false</bool>
@@ -342,29 +378,15 @@
      <x>0</x>
      <y>0</y>
      <width>960</width>
-     <height>20</height>
+     <height>21</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuFile">
+   <widget class="QMenu" name="menuSettings">
     <property name="title">
-     <string>File</string>
+     <string>Settings</string>
     </property>
-    <addaction name="newSessionAction"/>
-    <addaction name="refreshAction"/>
-    <addaction name="separator"/>
-    <addaction name="exitAction"/>
-   </widget>
-   <widget class="QMenu" name="menuOptions">
-    <property name="title">
-     <string>Options</string>
-    </property>
-    <widget class="QMenu" name="themeMenu">
-     <property name="title">
-      <string>Theme</string>
-     </property>
-    </widget>
-    <addaction name="themeMenu"/>
-    <addaction name="networkSettingsAction"/>
+    <addaction name="actionNetworkSettings"/>
+    <addaction name="actionTheme"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -375,8 +397,7 @@
     <addaction name="separator"/>
     <addaction name="actionVersion"/>
    </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuOptions"/>
+   <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
   <action name="newSessionAction">
@@ -387,7 +408,7 @@
     <string>Ctrl+N</string>
    </property>
   </action>
-  <action name="refreshAction">
+  <action name="actionRefresh">
    <property name="text">
     <string>Refresh</string>
    </property>
@@ -400,7 +421,10 @@
     <string>Exit</string>
    </property>
   </action>
-  <action name="networkSettingsAction">
+  <action name="actionNetworkSettings">
+   <property name="icon">
+    <iconset theme="network-wired"/>
+   </property>
    <property name="text">
     <string>Network settings</string>
    </property>
@@ -423,9 +447,99 @@
     <string>Version</string>
    </property>
   </action>
-  <action name="actionasd">
+  <action name="actionSleep">
+   <property name="icon">
+    <iconset theme="face-tired">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
    <property name="text">
-    <string>asd</string>
+    <string>Sleep</string>
+   </property>
+  </action>
+  <action name="actionUpload_to_Tarallo">
+   <property name="icon">
+    <iconset theme="emblem-synchronized">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Upload to Tarallo</string>
+   </property>
+  </action>
+  <action name="actionUmount">
+   <property name="icon">
+    <iconset theme="drive-removable-media">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Umount</string>
+   </property>
+  </action>
+  <action name="actionShow_SMART_data">
+   <property name="icon">
+    <iconset theme="drive-harddisk">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Show SMART data</string>
+   </property>
+  </action>
+  <action name="actionTheme">
+   <property name="text">
+    <string>Theme</string>
+   </property>
+  </action>
+  <action name="actionStop">
+   <property name="icon">
+    <iconset theme="process-stop">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Stop</string>
+   </property>
+  </action>
+  <action name="actionRemove">
+   <property name="icon">
+    <iconset theme="list-remove">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Remove</string>
+   </property>
+  </action>
+  <action name="actionRemove_All">
+   <property name="icon">
+    <iconset theme="user-trash">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Remove All</string>
+   </property>
+  </action>
+  <action name="actionRemove_completed">
+   <property name="icon">
+    <iconset theme="emblem-default">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Remove completed</string>
+   </property>
+  </action>
+  <action name="actionRemove_Queued">
+   <property name="icon">
+    <iconset theme="document-open-recent">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Remove Queued</string>
+   </property>
+  </action>
+  <action name="actionInfo">
+   <property name="icon">
+    <iconset theme="dialog-information">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Info</string>
    </property>
   </action>
  </widget>

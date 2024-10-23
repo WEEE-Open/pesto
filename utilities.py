@@ -2,7 +2,7 @@ import subprocess
 import os
 import datetime
 from typing import Optional
-from PyQt5 import QtWidgets, QtGui, uic, QtCore
+from PyQt5 import QtWidgets, QtGui
 
 
 def critical_dialog(message, dialog_type):
@@ -64,45 +64,6 @@ def input_dialog(message: str):
     return loc, ok
 
 
-class CannoloDialog(QtWidgets.QDialog):
-    update = QtCore.pyqtSignal(str, str, name="event")
-
-    def __init__(self, parent: QtWidgets.QDialog, path, images: list):
-        super(CannoloDialog, self).__init__()
-        self._parent = parent
-        self.path = path
-        self.images = images
-        self.files = []
-        uic.loadUi(self.path["CANNOLOUI"], self)
-
-        self.setWindowTitle("Select default image")
-
-        self.label = self.findChild(QtWidgets.QLabel, "dialogLabel")
-        self.isoList = self.findChild(QtWidgets.QListWidget, "isoList")
-        for img in self.images:
-            img = img.rsplit("/", 1)[1]
-            img = img.rsplit(".")
-            if len(img) > 1:
-                if img[1] == "iso" or img[1] == "img":
-                    self.files.append(f"{img[0]}.{img[1]}")
-        self.isoList.addItems(self.files)
-        self.selectButton = self.findChild(QtWidgets.QPushButton, "selectButton")
-        self.selectButton.clicked.connect(self.select)
-        self.cancelButton = self.findChild(QtWidgets.QPushButton, "cancelButton")
-        self.cancelButton.clicked.connect(self.close)
-        self.show()
-
-    def select(self):
-        if self.isoList.currentItem() is None:
-            print("GUI: No image selected.")
-            return
-        iso = self.isoList.currentItem().text()
-        for iso_dir in self.images:
-            if iso in iso_dir:
-                self.update.emit(iso_dir, iso)
-        self.close()
-
-
 def check_requirements(requirements_path):
     p = subprocess.Popen(["pip", "install", "-r", requirements_path, "--quiet"])
     p.wait()
@@ -147,3 +108,25 @@ class SmartTabs(QtWidgets.QTabWidget):
         widget.setLayout(layout)
         self.addTab(widget, drive)
         self.tabs.append(widget)
+
+
+def format_size(size: int, round_the_result: bool = False, power_of_2: bool = True) -> str:
+    if power_of_2:
+        notation = ["B", "kiB", "MiB", "GiB", "TiB"]
+        thousand = 1024
+    else:
+        notation = ["B", "kB", "MB", "GB", "TB"]
+        thousand = 1000
+
+    index = 0
+    for count in range(0, len(notation)):
+        if size >> (10 * count) == 0:
+            index = count - 1
+            break
+    size = size / (thousand**index)
+    if round_the_result:
+        result = str(int(round(size)))
+    else:
+        result = "{:.2f}".format(size)
+    result += f" {notation[index]}"
+    return result

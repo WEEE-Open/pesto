@@ -7,6 +7,8 @@ import sys
 import time
 from collections import deque
 from typing import Optional, Callable, Dict, Set, List
+
+from docutils.parsers.rst.directives import encoding
 from pytarallo import Tarallo, Errors
 from dotenv import load_dotenv
 from io import StringIO
@@ -155,7 +157,9 @@ class Disk:
     def _get_code(self, stop_on_error: bool = True):
         if not self._tarallo:
             if TEST_MODE:
-                num = ord(self._path[-1])
+                import binascii
+
+                num = binascii.crc32(self._path.encode("utf-8")) % 300
                 if num % 2:
                     self._code = "H" + str(num)
                 else:
@@ -227,6 +231,13 @@ class Disk:
 
     def set_code(self, code: str):
         self._code = code
+
+
+class SudoSessionKeeper(threading.Thread):
+    def run(self):
+        while True:
+            process = subprocess.run(["sudo", "-nv"])
+            threading.Event().wait(241)
 
 
 class ErrorThatCanBeManuallyFixed(BaseException):
@@ -316,6 +327,7 @@ class CommandRunner(threading.Thread):
 
     def dispatch_command(self, cmd: str, args: str) -> (Optional[Callable[[str, str], None]], Optional[str]):
         commands = {
+            "sudo_password": self.sudo_password,
             "smartctl": self.get_smartctl,
             "queued_smartctl": self.queued_get_smartctl,
             "queued_badblocks": self.badblocks,
@@ -758,6 +770,28 @@ class CommandRunner(threading.Thread):
         else:
             self._queued_command.notify_finish_with_error(f"hdparm exited with status {str(exitcode)}")
 
+    def sudo_password(self, _cmd: str, password: str):
+        global needs_sudo
+        with clients_lock:
+            if not needs_sudo:
+                return
+
+            result = subprocess.run(
+                ["sudo", "-vS"],
+                input=password+"\n",
+                encoding="utf-8",
+                stderr=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+            )
+            # output, stderr = pipe.communicate(password.encode() + b"\n")
+            # exitcode = pipe.wait()
+
+            if result.returncode == 0:
+                needs_sudo = False
+                SudoSessionKeeper().start()
+            else:
+                self.send_msg("sudo_password")
+
     def _call_hdparm_for_sleep(self, dev: str):
         return self._call_shell_command(("sudo", "hdparm", "-Y", dev))
 
@@ -774,8 +808,10 @@ class CommandRunner(threading.Thread):
     def _get_smartctl(self, dev: str, queued: bool):
         if queued:
             self._queued_command.notify_start("Getting smarter")
+
         pipe = subprocess.Popen(
             ("sudo", "-n", "smartctl", "-j", "-a", dev),
+            stdin=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
@@ -790,7 +826,7 @@ class CommandRunner(threading.Thread):
             if exitcode_bytes[0] == 1 or exitcode_bytes[1] == 1 or exitcode_bytes[2] == 1:
                 smartctl_returned_valid = False
             else:
-                # TODO: parse remaining bits (https://github.com/WEEE-Open/pesto/issues/65)
+                # TODO: parse remaining bits (https://github.com/WEEE-Open/pesto/issues/71)
                 smartctl_returned_valid = True
 
         updated = False
@@ -1184,9 +1220,11 @@ class QueuedCommand:
 
 class TurboProtocol(LineOnlyReceiver):
     def __init__(self):
+        global needs_sudo
         self._id = -1
         self.delimiter = b"\n"
         self._delimiter_found = False
+        needs_sudo = self.sudo_needs_password()
 
     def connectionMade(self):
         self._id = self.factory.conn_id
@@ -1216,6 +1254,10 @@ class TurboProtocol(LineOnlyReceiver):
                 logging.debug(f"[{str(self._id)}] Client has delimiter \\n")
             self._delimiter_found = True
 
+            global needs_sudo
+            if needs_sudo:
+                self.send_msg("sudo_password")
+
         # Strip \r on first message (if \r\n) and any trailing whitespace
         line = line.strip()
         if line.startswith("exit"):
@@ -1234,6 +1276,10 @@ class TurboProtocol(LineOnlyReceiver):
             self.sendLine(response.encode("utf-8"))
         else:
             logging.warning(f"[{str(self._id)}] Cannot send command to client due to unknown delimiter: {response}")
+
+    def sudo_needs_password(self):
+        exitcode = subprocess.run(["sudo", "-nv"])
+        return exitcode.returncode != 0
 
 
 def update_disks_if_needed(this_thread: Optional[CommandRunner], send: bool = True):  # , disk: Optional[str] = None):
@@ -1465,18 +1511,6 @@ def try_stop_at_end():
         reactor.callLater(CLOSE_AT_END_TIMER, try_stop_at_end)
 
 
-def format_size(size: int):
-    notation = ["b", "kiB", "MiB", "GiB", "TiB"]
-    index = 0
-    for count in range(0, len(notation)):
-        if size >> (10 * count) == 0:
-            index = count - 1
-            break
-    size = size / (1024**index)
-    result = "{:.2f}".format(size) + f" {notation[index]}"
-    return result
-
-
 def get_block_size(path):
     """Return device size in bytes."""
     with open(path, "rb") as f:
@@ -1498,10 +1532,17 @@ def user_groups_checks():
     except FileNotFoundError as _:
         logging.error("Unknown subprocess error in init_checks()")
         return
-    if not "disk" in res.split(":")[1]:
+    warn = False
+    if ":" in res:
+        if "disk" not in res.split(":")[1]:
+            warn = True
+    else:
+        if "disk" not in res.split(" "):
+            warn = True
+    if warn:
         user = os.getenv("USER")
         logging.warning(
-            f"  User {user} is not in disk group and it may not have sufficient permissions to use smartctl.\n"
+            f"User {user} on the server is not in disk group and it may not have sufficient permissions to use smartctl.\n"
             f"You can add it in with the command\n\n"
             f"\tsudo usermod -a -G disk $USER\n\n"
             f"and restarting the user session (logout and login)."
@@ -1512,6 +1553,8 @@ TARALLO = None
 CLOSE_AT_END = False
 CLOSE_AT_END_LOCK = threading.Lock()
 CLOSE_AT_END_TIMER = 5
+
+needs_sudo = False
 
 clients: Dict[int, TurboProtocol] = {}
 clients_lock = threading.Lock()

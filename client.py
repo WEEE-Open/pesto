@@ -20,6 +20,12 @@ receiver = None
 class Client(LineOnlyReceiver):
     """Qui arrivano i comandi (comunicazione)"""
 
+    MAX_LENGTH = 32768  # value in bytes - Increased to avoid connection drop due to smartctl message lengths
+
+    def lineLengthExceeded(self, line):
+        print("CLIENT-ERROR: Line length exceeded, dropping connection.")
+        self.disconnect()
+
     def lineReceived(self, line):
         try:
             line = line.decode("utf-8")

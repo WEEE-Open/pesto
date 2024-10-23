@@ -7,112 +7,115 @@ Created on Fri Jul 30 10:54:18 2021
 """
 from client import *
 from utilities import *
-from widgets.smart import SmartWidget
-from widgets.settings import SettingsDialog
+from ui.PinoloMainWindow import Ui_MainWindow
+from widgets.NetworkSettings import NetworkSettings
+from widgets.SmartWidget import SmartWidget
+from widgets.SelectSystem import SelectSystemDialog
 from typing import Union
 from dotenv import load_dotenv
-from PyQt5 import uic
 from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent, QColor
 from PyQt5.QtCore import Qt, QSettings, QSize, pyqtSignal, QThread, QUrl
 from PyQt5.QtWidgets import (
     QTableWidgetItem,
-    QAction,
-    QPushButton,
     QTableWidget,
     QMenu,
     QMessageBox,
     QMainWindow,
-    QApplication,
-    QAbstractItemView,
-    QHeaderView,
     QLabel,
     QVBoxLayout,
     QProgressBar,
     QWidget,
-    QSplitter,
+    QInputDialog,
+    QLineEdit,
 )
 from diff_dialog import DiffWidget
-from variables import *
+from constants import *
 from datetime import datetime, timedelta
 import sys
-import traceback
+
 
 absolute_path(PATH)
 
 
 # UI class
-class PinoloMainWindow(QMainWindow):
-    def __init__(self, app: QApplication) -> None:
+class PinoloMainWindow(QMainWindow, Ui_MainWindow):
+    def __init__(self):
         super(PinoloMainWindow, self).__init__()
-        uic.loadUi(PATH["UI"], self)
-        self.app = app
+        self.setupUi(self)
+
         self.host = DEFAULT_IP
         self.port = DEFAULT_PORT
-        self.cannoloDir = ""
-        self.remoteMode = False
-        self.manual_cannolo = False
+        self.default_system_path = None
+        self.serverMode = None
+        self.manual_load_system = False
         self.active_theme = None
-        self.dialog = None
-        self.pixmap = None
+        self.select_system_dialog: SelectSystemDialog = None
         self.pixmapAspectRatio = None
         self.pixmapResizingNeeded = None
         self.selected_drive = None
         self.timeKeeper = {}
 
-        self.critical_mounts = []
+        self.current_mountpoints = dict()
         self.smart_results = {}
 
-        self.settings = QSettings("WEEE-Open", "PESTO")
-        self.client = ReactorThread(self.host, self.port, self.remoteMode)
+        self.settings = QSettings()
+        self.client = ReactorThread(self.host, self.port, self.serverMode)
 
-        """ Utilities Widgets """
-        self.latest_conf()
-        self.diff_widgets = {}
+        """ Windows handlers """
+        self.load_latest_configuration()
         self.smart_widgets = {}
-        self.settingsDialog = SettingsDialog(self.host, self.port, self.remoteMode, self.cannoloDir, self.settings, self.client)
-        self.settingsDialog.update.connect(self.update_settings)
-
-        """ Defining all items in GUI """
-        self.gif = QMovie(PATH["ASD"])
-        self.splitter = self.findChild(QSplitter, "splitter")
-        self.diskTable = self.findChild(QTableWidget, "diskTable")
-        self.queueTable = self.findChild(QTableWidget, "queueTable")
-        self.refreshButton = self.findChild(QPushButton, "refreshButton")
-        self.eraseButton = self.findChild(QPushButton, "eraseButton")
-        self.smartButton = self.findChild(QPushButton, "smartButton")
-        self.cannoloButton = self.findChild(QPushButton, "cannoloButton")
-        self.stdProcedureButton = self.findChild(QPushButton, "stdProcButton")
-
-        """ Defining menu actions """
-        self.newSessionAction = self.findChild(QAction, "newSessionAction")
-        self.refreshAction = self.findChild(QAction, "refreshAction")
-        self.exitAction = self.findChild(QAction, "exitAction")
-        self.networkSettingsAction = self.findChild(QAction, "networkSettingsAction")
-        self.themeMenu = self.findChild(QMenu, "themeMenu")
-        self.aboutUsAction = self.findChild(QAction, "actionAboutUs")
-        self.sourceCodeAction = self.findChild(QAction, "actionSourceCode")
-        self.versionAction = self.findChild(QAction, "actionVersion")
-
-        """ Defining context menu actions """
-        self.sleep_action = QAction("Sleep", self)
-        self.uploadToTarallo_action = QAction("Upload to TARALLO", self)
-        self.showSmartData_Action = QAction("Show SMART data", self)
-        self.umount_action = QAction("Umount disk", self)
-        self.stop_action = QAction("Stop", self)
-        self.remove_action = QAction("Remove", self)
-        self.remove_all_action = QAction("Remove All", self)
-        self.remove_completed_action = QAction("Remove Completed", self)
-        self.remove_queued_action = QAction("Remove Queued", self)
-        self.info_action = QAction("Info", self)
+        self.network_settings_dialog = NetworkSettings(self)
 
         """ Initialization operations """
-        self.set_items_functions()
         self.localServer = LocalServer()
         self.localServer.update.connect(self.server_com)
-        self.show()
+
+        """ Icons """
+        if QIcon.hasThemeIcon("data-warning"):
+            self._mount_warning_icon = QIcon.fromTheme("data-warning")
+        else:
+            self._mount_warning_icon = QIcon.fromTheme("dialog-warning")
+        self._progress_icon = QIcon(QPixmap(PATH["PROGRESS"]))
+
         self.setup()
+        self.start_client()
 
     def setup(self):
+        # initialize attributes with latest session parameters (host, port and default system path)
+        self.load_latest_configuration()
+
+        # Disk table
+        self.diskTable.addActions([self.actionSleep, self.actionUmount, self.actionShow_SMART_data, self.actionUpload_to_Tarallo])
+        self.actionSleep.triggered.connect(self.sleep)
+        self.actionUmount.triggered.connect(self.umount)
+        self.actionShow_SMART_data.triggered.connect(self.show_smart_data)
+        self.actionUpload_to_Tarallo.triggered.connect(self.upload_to_tarallo)
+
+        # Queue table
+        self.queueTable.addActions(
+            [self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued, self.actionInfo]
+        )
+        self.actionStop.triggered.connect(self.queue_stop)
+        self.actionRemove.triggered.connect(self.queue_remove)
+        self.actionRemove_All.triggered.connect(self.queue_clear)
+        self.actionRemove_completed.triggered.connect(self.queue_clear_completed)
+        self.actionRemove_Queued.triggered.connect(self.queue_clear_queued)
+        self.actionInfo.triggered.connect(self.queue_info)
+
+        # Buttons
+        self.standardProcedureButton.clicked.connect(self.standard_procedure)
+        self.eraseButton.clicked.connect(self.erase)
+        self.smartCheckButton.clicked.connect(self.smart_check)
+        self.loadSystemButton.clicked.connect(self.load_system)
+        self.refreshButton.clicked.connect(self.refresh)
+
+        # Menu bar
+        self.actionNetworkSettings.triggered.connect(self.open_network_settings)
+        self.actionSourceCode.triggered.connect(self.open_source_code)
+        self.actionAboutUs.triggered.connect(self.open_website)
+        self.actionVersion.triggered.connect(self.show_version)
+        
+    def start_client(self):
         """This method must be called in __init__ function of Ui class
         to initialize pinolo session"""
 
@@ -122,24 +125,27 @@ class PinoloMainWindow(QMainWindow):
             warning_dialog(message, dialog_type="ok")
 
         # Start client thread
-        self.client = ReactorThread(self.host, self.port, self.remoteMode)
+        self.client = ReactorThread(self.host, self.port, self.serverMode)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
 
-        # Actions setup
-        action = list()
-        action.append(self.themeMenu.addAction("Default"))
-        action[-1].triggered.connect(lambda: self.set_theme("default"))
-        for theme_file in os.listdir(PATH["THEMES"]):
-            theme = theme_file.rstrip(".css")
-            action.append(self.themeMenu.addAction(theme))
-            action[-1].triggered.connect((lambda t: lambda: self.set_theme(t))(theme))
+    def show_context_menu(self, pos):
+        # Crea il menu contestuale
+        context_menu = QMenu(self)
+
+        # Connetti le azioni a slot o metodi
+        self.actionSleep.triggered.connect(self.sleep)
+
+        context_menu.addAction(self.actionSleep)
+
+        # Mostra il menu contestuale
+        context_menu.exec_(self.diskTable.mapToGlobal(pos))
 
     def update_settings(self, host: str, port: int, remote_mode: bool, cannoloDir: str):
         self.host = host
         self.port = port
-        self.remoteMode = remote_mode
-        self.cannoloDir = cannoloDir
+        self.serverMode = remote_mode
+        self.default_system_path = cannoloDir
 
     def on_table_select(self, selected):
         """This function set the queue table context menu buttons"""
@@ -151,12 +157,14 @@ class PinoloMainWindow(QMainWindow):
             self.info_action.setEnabled(False)
             self.sleep_action.setEnabled(False)
             self.uploadToTarallo_action.setEnabled(False)
+            self.umount_action.setEnabled(False)
         else:
             self.stop_action.setEnabled(True)
             self.remove_action.setEnabled(True)
             self.info_action.setEnabled(True)
             self.sleep_action.setEnabled(True)
             self.uploadToTarallo_action.setEnabled(True)
+            self.umount_action.setEnabled(True)
 
     # noinspection DuplicatedCode
     def set_items_functions(self):
@@ -164,84 +172,18 @@ class PinoloMainWindow(QMainWindow):
         other widget's constraints"""
 
         # set icon
-        self.setWindowIcon(QIcon(PATH["ICON"]))
+        # self.setWindowIcon(QIcon(PATH["ICON"]))
 
         # menu actions
-        self.newSessionAction.triggered.connect(self.new_session)
-        self.refreshAction.triggered.connect(self.refresh)
-        self.exitAction.triggered.connect(self.close)
-        self.networkSettingsAction.triggered.connect(self.open_settings)
+        self.networkSettingsAction.triggered.connect(self.open_network_settings)
         self.aboutUsAction.triggered.connect(self.open_website)
         self.sourceCodeAction.triggered.connect(self.open_source_code)
         self.versionAction.triggered.connect(self.show_version)
-
-        # disk table
-        self.diskTable.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.diskTable.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.diskTable.resizeColumnToContents(1)
-        self.diskTable.setColumnWidth(1, self.diskTable.columnWidth(1) + 40)
-        self.diskTable.resizeColumnToContents(2)
-        self.diskTable.setColumnWidth(2, self.diskTable.columnWidth(2) + 20)
-        self.diskTable.cellClicked.connect(self.greyout_buttons)
-        self.diskTable.setContextMenuPolicy(Qt.ActionsContextMenu)
-
-        # disk table actions
-        self.sleep_action.triggered.connect(self.sleep)
-        self.diskTable.addAction(self.sleep_action)
-        self.sleep_action.setEnabled(False)
-        self.uploadToTarallo_action.triggered.connect(self.upload_to_tarallo_selection)
-        self.diskTable.addAction(self.uploadToTarallo_action)
-        self.showSmartData_Action.triggered.connect(self.show_smart_data)
-        self.diskTable.addAction(self.showSmartData_Action)
-        self.uploadToTarallo_action.setEnabled(False)
-        self.diskTable.addAction(self.umount_action)
-        self.umount_action.triggered.connect(self.umount_disk)
-
-        self.diskTable.selectionModel().selectionChanged.connect(self.on_table_select)
-
-        # queue table
-        self.queueTable.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.queueTable.setRowCount(0)
-        self.resize_queue_table_to_contents()
-        self.queueTable.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
-
-        # queue table actions
-        self.queueTable.setContextMenuPolicy(Qt.ActionsContextMenu)
-        self.stop_action.triggered.connect(self.queue_stop)
-        self.queueTable.addAction(self.stop_action)
-        self.stop_action.setEnabled(False)
-        self.remove_action.triggered.connect(self.queue_remove)
-        self.queueTable.addAction(self.remove_action)
-        self.remove_action.setEnabled(False)
-        self.remove_all_action.triggered.connect(self.queue_clear)
-        self.queueTable.addAction(self.remove_all_action)
-        self.remove_all_action.setEnabled(True)
-        self.remove_completed_action.triggered.connect(self.queue_clear_completed)
-        self.queueTable.addAction(self.remove_completed_action)
-        self.remove_completed_action.setEnabled(True)
-        self.remove_queued_action.triggered.connect(self.queue_clear_queued)
-        self.queueTable.addAction(self.remove_queued_action)
-        self.remove_queued_action.setEnabled(True)
 
         self.info_action.triggered.connect(self.queue_info)
         self.queueTable.addAction(self.info_action)
         self.info_action.setEnabled(False)
         self.queueTable.selectionModel().selectionChanged.connect(self.on_table_select)
-
-        # refresh button
-        self.refreshButton.clicked.connect(self.refresh)
-
-        # erase button
-        self.eraseButton.clicked.connect(self.erase)
-
-        # smart button
-        self.smartButton.clicked.connect(self.smart)
-
-        # cannolo button
-        self.cannoloButton.clicked.connect(self.cannolo)
-
-        # standard procedure button
-        self.stdProcedureButton.clicked.connect(self.std_procedure)
 
         # find button
         # self.findButton.clicked.connect(self.find_image)
@@ -255,36 +197,26 @@ class PinoloMainWindow(QMainWindow):
         # else:
         #     self.cannoloLabel.setText("")
 
-    def latest_conf(self):
+    def load_latest_configuration(self):
         """This function try to set the remote configuration used in the last
         pinolo session"""
 
-        self.remoteMode = self.settings.value("remoteMode")
-        if self.remoteMode == "False":
-            self.remoteMode = False
-            self.host = "127.0.0.1"
-            self.port = 1030
-        else:
-            self.remoteMode = True
+        self.serverMode = self.settings.value(LATEST_SERVER_MODE)
+        if self.serverMode == LOCAL_MODE:
+            self.host = DEFAULT_IP
+            self.port = DEFAULT_PORT
+        if self.serverMode == REMOTE_MODE:
             try:
-                self.host = self.settings.value("remoteIp")
-                self.port = int(self.settings.value("remotePort"))
-                self.cannoloDir = self.settings.value("cannoloDir")
-            except ValueError:
-                if self.host is None:
-                    self.host = "127.0.0.1"
-                self.port = 1030
-            except TypeError:
+                self.host = self.settings.value(LATEST_SERVER_IP)
+                self.port = int(self.settings.value(LATEST_SERVER_PORT))
+                self.default_system_path = self.settings.value(LATEST_DEFAULT_SYSTEM_PATH)
+            except (ValueError, TypeError):
                 if self.host is None:
                     self.host = "127.0.0.1"
                 self.port = 1030
 
-    @staticmethod
-    def new_session():
-        os.popen("python pinolo.py")
-
-    def open_settings(self):
-        self.settingsDialog.show()
+    def open_network_settings(self):
+        self.network_settings_dialog.show()
 
     def open_url(self, url_type: str):
         url = QUrl(url_type)
@@ -316,10 +248,19 @@ class PinoloMainWindow(QMainWindow):
             self.client.send(f"stop {pid}")
         self.deselect()
 
-    def queue_remove(self):
+    def queue_remove(self, pid=None, disk=None):
         """This function set the "remove" button behaviour on the queue table
         context menu."""
-
+        if disk is not None and pid is not None:
+            for row in range(self.queueTable.rowCount()):
+                pid_item = self.queueTable.item(row, 0)
+                if pid_item and f"{pid}" == pid_item.text().split("-")[1]:
+                    disk_item = self.queueTable.item(row, 2)
+                    if disk_item and disk == disk_item.text():
+                        self.client.send(f"remove {pid_item.text()}")
+                        self.queueTable.removeRow(row)
+                        return
+            return
         pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = "With this action you will also stop the process (ID: " + pid + ")\n"
         message += "Do you want to proceed?"
@@ -332,8 +273,8 @@ class PinoloMainWindow(QMainWindow):
         """This function set the "remove all" button behaviour on the queue table
         context menu."""
 
-        self.queueTable.setRowCount(0)
         self.client.send("remove_all")
+        self.queueTable.setRowCount(0)
 
     def queue_clear_completed(self):
         """This function set the "remove completed" button behaviour on the queue table
@@ -380,14 +321,41 @@ class PinoloMainWindow(QMainWindow):
         info_dialog(message)
         self.deselect()
 
-    def umount_disk(self):
+    def umount(self):
+        drives = self.get_multiple_drive_selection()
+
+        drives_as_text = " and ".join(drives)
+        mountpoints = []
+        for drive in drives:
+            try:
+                for mp in self.current_mountpoints[drive]:
+                    mountpoints.append(mp)
+            except IndexError:
+                pass
+            except KeyError:
+                pass
+
+        if len(mountpoints) <= 0:
+            return
+
+        mountpoints_as_text = "\n".join(sorted(mountpoints))
+
+        message = f"Are you really sure you want to unmount all partitions of {drives_as_text}?\n"
+        # I love reinventing gettext and solving problems that have been solved since 1995
+        # (maybe we should use the real gettext at some point, even if we don't have translations)
+        if len(drives) <= 1:
+            message += "It has the following mountpoints:\n"
+        else:
+            message += "They have the following mountpoints:\n"
+        message += mountpoints_as_text
+        message += "\nBe careful not to unmount and erase something important."
+
         dialog = warning_dialog(
-            "Are you really sure you want to umount this disk?\nThis is generally not a good idea, proceed only if you are really sure of what are you doing.",
+            message,
             "yes_no",
         )
 
         if dialog == QMessageBox.Yes:
-            drives = self.get_multiple_drive_selection()
             for drive in drives:
                 self.client.send("queued_umount " + drive)
 
@@ -422,7 +390,7 @@ class PinoloMainWindow(QMainWindow):
 
         return rows
 
-    def std_procedure(self):
+    def standard_procedure(self):
         """This function send to the server a sequence of commands:
         - queued_badblocks
         - queued_smartctl
@@ -440,13 +408,13 @@ class PinoloMainWindow(QMainWindow):
                     message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
                     dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
                     if dialog_result == QMessageBox.Yes:
-                        self.upload_to_tarallo(std=True, drive=drive[0])
+                        self.upload_to_tarallo(std=True)
                     elif dialog_result == QMessageBox.Cancel:
                         continue
             self.erase(std=True, drives=drives)
-            self.smart(std=True, drives=drives)
+            self.smart_check(is_standard_procedure=True)
             if dialog[1]:
-                self.cannolo(std=True, drives=drives)
+                self.load_system(std=True, drives=drives)
 
     @staticmethod
     def get_wipe_disks_message(drives):
@@ -483,32 +451,30 @@ class PinoloMainWindow(QMainWindow):
                     for drive in drives:
                         message += f" {drive[0]}"
                 else:
-                    message += f"Disk: {drives[0][0]}"
+                    message += f"Disk: {drives[0]}"
                 if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
                     return
             for drive in drives:
-                self.client.send("queued_badblocks " + drive[0])
+                self.client.send("queued_badblocks " + drive)
 
         except BaseException:
             print("GUI: Error in erase Function")
 
-    def smart(self, std=False, drives=None):
+    def smart_check(self, is_standard_procedure=False):
         """This function send to the server a queued_smartctl command.
         If "std" is True it will skip the "no drive selected" check."""
 
         # noinspection PyBroadException
         try:
-            if drives is None:
-                drives = self.get_multiple_drive_selection()
-            drives_qty = len(drives)
-            if drives_qty == 0:
-                if not std:
-                    message = "There are no selected drives."
-                    warning_dialog(message, dialog_type="ok")
+            drives = self.get_multiple_drive_selection()
+            if len(drives) == 0:
+                if is_standard_procedure:
                     return
-                return
+                message = "There are no selected drives."
+                warning_dialog(message, dialog_type="ok")
+
             for drive in drives:
-                self.client.send("queued_smartctl " + drive[0])
+                self.client.send("queued_smartctl " + drive)
 
         except BaseException:
             print("GUI: Error in smart function.")
@@ -538,7 +504,7 @@ class PinoloMainWindow(QMainWindow):
     def remove_diff_widget(self, drive: str):
         del self.diff_widgets[drive]
 
-    def cannolo(self, std=False, drives=None):
+    def load_system(self, std=False, drives=None):
         """This function send to the server a queued_cannolo command.
         If "std" is True it will skip the cannolo dialog."""
 
@@ -547,7 +513,14 @@ class PinoloMainWindow(QMainWindow):
             if drives is None:
                 drives = self.get_multiple_drive_selection()
             drives_qty = len(drives)
-            directory = self.cannoloDir.rsplit("/", 1)[0] + "/"
+            if self.default_system_path:
+                directory = self.default_system_path.rsplit("/", 1)[0] + "/"
+            else:
+                critical_dialog(
+                    "There is no default image set in Pinolo settings.",
+                    dialog_type="ok"
+                )
+                return
             if drives_qty == 0:
                 if not std:
                     message = "There are no selected drives."
@@ -556,16 +529,32 @@ class PinoloMainWindow(QMainWindow):
                 return
             if not std:
                 self.client.send(f"list_iso {directory}")
-                self.manual_cannolo = True
+                if self.select_system_dialog:
+                    self.select_system_dialog.close()
+                self.select_system_dialog = SelectSystemDialog(self, True, directory)
                 return
             for drive in drives:
-                print(f"GUI: Sending cannolo to {drive[0]} with {self.cannoloDir}")
-                self.client.send(f"queued_cannolo {drive[0]} {self.cannoloDir}")
+                print(f"GUI: Sending cannolo to {drive} with {self.default_system_path}")
+                self.client.send(f"queued_cannolo {drive} {self.default_system_path}")
 
-        except BaseException:
-            print("GUI: Error in cannolo function.")
+        except BaseException as e:
+            print(f"GUI: Error in load_system function. Traceback: {e}")
 
-    def upload_to_tarallo_selection(self, std: bool = False):
+    def load_selected_system(self, directory: str, img: str):
+        """This function sends to the server a queued_cannolo with the selected drive
+        and the directory of the selected cannolo image. This is specific of the
+        non-standard procedure cannolo."""
+
+        drives = self.get_multiple_drive_selection()
+        ids = ""
+        for drive in drives:
+            ids += f"{drive}, "
+        ids.rstrip(", ")
+        self.statusbar.showMessage(f"Sending cannolo to {ids} with {img}")
+        for drive in drives:
+            self.client.send(f"queued_cannolo {drive} {directory}")
+
+    def upload_to_tarallo(self, std: bool = False):
         # TODO: check if it's really working
         # for row in self.get_selected_drive_rows():
         # if row[1] == "":
@@ -645,7 +634,7 @@ class PinoloMainWindow(QMainWindow):
                 elif mode == "queued_smartctl" or mode == "smartctl":
                     label = "Smart check"
                 elif mode == "queued_cannolo":
-                    label = "Cannolo"
+                    label = "Load system"
                 elif mode == "queued_sleep":
                     label = "Sleep"
                 elif mode == "queued_upload_to_tarallo":
@@ -698,8 +687,8 @@ class PinoloMainWindow(QMainWindow):
         self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
         if self.selected_drive is not None:
             self.selected_drive = self.selected_drive.text().lstrip("Disk ")
-            if self.selected_drive in self.critical_mounts:
-                self.statusBar().showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
+            if self.selected_drive in self.current_mountpoints:
+                self.statusbar.showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
                 self.eraseButton.setEnabled(False)
                 self.stdProcedureButton.setEnabled(False)
                 self.cannoloButton.setEnabled(False)
@@ -708,26 +697,10 @@ class PinoloMainWindow(QMainWindow):
                 self.stdProcedureButton.setEnabled(True)
                 self.cannoloButton.setEnabled(True)
 
-    def use_cannolo_img(self, directory: str, img: str):
-        """This function sends to the server a queued_cannolo with the selected drive
-        and the directory of the selected cannolo image. This is specific of the
-        non-standard procedure cannolo."""
-
-        drives = self.get_multiple_drive_selection()
-        ids = ""
-        for drive in drives:
-            ids += f"{drive[0]}, "
-        ids.rstrip(", ")
-        self.statusBar().showMessage(f"Sending cannolo to {ids} with {img}")
-        for drive in drives:
-            self.client.send(f"queued_cannolo {drive[0]} {directory}")
-
     def set_theme(self, theme: str):
         """This function gets the stylesheet of the theme and sets the widgets aspect.
         Only for the Vaporwave theme, it will search a .mp3 file that will be played in background.
         Just for the meme. asd"""
-
-        self.pixmap = None
 
         if theme == "default":
             self.app.setStyleSheet("")
@@ -783,19 +756,16 @@ class PinoloMainWindow(QMainWindow):
                     for queue_row in range(queue_rows + 1):
                         queue_disk_label = self.queueTable.item(queue_row, 2)
                         queue_progress = self.queueTable.cellWidget(queue_row, 5)
-                        if self.diskTable.item(disk_row, 0).text() in self.critical_mounts:
+                        if self.diskTable.item(disk_row, 0).text() in self.current_mountpoints:
                             continue
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
                             queue_progress = queue_progress.findChild(QProgressBar).value()
                             if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
-                                self.diskTable.item(disk_row, 0).setBackground(Qt.yellow)
-                                self.diskTable.item(disk_row, 0).setForeground(Qt.black)
+                                self._decorate_disk(self.diskTable.item(disk_row, 0), True)
                                 break
                         if queue_row == queue_rows:
-                            default_foreground = self.diskTable.item(disk_row, 1).foreground()
-                            self.diskTable.item(disk_row, 0).setBackground(Qt.transparent)
-                            self.diskTable.item(disk_row, 0).setForeground(default_foreground)
+                            self._decorate_disk(self.diskTable.item(disk_row, 0), False)
 
     def set_disk_table_item(self, table: QTableWidget, row: int, drive: dict):
         table.setRowCount(row + 1)
@@ -804,23 +774,38 @@ class PinoloMainWindow(QMainWindow):
         table.setItem(
             row,
             2,
-            QTableWidgetItem(str(int(int(drive["size"]) / 1000000000)) + " GB"),
+            QTableWidgetItem(format_size(drive["size"], True, False)),
         )
         if drive["mountpoint"]:
-            self.critical_mounts.append(drive["path"])
-            item = table.item(row, 0)
-            item.setBackground(QColor(255, 165, 0, 255))
-            item.setForeground(Qt.black)
-            item.setToolTip("Disk has critical mountpoints. Some action are restricted. Unmount manually and refresh.")
+            self.current_mountpoints[drive["path"]] = drive["mountpoint"]
+            self._decorate_disk(table.item(row, 0), False)
+        else:
+            if drive["path"] in self.current_mountpoints:
+                del self.current_mountpoints[drive["path"]]
+
+    def _decorate_disk(self, item: QTableWidgetItem, something_in_progress: bool):
+        if something_in_progress:
+            item.setIcon(self._progress_icon)
+            item.setToolTip(None)
+        elif item.text() in self.current_mountpoints:
+            item.setIcon(self._mount_warning_icon)
+            item.setToolTip("Disk has critical mountpoints, some action are restricted.")
+        else:
+            item.setIcon(QIcon())
+            item.setToolTip(None)
 
     def resize_queue_table_to_contents(self):
         for col in range(self.queueTable.columnCount() - 1):
             self.queueTable.resizeColumnToContents(col)
             self.queueTable.setColumnWidth(col, self.queueTable.columnWidth(col) + 20)
 
+    def _send_sudo_password(self, password: str):
+        # password = password.replace('\\', '\\\\').replace(" ", "\\ ")
+        self.client.send(f'sudo_password {password}')
+
     def gui_update(self, cmd: str, params: str):
         """
-        This function gets all the server responses and update, if possible, the UI. "
+        This function gets all the server responses and update, if possible, the UI.
 
         Typical param str is:
             cmd [{param_1: 'text'}, {param_2: 'text'}, {param_3: 'text'}, ...]
@@ -829,11 +814,12 @@ class PinoloMainWindow(QMainWindow):
             queue_status --> Information about badblocks process
 
         """
-        try:
-            params = json.loads(params)
-            params: Union[dict, list]
-        except json.decoder.JSONDecodeError:
-            print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
+        if len(params) > 0:
+            try:
+                params = json.loads(params)
+                params: Union[dict, list]
+            except json.decoder.JSONDecodeError:
+                print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
 
         match cmd:
             case "queue_status" | "get_queue":
@@ -871,9 +857,9 @@ class PinoloMainWindow(QMainWindow):
                     self.timeKeeper[param["id"]] = {"perc": param["percentage"], "time": datetime.now()}
 
                     if param["stale"]:
+                        # TODO: we don't have an icon for this, maybe we should
                         pass
                     elif param["stopped"]:
-                        # TODO: we don't have an icon for this, maybe we should
                         status_cell.setPixmap(QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
                         status_cell.setObjectName(QUEUE_COMPLETED)
                     elif param["error"]:
@@ -893,8 +879,13 @@ class PinoloMainWindow(QMainWindow):
                     if "text" in param:
                         status_cell.setToolTip(param["text"])
 
+            case "queued_umount":
+                self.send_msg("get_disks")
+
             case "get_disks":
                 drives = params
+                self.current_mountpoints = dict()
+
                 if len(drives) <= 0:
                     self.diskTable.setRowCount(0)
                     return
@@ -906,11 +897,17 @@ class PinoloMainWindow(QMainWindow):
                 self.diskTable.resizeColumnToContents(1)
 
             case "smartctl" | "queued_smartctl":
+                # if params["status"] == "password_required":
+                #     passwd, ok = QInputDialog.getText(self, "Input Password", "Enter server sudo password:", QLineEdit.Password)
+                #     if ok:
+                #         self.smart_check(False, passwd)
+                #         self.queue_remove(params["pid"], params["disk"])
+                #     return
                 self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
 
             case " connection_failed":
                 message = params["reason"]
-                if not self.remoteMode:
+                if not self.serverMode:
                     print("GUI: Connection Failed: Local server not running.")
                     print("GUI: Trying to start local server...")
                     self.localServer.start()
@@ -920,20 +917,15 @@ class PinoloMainWindow(QMainWindow):
                 warning_dialog(message, dialog_type="ok")
 
             case "connection_lost":
-                self.statusBar().showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
+                self.statusbar.showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
                 self.queueTable.setRowCount(0)
                 self.diskTable.setRowCount(0)
 
             case "connection_made":
-                self.statusBar().showMessage(f"Connected to {params['host']}:{params['port']}")
+                self.statusbar.showMessage(f"Connected to {params['host']}:{params['port']}")
 
             case "list_iso":
-                self.dialog = CannoloDialog(self.settingsDialog, PATH, params)
-                if self.manual_cannolo:
-                    self.dialog.update.connect(self.use_cannolo_img)
-                    self.manual_cannolo = False
-                else:
-                    self.dialog.update.connect(self.settingsDialog.set_default_cannolo)
+                self.select_system_dialog.ask_for_image(params)
 
             case "error":
                 message = f"{params['message']}"
@@ -945,21 +937,31 @@ class PinoloMainWindow(QMainWindow):
                 message = params["message"]
                 warning_dialog(message, dialog_type="ok")
 
+            case "sudo_password":
+                passwd, ok = QInputDialog.getText(self, "Input Password", "Enter server sudo password:", QLineEdit.Password)
+                if ok:
+                    self._send_sudo_password(passwd)
+                else:
+                    warning_dialog(
+                        "You did not enter the root password.\n"
+                        "Some commands may not work correctly.\n"
+                        "Refresh to insert the password.",
+                        dialog_type="ok"
+                    )
+
         self.check_disk_usage()
 
     def closeEvent(self, a0: QCloseEvent) -> None:
-        """This function is called when the window is closed.
+        """
+        This function is called when the window is closed.
         It will save all the latest settings parameters into the QT settings file and
-        terminate all the active audio processes."""
+        terminate all the active audio processes.
+        """
 
-        self.settings.setValue("remoteMode", str(self.remoteMode))
-        self.settings.setValue("remoteIp", self.host)
-        self.settings.setValue("remotePort", self.port)
-        self.settings.setValue("cannoloDir", self.cannoloDir)
-        self.settingsDialog.close()
-        # self.settings.setValue("cannoloDir", self.cannoloLineEdit.text())
-        # self.settings.setValue("theme", self.themeSelector.currentText())
-        # self.client.stop(self.remoteMode)
+        self.settings.setValue(LATEST_SERVER_MODE, self.serverMode)
+        self.settings.setValue(LATEST_SERVER_IP, self.host)
+        self.settings.setValue(LATEST_SERVER_PORT, self.port)
+        self.settings.setValue(LATEST_DEFAULT_SYSTEM_PATH, self.default_system_path)
 
 
 class LocalServer(QThread):
@@ -991,20 +993,20 @@ class LocalServer(QThread):
         self.running = False
 
 
-def main():
+if __name__ == "__main__":
     # noinspection PyBroadException
     try:
         load_dotenv(PATH["ENV"])
-        app = QApplication(sys.argv)
-        window = PinoloMainWindow(app)
-        app.exec_()
+        # app = QApplication(sys.argv)
+        # window = PinoloMainWindow()
+        # window.show()
+        # app.exec_()
+        app = QtWidgets.QApplication(sys.argv)
+        app.setOrganizationName("WEEE-Open")
+        app.setApplicationName("PESTO")
+        window = PinoloMainWindow()
+        window.show()
+        sys.exit(app.exec_())
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
-
-    except BaseException:
-        print(traceback.print_exc(file=sys.stdout))
-
-
-if __name__ == "__main__":
-    main()
