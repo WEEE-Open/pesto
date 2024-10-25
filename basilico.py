@@ -1477,6 +1477,10 @@ def get_disks_linux(path: Optional[str] = None) -> list:
     else:
         result = []
     for el in result:
+        # Skip empty disks (empty SD card reader)
+        if el["size"] == 0:
+            continue
+
         mounts = find_mounts(el)
         if "children" in el:
             del el["children"]
