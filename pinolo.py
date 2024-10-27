@@ -110,7 +110,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.refreshButton.clicked.connect(self.refresh)
 
         # Menu bar
-        self.actionNetworkSettings.triggered.connect(self.open_network_settings)
+        self.actionNetworkSettings.triggered.connect(self.network_settings_dialog.show)
         self.actionSourceCode.triggered.connect(self.open_source_code)
         self.actionAboutUs.triggered.connect(self.open_website)
         self.actionVersion.triggered.connect(self.show_version)
@@ -128,24 +128,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.client = ReactorThread(self.host, self.port, self.serverMode)
         self.client.updateEvent.connect(self.gui_update)
         self.client.start()
-
-    def show_context_menu(self, pos):
-        # Crea il menu contestuale
-        context_menu = QMenu(self)
-
-        # Connetti le azioni a slot o metodi
-        self.actionSleep.triggered.connect(self.sleep)
-
-        context_menu.addAction(self.actionSleep)
-
-        # Mostra il menu contestuale
-        context_menu.exec_(self.diskTable.mapToGlobal(pos))
-
-    def update_settings(self, host: str, port: int, remote_mode: bool, cannoloDir: str):
-        self.host = host
-        self.port = port
-        self.serverMode = remote_mode
-        self.default_system_path = cannoloDir
 
     def on_table_select(self, selected):
         """This function set the queue table context menu buttons"""
@@ -175,7 +157,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         # self.setWindowIcon(QIcon(PATH["ICON"]))
 
         # menu actions
-        self.networkSettingsAction.triggered.connect(self.open_network_settings)
+        self.networkSettingsAction.triggered.connect(self.network_settings_dialog.show)
         self.aboutUsAction.triggered.connect(self.open_website)
         self.sourceCodeAction.triggered.connect(self.open_source_code)
         self.versionAction.triggered.connect(self.show_version)
@@ -214,9 +196,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 if self.host is None:
                     self.host = "127.0.0.1"
                 self.port = 1030
-
-    def open_network_settings(self):
-        self.network_settings_dialog.show()
 
     def open_url(self, url_type: str):
         url = QUrl(url_type)
@@ -368,28 +347,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         return drives
 
-    def get_selected_drive_rows(self):
-        """
-        Get a list of lists representing the table, with each full row that has at least one selected cell
-        :return:
-        """
-        encountered_rows = set()
-        rows = []
-        self.diskTable: QtWidgets.QTableWidget
-        for selectedIndex in self.diskTable.selectedIndexes():
-            r = selectedIndex.row()
-            if r in encountered_rows:
-                continue
-            encountered_rows.add(r)
-
-            row = []
-            cc = self.diskTable.columnCount()
-            for c in range(cc):
-                row.append(self.diskTable.item(r, c).text())
-            rows.append(row)
-
-        return rows
-
     def standard_procedure(self):
         """This function send to the server a sequence of commands:
         - queued_badblocks
@@ -496,13 +453,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def remove_smart_widget(self, drive: str):
         del self.smart_widgets[drive]
-
-    def show_diff_widget(self, drive: str, features: str):
-        self.diff_widgets["/dev/sda"] = DiffWidget("/dev/sda", features)
-        self.diff_widgets["/dev/sda"].close_signal.connect(self.remove_diff_widget)
-
-    def remove_diff_widget(self, drive: str):
-        del self.diff_widgets[drive]
 
     def load_system(self, std=False, drives=None):
         """This function send to the server a queued_cannolo command.
