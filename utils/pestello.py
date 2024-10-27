@@ -6,7 +6,7 @@ import argparse
 import os
 import traceback
 
-from utilites import parse_smartctl_output, smartctl_get_status
+from utilities import parse_smartctl_output, smartctl_get_status
 
 RED = "\033[31;40m"
 RED_REVERSE = "\033[41;30m"
