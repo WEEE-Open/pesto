@@ -5,7 +5,7 @@ DEFAULT_PORT = 1030
 DEFAULT_SYSTEM_PATH = ""
 
 PATH = {
-    "REQUIREMENTS": "/requirements_client.txt",
+    "REQUIREMENTS": "/requirements.txt",
     "ENV": "/.env",
     "SETTINGS_UI": "/assets/qt/NetworkSettingsWidget.ui",
     "SMART_UI": "/assets/qt/SmartDataWidget.ui",
@@ -41,7 +41,27 @@ IGNORE_SMART_RESULTS = [
     "local_time",
 ]
 
+DISK_TABLE_DRIVE = 0
+DISK_TABLE_TARALLO_ID = 1
+DISK_TABLE_DRIVE_SIZE = 2
+
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Eta", "Progress"]
+
+QUEUE_TABLE_ID = 0
+QUEUE_TABLE_PROCESS = 1
+QUEUE_TABLE_DRIVE = 2
+QUEUE_TABLE_STATUS = 3
+QUEUE_TABLE_ETA = 4
+QUEUE_TABLE_PROGRESS = 5
+
+QUEUE_LABELS = {
+    "queued_badblocks": "Erase",
+    "queued_smartctl": "Smart Check",
+    "smartctl": "Smart Check",
+    "queued_cannolo": "Load System",
+    "queued_sleep": "HDD Stop",
+    "queued_upload_to_tarallo": "Upload Data",
+}
 
 QUEUE_COMPLETED = "completed"
 QUEUE_PROGRESS = "progress"
