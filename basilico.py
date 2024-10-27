@@ -8,7 +8,6 @@ import time
 from collections import deque
 from typing import Optional, Callable, Dict, Set, List
 
-from docutils.parsers.rst.directives import encoding
 from pytarallo import Tarallo, Errors
 from dotenv import load_dotenv
 from io import StringIO
