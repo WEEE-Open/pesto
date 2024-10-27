@@ -58,8 +58,7 @@ fi
 
 sudo chown -R "$USERNAME:$USERNAME" "/opt/$FOLDER_NAME"
 source "/opt/$FOLDER_NAME/venv/bin/activate"
-pip install -r "/opt/$FOLDER_NAME/requirements_client.txt"
-pip install -r "/opt/$FOLDER_NAME/requirements_server.txt"
+pip install -r "/opt/$FOLDER_NAME/requirements.txt"
 deactivate
 
 echo "Installing system dependencies"
