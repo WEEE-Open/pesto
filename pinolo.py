@@ -368,54 +368,28 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                         self.upload_to_tarallo(std=True)
                     elif dialog_result == QMessageBox.Cancel:
                         continue
-            self.erase(std=True, drives=drives)
+            self.erase(standard_procedure=True, drives=drives)
             self.smart_check(is_standard_procedure=True)
             if dialog[1]:
                 self.load_system(std=True, drives=drives)
 
-    @staticmethod
-    def get_wipe_disks_message(drives):
-        if len(drives) > 1:
-            message = f"Do you want to wipe these disks?"
-            for drive in drives:
-                message += f"\n{drive[0]}"
-        elif len(drives) > 0:
-            message = f"Do you want to wipe {drives[0][0]}?"
-        else:
-            message = f"Do you want to wipe selected disks?"
-        return message
-
-    def erase(self, std=False, drives=None):
+    def erase(self, standard_procedure=False, drives=None):
         """This function send to the server a queued_badblocks command.
         If "std" is True it will skip the confirm dialog."""
 
         # noinspection PyBroadException
-        try:
-            if drives is None:
-                drives = self.get_multiple_drive_selection()
+        if drives is None:
+            drives = self.get_multiple_drive_selection()
 
-            drives_qty = len(drives)
-            if drives_qty == 0:
-                if not std:
-                    message = "There are no selected drives."
-                    warning_dialog(message, dialog_type="ok")
-                    return
+        if len(drives) == 0:
+            return
+
+        if not standard_procedure:
+            message = f"Do you want to wipe all selected disks' data?\n"
+            if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
                 return
-            if not std:
-                message = f"Do you want to wipe all disk's data?\n"
-                if drives_qty > 1:
-                    message += "Disks:"
-                    for drive in drives:
-                        message += f" {drive[0]}"
-                else:
-                    message += f"Disk: {drives[0]}"
-                if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
-                    return
-            for drive in drives:
-                self.client.send("queued_badblocks " + drive)
-
-        except BaseException:
-            print("GUI: Error in erase Function")
+        for drive in drives:
+            self.client.send("queued_badblocks " + drive)
 
     def smart_check(self, is_standard_procedure=False):
         """This function send to the server a queued_smartctl command.
