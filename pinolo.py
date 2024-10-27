@@ -13,22 +13,18 @@ from widgets.SmartWidget import SmartWidget
 from widgets.SelectSystem import SelectSystemDialog
 from typing import Union
 from dotenv import load_dotenv
-from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent, QColor
+from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent
 from PyQt5.QtCore import Qt, QSettings, QSize, pyqtSignal, QThread, QUrl
 from PyQt5.QtWidgets import (
     QTableWidgetItem,
     QTableWidget,
-    QMenu,
     QMessageBox,
     QMainWindow,
     QLabel,
-    QVBoxLayout,
     QProgressBar,
-    QWidget,
     QInputDialog,
     QLineEdit,
 )
-from diff_dialog import DiffWidget
 from constants import *
 from datetime import datetime, timedelta
 import sys
