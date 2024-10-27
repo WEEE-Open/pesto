@@ -418,6 +418,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 return
             else:
                 self.selected_drive = self.selected_drive.text()
+
+            # TODO: check if this works properly
             if self.selected_drive in self.smart_results:
                 self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive, self.smart_results[self.selected_drive])
                 self.smart_widgets[self.selected_drive].close_signal.connect(self.remove_smart_widget)
@@ -532,91 +534,46 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         self.client.reconnect(self.host, self.port)
 
-    def update_queue(self, pid, drive, mode):
+    def queue_table_add_process(self, param: dict):
         """This function update the queue table with the new entries."""
 
-        # self.queueTable.setRowCount(self.queueTable.rowCount() + 1)
-        row = self.queueTable.rowCount()
-        self.queueTable.insertRow(row)
-        for idx, entry in enumerate(QUEUE_TABLE):
-            label: Union[
-                None,
-                str,
-                QLabel,
-                QProgressBar,
-                QTableWidgetItem,
-            ]
-            label = None
-            if entry == "ID":  # ID
-                label = pid
-            elif entry == "Process":  # PROCESS
-                if mode == "queued_badblocks":
-                    label = "Erase"
-                elif mode == "queued_smartctl" or mode == "smartctl":
-                    label = "Smart check"
-                elif mode == "queued_cannolo":
-                    label = "Load system"
-                elif mode == "queued_sleep":
-                    label = "Sleep"
-                elif mode == "queued_upload_to_tarallo":
-                    label = "Upload"
-                else:
-                    label = "Unknown"
-            elif entry == "Disk":  # DISK
-                label = drive
-            elif entry == "Status":  # STATUS
-                if self.queueTable.rowCount() != 0:
-                    label = QLabel()
-                    label: QLabel
-                    label.setPixmap(QPixmap(PATH["PENDING"]).scaled(25, 25, Qt.KeepAspectRatio))
-                    label.setObjectName(QUEUE_QUEUED)
-                else:
-                    label: QLabel
-                    label.setPixmap(QPixmap(PATH["PROGRESS"]).scaled(25, 25, Qt.KeepAspectRatio))
-                    label.setObjectName(QUEUE_PROGRESS)
-            elif entry == "Eta":
-                label = "N/D"
-            elif entry == "Progress":  # PROGRESS
-                label = QProgressBar()
-                label.setValue(0)
-                label.setMaximum(100 * PROGRESS_BAR_SCALE)
+        # add empty row to queue table
+        new_row = self.queueTable.rowCount()
+        self.queueTable.insertRow(new_row)
 
-            if entry in ["ID", "Process", "Disk"]:
-                label = QTableWidgetItem(label)
-                label: QTableWidgetItem
-                label.setTextAlignment(Qt.AlignCenter)
-                self.queueTable.setItem(row, idx, label)
-            elif entry == "Status":
-                label.setAlignment(Qt.AlignCenter)
-                self.queueTable.setCellWidget(row, idx, label)
-            elif entry == "Eta":
-                label = QLabel(label)
-                label.setAlignment(Qt.AlignCenter)
-                self.queueTable.setCellWidget(row, idx, label)
-            else:
-                label.setAlignment(Qt.AlignCenter)
-                layout = QVBoxLayout()
-                layout.setContentsMargins(0, 0, 0, 0)
-                layout.addWidget(label)
-                widget = QWidget()
-                widget.setLayout(layout)
-                self.queueTable.setCellWidget(row, idx, widget)
+        # set pid
+        pid_label = QTableWidgetItem(param["id"])
+        pid_label.setTextAlignment(Qt.AlignCenter)
+        self.queueTable.setItem(new_row, QUEUE_TABLE_ID, pid_label)
 
-    def greyout_buttons(self):
-        """This function greys out some buttons when they must not be used."""
+        # set process type
+        if param["command"] in QUEUE_LABELS:
+            process_label = QTableWidgetItem(QUEUE_LABELS[param["command"]])
+        else:
+            process_label = QTableWidgetItem("Unknown")
+        process_label.setTextAlignment(Qt.AlignCenter)
+        self.queueTable.setItem(new_row, QUEUE_TABLE_PROCESS, process_label)
 
-        self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-        if self.selected_drive is not None:
-            self.selected_drive = self.selected_drive.text().lstrip("Disk ")
-            if self.selected_drive in self.current_mountpoints:
-                self.statusbar.showMessage(f"Disk {self.selected_drive} has critical mountpoints: some actions are restricted.")
-                self.eraseButton.setEnabled(False)
-                self.stdProcedureButton.setEnabled(False)
-                self.cannoloButton.setEnabled(False)
-            else:
-                self.eraseButton.setEnabled(True)
-                self.stdProcedureButton.setEnabled(True)
-                self.cannoloButton.setEnabled(True)
+        # set disk
+        drive_label = QTableWidgetItem(param["target"])
+        drive_label.setTextAlignment(Qt.AlignCenter)
+        self.queueTable.setItem(new_row, QUEUE_TABLE_DRIVE, drive_label)
+
+        # set status
+        status_label = QLabel()
+        status_label.setPixmap(QPixmap(PATH["PENDING"]).scaled(25, 25, Qt.KeepAspectRatio))
+        status_label.setObjectName(QUEUE_QUEUED)
+        status_label.setAlignment(Qt.AlignCenter)
+        self.queueTable.setCellWidget(new_row, QUEUE_TABLE_STATUS, status_label)
+
+        # set eta
+        eta_label = QLabel("N/D")
+        eta_label.setAlignment(Qt.AlignCenter)
+        self.queueTable.setCellWidget(new_row, QUEUE_TABLE_ETA, eta_label)
+
+        # set progress bar
+        progress_bar = ProgressBar()
+        self.queueTable.setCellWidget(new_row, QUEUE_TABLE_PROGRESS, progress_bar)
 
     def set_theme(self, theme: str):
         """This function gets the stylesheet of the theme and sets the widgets aspect.
@@ -752,15 +709,16 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     rows = self.queueTable.rowCount()
                     for row in range(rows + 1):
                         # Check if we already have that id
-                        item = self.queueTable.item(row, 0)
+                        item = self.queueTable.item(row, QUEUE_TABLE_ID)
                         if item is not None and item.text() == param["id"]:
                             break
                         elif item is None:
-                            self.update_queue(
-                                pid=param["id"],
-                                drive=param["target"],
-                                mode=param["command"],
-                            )
+                            # self.queue_table_add_process(
+                            #     pid=param["id"],
+                            #     drive=param["target"],
+                            #     mode=param["command"],
+                            # )
+                            self.queue_table_add_process(param)
                             rows += 1
                     progress_bar = self.queueTable.cellWidget(row, 5).findChild(QProgressBar)
                     status_cell = self.queueTable.cellWidget(row, 3)
