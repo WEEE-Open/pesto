@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pinolo import PinoloMainWindow
-    from widgets.NetworkSettings import NetworkSettings
+    from dialogs.NetworkSettings import NetworkSettings
 
 
 class SelectSystemDialog(QDialog, Ui_SelectSystemDialog):

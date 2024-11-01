@@ -7,8 +7,8 @@ DEFAULT_SYSTEM_PATH = ""
 PATH = {
     "REQUIREMENTS": "/requirements.txt",
     "ENV": "/.env",
-    "SETTINGS_UI": "/assets/qt/NetworkSettingsWidget.ui",
-    "SMART_UI": "/assets/qt/SmartDataWidget.ui",
+    "SETTINGS_UI": "/assets/qt/NetworkSettingsDialog.ui",
+    "SMART_UI": "/assets/qt/SmartDataDialog.ui",
     "INFOUI": "/assets/qt/info.ui",
     "CANNOLOUI": "/assets/qt/cannolo_select.ui",
     "ICON": "/assets/icon.png",

@@ -8,15 +8,15 @@ from PyQt5.QtWidgets import (
 )
 from utilities import warning_dialog
 from constants import *
-from ui.NetworkSettingsWidget import Ui_NetworkSettingsWidget
+from ui.NetworkSettingsDialog import Ui_NetworkSettingsDialog
 from typing import TYPE_CHECKING
-from widgets.SelectSystem import SelectSystemDialog
+from dialogs.SelectSystem import SelectSystemDialog
 
 if TYPE_CHECKING:
     from pinolo import PinoloMainWindow
 
 
-class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
+class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
     update = pyqtSignal(str, int, bool, str, name="update_settings")
 
     def __init__(self, parent: "PinoloMainWindow"):

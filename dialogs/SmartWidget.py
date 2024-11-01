@@ -3,12 +3,12 @@ import sys
 
 from PyQt5.QtGui import QFont, QBrush, QColor
 
-from ui.SmartDataWidget import Ui_SmartDataWidget
+from ui.SmartDataDialog import Ui_SmartDataDialog
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QWidget, QTreeWidgetItem, QFileDialog
 
 
-class SmartWidget(QWidget, Ui_SmartDataWidget):
+class SmartWidget(QWidget, Ui_SmartDataDialog):
     close_signal = pyqtSignal(str, name="close")
 
     def __init__(self, drive: str, smart_results: dict):

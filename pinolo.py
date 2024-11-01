@@ -8,9 +8,9 @@ Created on Fri Jul 30 10:54:18 2021
 from client import *
 from utilities import *
 from ui.PinoloMainWindow import Ui_MainWindow
-from widgets.NetworkSettings import NetworkSettings
-from widgets.SmartWidget import SmartWidget
-from widgets.SelectSystem import SelectSystemDialog
+from dialogs.NetworkSettings import NetworkSettings
+from dialogs.SmartWidget import SmartWidget
+from dialogs.SelectSystem import SelectSystemDialog
 from typing import Union
 from dotenv import load_dotenv
 from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent
@@ -572,7 +572,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.queueTable.setCellWidget(new_row, QUEUE_TABLE_PROGRESS, progress_bar)
 
     def set_theme(self, theme: str):
-        """This function gets the stylesheet of the theme and sets the widgets aspect.
+        """This function gets the stylesheet of the theme and sets the dialogs aspect.
         Only for the Vaporwave theme, it will search a .mp3 file that will be played in background.
         Just for the meme. asd"""
 
