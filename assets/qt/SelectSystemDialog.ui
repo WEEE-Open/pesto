@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>426</width>
+    <width>269</width>
     <height>262</height>
    </rect>
   </property>
@@ -17,7 +17,7 @@
    <item>
     <widget class="QLabel" name="dialogLabel">
      <property name="text">
-      <string>Select one of the following CANNOLO images to set as default:</string>
+      <string>Select one of the following images</string>
      </property>
     </widget>
    </item>
