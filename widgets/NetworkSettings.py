@@ -1,4 +1,4 @@
-from PyQt5.QtCore import pyqtSignal, QSettings, QSize, Qt
+from PyQt5.QtCore import pyqtSignal, QSettings, QSize, Qt, QObject
 from PyQt5.QtGui import QMovie
 from PyQt5.QtWidgets import (
     QDialog,
@@ -25,16 +25,13 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
 
         self.parent = parent
         self.settings = QSettings()
-        self.asdGif = QMovie(PATH["ASD"])
+        self.asdGif = AsdGif(self)
 
         self.setup()
 
     def setup(self):
         self.init_buttons()
         self.init_line_edits()
-
-        # Start the asd
-        self.init_asd()
 
     def set_server_mode(self):
         """
@@ -210,3 +207,25 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsWidget):
             # directory = dialog.getExistingDirectory(self, "Open Directory", "/home")
             path = dialog.getOpenFileName(self, "Select new default image", "/home")[0]
             self.defaultSystemLineEdit.setText(path)
+
+
+class AsdGif(QMovie):
+    def __init__(self, parent: NetworkSettings):
+        super(AsdGif, self).__init__(parent)
+
+        self.gif_path = PATH["ASD"]
+        self.parent = parent
+
+        self.setup()
+
+    def setup(self):
+        self.setFileName(self.gif_path)
+        self.setScaledSize(
+            QSize().scaled(
+                self.parent.asdLabel.width(),
+                self.parent.asdLabel.height(),
+                Qt.KeepAspectRatio
+            )
+        )
+        self.start()
+        self.parent.asdLabel.setMovie(self)

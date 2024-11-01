@@ -598,16 +598,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.settings.setValue("last_theme", theme)
         self.active_theme = theme
 
-    def asd_gif_set(self, dir: str):
-        """This function sets the asd gif for the settings tab."""
-
-        self.settingsDialog.asdGif = QMovie(dir)
-        self.settingsDialog.asdGif.setScaledSize(
-            QSize().scaled(self.settingsDialog.asdlabel.width(), self.settingsDialog.asdlabel.height(), Qt.KeepAspectRatio)
-        )
-        self.settingsDialog.asdGif.start()
-        self.settingsDialog.asdlabel.setMovie(self.settingsDialog.asdGif)
-
     def server_com(self, cmd: str, st2: str):
         """This function tries to reconnect the client to the local server.
         It will try to find out if the server is already running in background."""
