@@ -440,11 +440,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def load_system(self, standard_procedure=False):
         """This function send to the server a queued_cannolo command.
         If "std" is True it will skip the cannolo dialog."""
-
-                if self.select_system_dialog:
-                    self.select_system_dialog.close()
-                self.select_system_dialog = SelectSystemDialog(self, True, directory)
-                return
         drives = self.get_multiple_drive_selection()
 
         if drives is None:
@@ -462,6 +457,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.select_system_dialog.close()
 
             self.list_iso(image_path)
+            # self.select_system_dialog = SelectSystemDialog(self, True, image_path)
+            # self.select_system_dialog.image_selected.connect(self.load_selected_system)
+            # self.select_system_dialog.exec_()
+            return
 
         for drive in drives:
             print(f"GUI: Sending cannolo to {drive} with {self.default_system_path}")
