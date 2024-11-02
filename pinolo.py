@@ -379,12 +379,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """
 
         drives = self.get_multiple_drive_selection()
+
         if drives is None:
             return
         standard_procedure_dialog = warning_dialog(
             "Do you want to wipe all disk's data and load a fresh system image?",
             dialog_type="yes_no_chk"
         )
+
         if standard_procedure_dialog[0] == QMessageBox.No:
             return
         self.upload_to_tarallo(standard_procedure=True)
