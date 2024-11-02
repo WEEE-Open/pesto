@@ -350,6 +350,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This method returns a list with the names of the selected drives on disk_table"""
         drives = []
         selected_rows = self.diskTable.selectionModel().selectedRows()
+
+        if len(selected_rows) == 0:
+            warning_dialog(
+                "There are no selected drives.",
+                dialog_type="ok"
+            )
+            return None
+
         for row in selected_rows:
             drives.append(row.data())
 
