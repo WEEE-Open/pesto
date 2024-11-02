@@ -474,7 +474,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         non-standard procedure cannolo."""
 
         drives = self.get_multiple_drive_selection()
-        ids = ""
         for drive in drives:
             self.send_command(f"queued_cannolo {drive} {image_path}")
 
