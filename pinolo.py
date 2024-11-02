@@ -835,7 +835,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         It will save all the latest settings parameters into the QT settings file and
         terminate all the active audio processes.
         """
-        self.connection_factory.protocol_instance.disconnect()
+        if self.connection_factory.protocol_instance:
+            self.connection_factory.protocol_instance.disconnect()
         QCoreApplication.instance().quit()
 
 
