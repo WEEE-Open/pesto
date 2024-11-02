@@ -1,4 +1,5 @@
-from PyQt5.QtCore import pyqtSignal, QSettings, QSize, Qt, QObject
+import os.path
+from PyQt5.QtCore import QSettings, QSize, Qt
 from PyQt5.QtGui import QMovie
 from PyQt5.QtWidgets import (
     QDialog,
@@ -107,12 +108,6 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         if self.parent.serverMode == REMOTE_MODE:
             self.defaultSystemLineEdit.setReadOnly(False)
 
-    def init_asd(self):
-        """Init the asd"""
-        self.asdGif.setScaledSize(QSize().scaled(self.asdLabel.width(), self.asdLabel.height(), Qt.KeepAspectRatio))
-        self.asdGif.start()
-        self.asdLabel.setMovie(self.asdGif)
-
     def autocomplete_port(self, completion):
         # index = model.stringList().index(completion) if completion in model.stringList else -1
         self.settings.beginGroup(QSETTINGS_IP_GROUP)
@@ -186,21 +181,18 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         """
 
         if self.parent.serverMode == REMOTE_MODE:
-            directory = self.defaultSystemLineEdit.text()
-            if directory == "":
-                warning_dialog("Il path per l'immagine di sistema di default è vuoto. Impostalo plz.", dialog_type="ok")
+            image_path = self.defaultSystemLineEdit.text()
+            if image_path == "":
+                warning_dialog(
+                    "The path for the default system image is empty. Set it, plz.",
+                    dialog_type="ok"
+                )
                 return
-            splitted_dir = directory.rsplit("/", 1)
-            if len(splitted_dir[1].split(".")) > 1:
-                self.parent.client.send("list_iso " + directory.rsplit("/", 1)[0])
-            else:
-                if directory[-1] != "/":
-                    directory += "/"
-                self.parent.client.send("list_iso " + directory)
 
+            image_path = os.path.dirname(image_path)
             if self.parent.select_system_dialog:
                 self.parent.select_system_dialog.close()
-            self.parent.select_system_dialog = SelectSystemDialog(self, False, directory)
+            self.parent.select_system_dialog = SelectSystemDialog(self, False, image_path)
         else:
             dialog = QFileDialog()
             # directory = dialog.getExistingDirectory(self, "Open Directory", "/home", QFileDialog.ShowDirsOnly)
