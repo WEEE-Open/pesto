@@ -308,6 +308,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def umount(self):
         drives = self.get_multiple_drive_selection()
 
+        if drives is None:
+            return
+
         drives_as_text = " and ".join(drives)
         mountpoints = []
         for drive in drives:
