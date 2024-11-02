@@ -795,7 +795,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.connection_factory.protocol_instance.send_msg("get_queue")
 
             case "list_iso":
-                self.select_system_dialog.ask_for_image(params)
+                pass
+                # self.select_system_dialog.ask_for_image(params)
 
             case "error":
                 message = f"{params['message']}"
