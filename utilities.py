@@ -50,9 +50,9 @@ def warning_dialog(message: str, dialog_type: str):
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
-        cb = QtWidgets.QCheckBox("Click here to load cannolo image.")
-        dialog.setCheckBox(cb)
-        result = [dialog.exec_(), True if cb.isChecked() else False]
+        check_box = QtWidgets.QCheckBox("Click here to load cannolo image.")
+        dialog.setCheckBox(check_box)
+        result = [dialog.exec_(), True if check_box.isChecked() else False]
         return result
     elif dialog_type == "yes_no_cancel":
         dialog.addButton(QtWidgets.QMessageBox.Yes)
