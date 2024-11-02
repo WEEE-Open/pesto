@@ -302,6 +302,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         info_dialog(message)
         self.deselect()
 
+    def list_iso(self, image_path: str):
+        self.send_command(f"list_iso {image_path}")
+
     def umount(self):
         drives = self.get_multiple_drive_selection()
 
