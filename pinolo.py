@@ -518,21 +518,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function send to the server a queued_sleep command.
         If "std" is True it will skip the "no drive selected" check."""
 
-        # noinspection PyBroadException
-        try:
-            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            if self.selected_drive is None:
-                if not std:
-                    message = "There are no selected drives."
-                    warning_dialog(message, dialog_type="ok")
-                    return
-                return
-            else:
-                self.selected_drive = self.selected_drive.text().lstrip("Disk ")
-            self.client.send("queued_sleep " + self.selected_drive)
+        drives = self.get_multiple_drive_selection()
 
-        except BaseException:
-            print("GUI: Error in cannolo function.")
+        if drives is None:
+            return
+
+        for drive in drives:
+            drive = drive
+            self.send_command("queued_sleep " + drive)
 
     def refresh(self):
         """This function read the host and port inputs in the settings
