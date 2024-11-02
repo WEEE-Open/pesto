@@ -69,13 +69,14 @@ QUEUE_COMPLETED = "completed"
 QUEUE_PROGRESS = "progress"
 QUEUE_QUEUED = "queued"
 
-LOCAL_MODE = "local"
-REMOTE_MODE = "remote"
+LOCAL_MODE = "Local"
+REMOTE_MODE = "Remote"
 
-LATEST_SERVER_MODE = "latestServerMode"
-LATEST_SERVER_IP = "latestServerIp"
-LATEST_SERVER_PORT = "latestServerPort"
-LATEST_DEFAULT_SYSTEM_PATH = "latestDefaultSystemPath"
+SERVER_MODE = "latestServerMode"
+SERVER_IP = "latestServerIp"
+SERVER_PORT = "latestServerPort"
+SERVER_IMAGES_DIRECTORY = "latestImageDirectory"
+SERVER_DEFAULT_IMAGE = "latestImage"
 
 QSETTINGS_IP_GROUP = "ipGroup"
 
