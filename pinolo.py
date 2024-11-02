@@ -363,6 +363,13 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         return drives
 
+    def get_tarallo_id(self, drive: str):
+        for row in range(self.diskTable.rowCount()):
+            item = self.diskTable.item(row, DISK_TABLE_DRIVE)
+            if item.text() == drive:
+                return self.diskTable.item(row, DISK_TABLE_TARALLO_ID).text()
+        return None
+
     def standard_procedure(self):
         """This function send to the server a sequence of commands:
         - queued_badblocks
