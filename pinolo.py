@@ -195,9 +195,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.port = DEFAULT_PORT
         if self.serverMode == REMOTE_MODE:
             try:
-                self.host = self.settings.value(LATEST_SERVER_IP)
-                self.port = int(self.settings.value(LATEST_SERVER_PORT))
-                self.default_system_path = self.settings.value(LATEST_DEFAULT_SYSTEM_PATH)
                 self.host = self.settings.value(SERVER_IP)
                 self.port = int(self.settings.value(SERVER_PORT))
                 self.default_image = self.settings.value(SERVER_DEFAULT_IMAGE)
@@ -837,13 +834,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         It will save all the latest settings parameters into the QT settings file and
         terminate all the active audio processes.
         """
-
-        self.settings.setValue(LATEST_SERVER_MODE, self.serverMode)
-        self.settings.setValue(LATEST_SERVER_IP, self.host)
-        self.settings.setValue(LATEST_SERVER_PORT, self.port)
-        self.settings.setValue(LATEST_DEFAULT_SYSTEM_PATH, self.default_system_path)
-
-
         self.connection_factory.protocol_instance.disconnect()
         QCoreApplication.instance().quit()
 
