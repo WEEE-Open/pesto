@@ -866,7 +866,6 @@ class LocalServer(QThread):
 
 
 if __name__ == "__main__":
-    # noinspection PyBroadException
     try:
         load_dotenv(PATH["ENV"])
 
