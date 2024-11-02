@@ -183,7 +183,7 @@ class ConnectionFactory(ClientFactory, QObject):
 
     def clientConnectionFailed(self, connector, reason):
         print(f"CLIENT_FACTORY: Lost connection. Reason: {reason}")
-        self.data_received.emit("connection_lost")
+        self.data_received.emit("connection_lost", str(reason.value))
 
     def clientConnectionLost(self, connector, reason):
         print(f"CLIENT_FACTORY: Lost connection. Reason: {reason}")
