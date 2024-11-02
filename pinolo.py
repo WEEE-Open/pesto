@@ -196,9 +196,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.port = int(self.settings.value(LATEST_SERVER_PORT))
                 self.default_system_path = self.settings.value(LATEST_DEFAULT_SYSTEM_PATH)
             except (ValueError, TypeError):
-                if self.host is None:
-                    self.host = "127.0.0.1"
-                self.port = 1030
+                self.host = DEFAULT_IP
+                self.port = DEFAULT_PORT
 
     def open_url(self, url_type: str):
         url = QUrl(url_type)
