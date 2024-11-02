@@ -393,15 +393,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if standard_procedure_dialog[1]:
             self.load_system(standard_procedure=True)
 
-    def erase(self, standard_procedure=False, drives=None):
+    def erase(self, standard_procedure=False):
         """This function send to the server a queued_badblocks command.
         If "std" is True it will skip the confirm dialog."""
 
         # noinspection PyBroadException
-        if drives is None:
-            drives = self.get_multiple_drive_selection()
+        drives = self.get_multiple_drive_selection()
 
-        if len(drives) == 0:
+        if drives is None:
             return
 
         if not standard_procedure:
