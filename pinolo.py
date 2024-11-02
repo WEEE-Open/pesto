@@ -189,7 +189,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function try to set the remote configuration used in the last
         pinolo session"""
 
-        self.serverMode = self.settings.value(LATEST_SERVER_MODE)
+        self.serverMode = self.settings.value(SERVER_MODE)
         if self.serverMode == LOCAL_MODE:
             self.host = DEFAULT_IP
             self.port = DEFAULT_PORT
@@ -198,6 +198,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.host = self.settings.value(LATEST_SERVER_IP)
                 self.port = int(self.settings.value(LATEST_SERVER_PORT))
                 self.default_system_path = self.settings.value(LATEST_DEFAULT_SYSTEM_PATH)
+                self.host = self.settings.value(SERVER_IP)
+                self.port = int(self.settings.value(SERVER_PORT))
+                self.default_image = self.settings.value(SERVER_DEFAULT_IMAGE)
             except (ValueError, TypeError):
                 self.host = DEFAULT_IP
                 self.port = DEFAULT_PORT
