@@ -5,7 +5,12 @@ Created on Fri Jul 30 10:54:18 2021
 
 @author: il_palmi
 """
-from client import *
+import json
+import os.path
+import sys
+
+from client import ConnectionFactory
+
 from utilities import *
 from ui.PinoloMainWindow import Ui_MainWindow
 from dialogs.NetworkSettings import NetworkSettings
@@ -13,8 +18,8 @@ from dialogs.SmartWidget import SmartWidget
 from dialogs.SelectSystem import SelectSystemDialog
 from typing import Union
 from dotenv import load_dotenv
-from PyQt5.QtGui import QIcon, QMovie, QDesktopServices, QPixmap, QCloseEvent
-from PyQt5.QtCore import Qt, QSettings, QSize, pyqtSignal, QThread, QUrl
+from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap, QCloseEvent
+from PyQt5.QtCore import Qt, QSettings, QSize, pyqtSignal, QThread, QUrl, pyqtSlot, QCoreApplication
 from PyQt5.QtWidgets import (
     QTableWidgetItem,
     QTableWidget,
@@ -27,14 +32,17 @@ from PyQt5.QtWidgets import (
 )
 from constants import *
 from datetime import datetime, timedelta
-import sys
 
+# Linter settings
+from twisted.internet.interfaces import IReactorTCP
+reactor: IReactorTCP
 
 absolute_path(PATH)
 
 
 # UI class
 class PinoloMainWindow(QMainWindow, Ui_MainWindow):
+
     def __init__(self):
         super(PinoloMainWindow, self).__init__()
         self.setupUi(self)
@@ -55,7 +63,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.smart_results = {}
 
         self.settings = QSettings()
-        self.client = ReactorThread(self.host, self.port, self.serverMode)
 
         """ Windows handlers """
         self.load_latest_configuration()
@@ -74,7 +81,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self._progress_icon = QIcon(QPixmap(PATH["PROGRESS"]))
 
         self.setup()
-        self.start_client()
+
+        # Start client
+        self.connect_to_server()
 
     def setup(self):
         # initialize attributes with latest session parameters (host, port and default system path)
@@ -111,7 +120,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.actionAboutUs.triggered.connect(self.open_website)
         self.actionVersion.triggered.connect(self.show_version)
 
-    def start_client(self):
+    def connect_to_server(self):
         """This method must be called in __init__ function of Ui class
         to initialize pinolo session"""
 
@@ -120,10 +129,13 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             message = "The host and port combination is not set.\nPlease visit the settings section."
             warning_dialog(message, dialog_type="ok")
 
-        # Start client thread
-        self.client = ReactorThread(self.host, self.port, self.serverMode)
-        self.client.updateEvent.connect(self.gui_update)
-        self.client.start()
+        # Connect to server and connect signal to callback
+        reactor.connectTCP(self.host, self.port, self.connection_factory, CLIENT_TIMEOUT)
+        self.connection_factory.data_received.connect(self.gui_update)
+
+    def send_command(self, msg: str):
+        if msg and self.connection_factory.protocol_instance:
+            self.connection_factory.protocol_instance.send_msg(msg)
 
     def on_table_select(self, selected):
         """This function set the queue table context menu buttons"""
@@ -220,7 +232,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
         message = "Do you want to stop the process?\nID: " + pid
         if warning_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
-            self.client.send(f"stop {pid}")
+            self.send_command(f"stop {pid}")
         self.deselect()
 
     def queue_remove(self, pid=None, disk=None):
@@ -232,7 +244,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 if pid_item and f"{pid}" == pid_item.text().split("-")[1]:
                     disk_item = self.queueTable.item(row, 2)
                     if disk_item and disk == disk_item.text():
-                        self.client.send(f"remove {pid_item.text()}")
+                        self.send_command(f"remove {pid_item.text()}")
                         self.queueTable.removeRow(row)
                         return
             return
@@ -240,7 +252,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         message = "With this action you will also stop the process (ID: " + pid + ")\n"
         message += "Do you want to proceed?"
         if warning_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
-            self.client.send(f"remove {pid}")
+            self.send_command(f"remove {pid}")
             self.queueTable.removeRow(self.queueTable.currentRow())
         self.deselect()
 
@@ -248,7 +260,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function set the "remove all" button behaviour on the queue table
         context menu."""
 
-        self.client.send("remove_all")
+        self.send_command("remove_all")
         self.queueTable.setRowCount(0)
 
     def queue_clear_completed(self):
@@ -264,7 +276,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.queueTable.removeRow(row - offset)
                 offset += 1
 
-        self.client.send("remove_completed")
+        self.send_command("remove_completed")
 
     def queue_clear_queued(self):
         """This function set the "remove completed" button behaviour on the queue table
@@ -278,7 +290,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             if status == QUEUE_QUEUED:
                 self.queueTable.removeRow(row - offset)
                 offset += 1
-        self.client.send("remove_queued")
+        self.send_command("remove_queued")
 
     def queue_info(self):
         """This function set the "info" button behaviour on the queue table
@@ -332,7 +344,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         if dialog == QMessageBox.Yes:
             for drive in drives:
-                self.client.send("queued_umount " + drive)
+                self.send_command("queued_umount " + drive)
 
     def get_multiple_drive_selection(self):
         """This method returns a list with the names of the selected drives on disk_table"""
@@ -385,7 +397,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
                 return
         for drive in drives:
-            self.client.send("queued_badblocks " + drive)
+            self.send_command("queued_badblocks " + drive)
 
     def smart_check(self, is_standard_procedure=False):
         """This function send to the server a queued_smartctl command.
@@ -467,11 +479,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         drives = self.get_multiple_drive_selection()
         ids = ""
         for drive in drives:
-            ids += f"{drive}, "
-        ids.rstrip(", ")
-        self.statusbar.showMessage(f"Sending cannolo to {ids} with {img}")
-        for drive in drives:
-            self.client.send(f"queued_cannolo {drive} {directory}")
+            self.send_command(f"queued_cannolo {drive} {image_path}")
 
     def upload_to_tarallo(self, std: bool = False):
         # TODO: check if it's really working
@@ -665,8 +673,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def _send_sudo_password(self, password: str):
         # password = password.replace('\\', '\\\\').replace(" ", "\\ ")
-        self.client.send(f"sudo_password {password}")
+        self.send_command(f"sudo_password {password}")
 
+    @pyqtSlot(str, str)
     def gui_update(self, cmd: str, params: str):
         """
         This function gets all the server responses and update, if possible, the UI.
@@ -788,6 +797,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
             case "connection_made":
                 self.statusbar.showMessage(f"Connected to {params['host']}:{params['port']}")
+                self.connection_factory.protocol_instance.send_msg("get_disks")
+                self.connection_factory.protocol_instance.send_msg("get_queue")
 
             case "list_iso":
                 self.select_system_dialog.ask_for_image(params)
@@ -826,6 +837,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.settings.setValue(LATEST_DEFAULT_SYSTEM_PATH, self.default_system_path)
 
 
+        self.connection_factory.protocol_instance.disconnect()
+        QCoreApplication.instance().quit()
+
+
 class LocalServer(QThread):
     update = pyqtSignal(str, str, name="update")
 
@@ -859,16 +874,23 @@ if __name__ == "__main__":
     # noinspection PyBroadException
     try:
         load_dotenv(PATH["ENV"])
-        # app = QApplication(sys.argv)
-        # window = PinoloMainWindow()
-        # window.show()
-        # app.exec_()
+
+        # Create application
         app = QtWidgets.QApplication(sys.argv)
         app.setOrganizationName("WEEE-Open")
         app.setApplicationName("PESTO")
+
+        # Integrate twisted event loop in pyqt loop
+        import qt5reactor
+        qt5reactor.install()
+        from twisted.internet import reactor
+
+        # Create main window
         window = PinoloMainWindow()
         window.show()
-        sys.exit(app.exec_())
+
+        # Run main loop
+        reactor.run()
 
     except KeyboardInterrupt:
         print("KeyboardInterrupt")

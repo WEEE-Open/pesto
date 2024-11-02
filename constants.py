@@ -4,6 +4,8 @@ DEFAULT_IP = "127.0.0.1"
 DEFAULT_PORT = 1030
 DEFAULT_SYSTEM_PATH = ""
 
+CLIENT_TIMEOUT = 5
+
 PATH = {
     "REQUIREMENTS": "/requirements.txt",
     "ENV": "/.env",
