@@ -378,23 +378,20 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         - queued_sleep
         """
 
-        message = "Do you want to wipe all disk's data and load a fresh system image?"
-        dialog = warning_dialog(message, dialog_type="yes_no_chk")
-        if dialog[0] == QMessageBox.Yes:
-            drives = self.get_multiple_drive_selection()
-            for drive in drives:
-                if drive[1] == "":
-                    # TODO: allow to enter ID manually?
-                    message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
-                    dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
-                    if dialog_result == QMessageBox.Yes:
-                        self.upload_to_tarallo(std=True)
-                    elif dialog_result == QMessageBox.Cancel:
-                        continue
-            self.erase(standard_procedure=True, drives=drives)
-            self.smart_check(is_standard_procedure=True)
-            if dialog[1]:
-                self.load_system(std=True, drives=drives)
+        drives = self.get_multiple_drive_selection()
+        if drives is None:
+            return
+        standard_procedure_dialog = warning_dialog(
+            "Do you want to wipe all disk's data and load a fresh system image?",
+            dialog_type="yes_no_chk"
+        )
+        if standard_procedure_dialog[0] == QMessageBox.No:
+            return
+        self.upload_to_tarallo(standard_procedure=True)
+        self.erase(standard_procedure=True)
+        self.smart_check(standard_procedure=True)
+        if standard_procedure_dialog[1]:
+            self.load_system(standard_procedure=True)
 
     def erase(self, standard_procedure=False, drives=None):
         """This function send to the server a queued_badblocks command.
