@@ -32,6 +32,19 @@ pyuic5 -x assets/qt/<file>.ui -o ui/<file>.py
 
 Compiled UI files must be located inside the `ui` folder.
 
+### Generate documentation
+To build documentation
+```
+sphinx-apidox -o docs .
+cd docs
+make html
+```
+
+If `sphinx` is not installed in your system, install it in Pesto venv
+```
+source ./venv/bin/activate
+pip install sphinx sphinx-rtd-theme
+```
 ## Installation
 
 To install pesto in the system:
