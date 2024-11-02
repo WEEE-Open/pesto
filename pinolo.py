@@ -410,24 +410,17 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         for drive in drives:
             self.send_command("queued_badblocks " + drive)
 
-    def smart_check(self, is_standard_procedure=False):
+    def smart_check(self):
         """This function send to the server a queued_smartctl command.
         If "std" is True it will skip the "no drive selected" check."""
 
-        # noinspection PyBroadException
-        try:
-            drives = self.get_multiple_drive_selection()
-            if len(drives) == 0:
-                if is_standard_procedure:
-                    return
-                message = "There are no selected drives."
-                warning_dialog(message, dialog_type="ok")
+        drives = self.get_multiple_drive_selection()
 
-            for drive in drives:
-                self.client.send("queued_smartctl " + drive)
+        if drives is None:
+            return
 
-        except BaseException:
-            print("GUI: Error in smart function.")
+        for drive in drives:
+            self.send_command("queued_smartctl " + drive)
 
     def show_smart_data(self):
         # noinspection PyBroadException
