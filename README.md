@@ -25,12 +25,12 @@ You can edit the user interface in two ways:
 - Graphics editing: use `pyqt5-tools designer` and open the .ui file that you need to modify
 - Functional editing: edit code in `pinolo.py`
 
-To build `.ui` files:
+To build UI files:
 ```
-pyuic5 -x assets/qt/<file>.ui -o ui/<file>.py
+make ui
 ```
 
-Compiled UI files must be located inside the `ui` folder.
+Compiled UI files are located inside the `ui` folder.
 
 ### Generate documentation
 To build documentation
