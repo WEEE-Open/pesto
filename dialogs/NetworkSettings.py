@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
 
 class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
-    update = pyqtSignal(str, int, bool, str, name="update_settings")
 
     def __init__(self, parent: "PinoloMainWindow"):
         super(NetworkSettings, self).__init__()
