@@ -29,6 +29,7 @@ from PyQt5.QtWidgets import (
     QProgressBar,
     QInputDialog,
     QLineEdit,
+    QDialog,
 )
 from constants import *
 from datetime import datetime, timedelta
