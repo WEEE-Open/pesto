@@ -478,38 +478,43 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         for drive in drives:
             self.send_command(f"queued_cannolo {drive} {image_path}")
 
-    def upload_to_tarallo(self, std: bool = False):
+    def upload_to_tarallo(self, standard_procedure: bool = False):
         # TODO: check if it's really working
-        # for row in self.get_selected_drive_rows():
-        # if row[1] == "":
-        # self.upload_to_tarallo(row[0])
-        # self.selected_drive = self.selected_drive.text();
-        self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
 
-        if not std:
-            if self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
-                message = f"The drive {self.selected_drive.text()} already has a TARALLO id."
-                warning_dialog(message, dialog_type="ok")
-                return
-            message = "Do you want to load the disk informations into TARALLO?"
-            if warning_dialog(message, dialog_type="yes_no") == QMessageBox.No:
-                return
-        elif self.diskTable.item(self.diskTable.currentRow(), 1).text() != "":
-            return
-        loc, ok = input_dialog("Location")
+        drives = self.get_multiple_drive_selection()
 
-        # If no location is provided or cancel is selected,
-        # cancel the operation
-        if not ok or loc == "":
-            message = "Canceled upload"
-            info_dialog(message)
+        if drives is None:
             return
 
-        if self.selected_drive is None:
-            self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()}")
-        self.client.send(f"queued_upload_to_tarallo {self.selected_drive.text()} {loc}")
+        for drive in drives:
+            tarallo_id = self.get_tarallo_id(drive)
+            if not standard_procedure:
+                if tarallo_id != "":
+                    warning_dialog(
+                        f"The drive {drive} already has a TARALLO id.",
+                        dialog_type="ok"
+                    )
+                    continue
+                dialog = warning_dialog(
+                    f"Do you want to create the disk item for {drive} in TARALLO?",
+                    dialog_type="yes_no"
+                )
+                if dialog == QMessageBox.No:
+                    continue
 
-    def sleep(self, std=False):
+            else:
+                if tarallo_id != "":
+                    continue
+
+            location, ok = input_dialog("Location")
+
+            # If no location is provided or cancel is selected, stop the operation
+            if not ok or location is None or location == "":
+                continue
+
+            self.send_command(f"queued_upload_to_tarallo {drive} {location}")
+
+    def sleep(self):
         """This function send to the server a queued_sleep command.
         If "std" is True it will skip the "no drive selected" check."""
 
