@@ -42,6 +42,7 @@ absolute_path(PATH)
 
 # UI class
 class PinoloMainWindow(QMainWindow, Ui_MainWindow):
+    select_image_requested = pyqtSignal(str)
 
     def __init__(self):
         super(PinoloMainWindow, self).__init__()
@@ -49,7 +50,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         self.host = DEFAULT_IP
         self.port = DEFAULT_PORT
-        self.default_system_path = None
+        self.default_image = None
         self.serverMode = None
         self.active_theme = None
         self.select_system_dialog: SelectSystemDialog = None
@@ -114,6 +115,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.actionSourceCode.triggered.connect(self.open_source_code)
         self.actionAboutUs.triggered.connect(self.open_website)
         self.actionVersion.triggered.connect(self.show_version)
+
+        self.select_image_requested.connect(self.set_default_image)
 
     def connect_to_server(self):
         """This method must be called in __init__ function of Ui class
@@ -302,8 +305,31 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         info_dialog(message)
         self.deselect()
 
-    def list_iso(self, image_path: str):
+    def select_image(self, image_path: str, ):
+        self.select_system_dialog = SelectSystemDialog(self)
         self.send_command(f"list_iso {image_path}")
+        if self.select_system_dialog.exec_() == QDialog.Accepted:
+            selected_image = self.select_system_dialog.get_selected_image()
+            return image_path + selected_image
+        return None
+
+    def load_selected_image(self, image_path: str):
+        image = self.select_image(image_path)
+        drives = self.get_multiple_drive_selection()
+
+        if image is None or drives is None:
+            return
+
+        for drive in drives:
+            self.send_command(f"queued_cannolo {drive} {image}")
+
+    def set_default_image(self, image_path: str):
+        image = self.select_image(image_path)
+
+        if image is None:
+            return
+
+        self.network_settings_dialog.set_default_image_path(image)
 
     def umount(self):
         drives = self.get_multiple_drive_selection()
@@ -447,35 +473,19 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if drives is None:
             return
 
-        if self.default_system_path:
-            image_path = os.path.dirname(self.default_system_path)
+        if self.default_image:
+            image_path = os.path.dirname(self.default_image)
         else:
             critical_dialog("There is no default image set in Pinolo settings.", dialog_type="ok")
             return
 
         if not standard_procedure:
-            self.send_command(f"list_iso {image_path}")
-            if self.select_system_dialog:
-                self.select_system_dialog.close()
-
-            self.list_iso(image_path)
-            # self.select_system_dialog = SelectSystemDialog(self, True, image_path)
-            # self.select_system_dialog.image_selected.connect(self.load_selected_system)
-            # self.select_system_dialog.exec_()
+            self.select_image(image_path)
             return
 
         for drive in drives:
-            print(f"GUI: Sending cannolo to {drive} with {self.default_system_path}")
-            self.send_command(f"queued_cannolo {drive} {self.default_system_path}")
-
-    def load_selected_system(self, image_path: str):
-        """This function sends to the server a queued_cannolo with the selected drive
-        and the directory of the selected cannolo image. This is specific of the
-        non-standard procedure cannolo."""
-
-        drives = self.get_multiple_drive_selection()
-        for drive in drives:
-            self.send_command(f"queued_cannolo {drive} {image_path}")
+            print(f"GUI: Sending cannolo to {drive} with {self.default_image}")
+            self.send_command(f"queued_cannolo {drive} {self.default_image}")
 
     def upload_to_tarallo(self, standard_procedure: bool = False):
         # TODO: check if it's really working
@@ -795,8 +805,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.connection_factory.protocol_instance.send_msg("get_queue")
 
             case "list_iso":
-                pass
-                # self.select_system_dialog.ask_for_image(params)
+                self.select_system_dialog.load_images(params)
 
             case "error":
                 message = f"{params['message']}"

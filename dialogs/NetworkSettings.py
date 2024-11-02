@@ -1,5 +1,5 @@
 import os.path
-from PyQt5.QtCore import QSettings, QSize, Qt
+from PyQt5.QtCore import QSettings, QSize, Qt, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QMovie
 from PyQt5.QtWidgets import (
     QDialog,
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 
 class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
+    found_image = pyqtSignal(str)
 
     def __init__(self, parent: "PinoloMainWindow"):
         super(NetworkSettings, self).__init__()
@@ -30,96 +31,72 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         self.setup()
 
     def setup(self):
+        self.init_server_mode()
         self.init_buttons()
         self.init_line_edits()
 
-    def set_server_mode(self):
-        """
-        This function enables remote or local server mode, based on which radio button is pressed in NetworkSettings.
-        """
+        self.found_image.connect(self.set_default_image_path)
 
-        if self.localServerRadioButton.isChecked():  # Local mode
-            self.parent.serverMode = LOCAL_MODE
-
-            self.settings.setValue(LATEST_SERVER_IP, self.parent.host)
-            self.settings.setValue(LATEST_SERVER_PORT, self.parent.port)
-
-            self.parent.host = DEFAULT_IP
-            self.parent.port = DEFAULT_PORT
-
-            self.serverIpLineEdit.setText(self.parent.host)
-            self.serverPortLineEdit.setText(str(self.parent.port))
-
-            self.serverIpLineEdit.setReadOnly(True)
-
-            self.defaultSystemLabel.setText("")
-
-        elif self.remoteServerRadioButton.isChecked():  # Remote mode
-            if not self.parent.serverMode:
-                try:
-                    self.parent.host = self.settings.value(LATEST_SERVER_IP)
-                    self.parent.port = int(self.settings.value(LATEST_SERVER_PORT))
-                except Exception as e:
-                    print(f"ERROR: in NetworkSettings: {e}")
-            self.parent.serverMode = REMOTE_MODE
-
-            self.serverIpLineEdit.setText(self.parent.host)
-            self.serverIpLineEdit.setReadOnly(False)
-
-            self.serverPortLineEdit.setText(str(self.parent.port))
-            self.serverPortLineEdit.setReadOnly(False)
-
-            self.saveButton.setEnabled(True)
-
-            self.defaultSystemLineEdit.setReadOnly(False)
-            self.defaultSystemLabel.setText("When in remote mode, the user must insert manually the cannolo image directory.")
+    def init_server_mode(self):
+        server_mode = self.settings.value(SERVER_MODE)
+        if server_mode is None:
+            self.serverModeComboBox.setCurrentIndex(0)
+            return
+        self.serverModeComboBox.setCurrentText(server_mode)
 
     def init_buttons(self):
-        # init buttons
         self.saveButton.clicked.connect(self.save)
         self.cancelButton.clicked.connect(self.cancel)
         self.deleteConfigButton.clicked.connect(self.delete_config)
         self.findButton.clicked.connect(self.find_image)
 
-        # init radio buttons
-        if self.parent.serverMode == LOCAL_MODE:
-            self.localServerRadioButton.setChecked(True)
-        elif self.parent.serverMode == REMOTE_MODE:
-            self.remoteServerRadioButton.setChecked(True)
-        else:
-            self.localServerRadioButton.setChecked(True)
-        self.localServerRadioButton.clicked.connect(self.set_server_mode)
-        self.remoteServerRadioButton.clicked.connect(self.set_server_mode)
-
-        self.set_server_mode()
-
     def init_line_edits(self):
+        host = self.settings.value(SERVER_IP)
+        port = self.settings.value(SERVER_PORT)
+        images_directory = self.settings.value(SERVER_IMAGES_DIRECTORY)
+        default_image = self.settings.value(SERVER_DEFAULT_IMAGE)
+
+        if default_image is not None:
+            default_image = os.path.basename(default_image)
+
         # server ip
-        self.serverIpLineEdit.setText(self.parent.host)
+        if host is None:
+            self.serverIpLineEdit.setText(DEFAULT_IP)
+        else:
+            self.serverIpLineEdit.setText(host)
         self.load_completer()
 
         # server port
-        if self.parent.port is not None:
-            self.serverPortLineEdit.setText(str(self.parent.port))
+        if port is None:
+            self.serverPortLineEdit.setText(str(DEFAULT_PORT))
+        else:
+            self.serverPortLineEdit.setText(port)
 
-        # default system path
-        self.defaultSystemLineEdit.setText(self.parent.default_system_path)
-        if self.parent.serverMode == REMOTE_MODE:
-            self.defaultSystemLineEdit.setReadOnly(False)
+        # images directory
+        self.imagesDirectoryLineEdit.setText(images_directory)
+        self.imagesDirectoryLineEdit.textChanged.connect(self.defaultImageLineEdit.clear)
 
-    def autocomplete_port(self, completion):
-        # index = model.stringList().index(completion) if completion in model.stringList else -1
-        self.settings.beginGroup(QSETTINGS_IP_GROUP)
-        for key in self.settings.childKeys():
-            if completion in self.settings.value(key):
-                self.serverPortLineEdit.setText(self.settings.value(key)[1])
-        self.settings.endGroup()
+        # default image
+        self.defaultImageLineEdit.setText(default_image)
 
     def save(self):
         self.save_config()
-        self.parent.host = self.serverIpLineEdit.text()
-        self.parent.port = int(self.serverPortLineEdit.text())
-        self.parent.default_system_path = self.defaultSystemLineEdit.text()
+
+        server_mode = self.serverModeComboBox.currentText()
+        host = self.serverIpLineEdit.text()
+        port = self.serverPortLineEdit.text()
+        images_directory = self.imagesDirectoryLineEdit.text()
+        default_image = self.defaultImageLineEdit.text()
+
+        self.settings.setValue(SERVER_MODE, server_mode)
+        self.settings.setValue(SERVER_IP, host)
+        self.settings.setValue(SERVER_PORT, port)
+        self.settings.setValue(SERVER_IMAGES_DIRECTORY, images_directory)
+        self.settings.setValue(SERVER_DEFAULT_IMAGE, default_image)
+
+        self.parent.host = host
+        self.parent.port = int(port)
+        self.parent.default_image = default_image
 
         self.close()
 
@@ -136,6 +113,10 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
             if ip in config:
                 message = "Do you want to overwrite the old configuration?"
                 if warning_dialog(message, dialog_type="yes_no") == QMessageBox.No:
+                    self.settings.endGroup()
+                    return
+                else:
+                    self.settings.setValue(key, [ip, port])
                     self.settings.endGroup()
                     return
 
@@ -173,32 +154,49 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         completer.activated.connect(self.autocomplete_port)
         self.serverIpLineEdit.setCompleter(completer)
 
+    def autocomplete_port(self, completion):
+        # index = model.stringList().index(completion) if completion in model.stringList else -1
+        self.settings.beginGroup(QSETTINGS_IP_GROUP)
+        for key in self.settings.childKeys():
+            if completion in self.settings.value(key):
+                self.serverPortLineEdit.setText(self.settings.value(key)[1])
+        self.settings.endGroup()
+
     def find_image(self):
         """
         This function opens a different dialog if
         the user is in local or remote mode to search for a cannolo image.
         """
 
-        if self.parent.serverMode == REMOTE_MODE:
-            image_path = self.defaultSystemLineEdit.text()
-            if image_path == "":
+        if self.serverModeComboBox.currentText() == REMOTE_MODE:
+            image_directory = self.imagesDirectoryLineEdit.text()
+            if image_directory == "":
                 warning_dialog(
                     "The path for the default system image is empty. Set it, plz.",
                     dialog_type="ok"
                 )
                 return
 
-            image_path = os.path.dirname(image_path)
-            if self.parent.select_system_dialog:
-                self.parent.select_system_dialog.close()
-            self.parent.select_system_dialog = SelectSystemDialog(self, False, image_path)
+            if image_directory[-1] != "/":
+                image_directory += "/"
+                self.imagesDirectoryLineEdit.setText(image_directory)
+
+            self.parent.select_image_requested.emit(image_directory)
+            # if self.parent.select_system_dialog:
+            #     self.parent.select_system_dialog.close()
+            # self.parent.select_system_dialog = SelectSystemDialog(self, False, image_path)
         else:
             dialog = QFileDialog()
             # directory = dialog.getExistingDirectory(self, "Open Directory", "/home", QFileDialog.ShowDirsOnly)
             # directory = dialog.getExistingDirectory(self, "Open Directory", "/home")
             path = dialog.getOpenFileName(self, "Select new default image", "/home")[0]
-            self.defaultSystemLineEdit.setText(path)
+            self.defaultImageLineEdit.setText(path)
 
+    def set_default_image_path(self, path: str):
+        self.defaultImageLineEdit.setText(os.path.basename(path))
+
+    def closeEvent(self, a0):
+        self.cancel()
 
 class AsdGif(QMovie):
     def __init__(self, parent: NetworkSettings):
