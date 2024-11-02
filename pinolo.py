@@ -423,21 +423,16 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.send_command("queued_smartctl " + drive)
 
     def show_smart_data(self):
-        # noinspection PyBroadException
-        try:
-            self.selected_drive = self.diskTable.item(self.diskTable.currentRow(), 0)
-            if self.selected_drive is None:
-                return
-            else:
-                self.selected_drive = self.selected_drive.text()
+        drives = self.get_multiple_drive_selection()
 
+        if drives is None:
+            return
+
+        for drive in drives:
             # TODO: check if this works properly
-            if self.selected_drive in self.smart_results:
-                self.smart_widgets[self.selected_drive] = SmartWidget(self.selected_drive, self.smart_results[self.selected_drive])
-                self.smart_widgets[self.selected_drive].close_signal.connect(self.remove_smart_widget)
-
-        except BaseException as exc:
-            print("GUI: Error in show_smart_data function.")
+            if drive in self.smart_results:
+                self.smart_widgets[drive] = SmartWidget(drive, self.smart_results[drive])
+                self.smart_widgets[drive].close_signal.connect(self.remove_smart_widget)
 
     def remove_smart_widget(self, drive: str):
         del self.smart_widgets[drive]
