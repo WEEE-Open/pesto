@@ -437,40 +437,37 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def remove_smart_widget(self, drive: str):
         del self.smart_widgets[drive]
 
-    def load_system(self, std=False, drives=None):
+    def load_system(self, standard_procedure=False):
         """This function send to the server a queued_cannolo command.
         If "std" is True it will skip the cannolo dialog."""
 
-        # noinspection PyBroadException
-        try:
-            if drives is None:
-                drives = self.get_multiple_drive_selection()
-            drives_qty = len(drives)
-            if self.default_system_path:
-                directory = self.default_system_path.rsplit("/", 1)[0] + "/"
-            else:
-                critical_dialog("There is no default image set in Pinolo settings.", dialog_type="ok")
-                return
-            if drives_qty == 0:
-                if not std:
-                    message = "There are no selected drives."
-                    warning_dialog(message, dialog_type="ok")
-                    return
-                return
-            if not std:
-                self.client.send(f"list_iso {directory}")
                 if self.select_system_dialog:
                     self.select_system_dialog.close()
                 self.select_system_dialog = SelectSystemDialog(self, True, directory)
                 return
-            for drive in drives:
-                print(f"GUI: Sending cannolo to {drive} with {self.default_system_path}")
-                self.client.send(f"queued_cannolo {drive} {self.default_system_path}")
+        drives = self.get_multiple_drive_selection()
 
-        except BaseException as e:
-            print(f"GUI: Error in load_system function. Traceback: {e}")
+        if drives is None:
+            return
 
-    def load_selected_system(self, directory: str, img: str):
+        if self.default_system_path:
+            image_path = os.path.dirname(self.default_system_path)
+        else:
+            critical_dialog("There is no default image set in Pinolo settings.", dialog_type="ok")
+            return
+
+        if not standard_procedure:
+            self.send_command(f"list_iso {image_path}")
+            if self.select_system_dialog:
+                self.select_system_dialog.close()
+
+            self.list_iso(image_path)
+
+        for drive in drives:
+            print(f"GUI: Sending cannolo to {drive} with {self.default_system_path}")
+            self.send_command(f"queued_cannolo {drive} {self.default_system_path}")
+
+    def load_selected_system(self, image_path: str):
         """This function sends to the server a queued_cannolo with the selected drive
         and the directory of the selected cannolo image. This is specific of the
         non-standard procedure cannolo."""
