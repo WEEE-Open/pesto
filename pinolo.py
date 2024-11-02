@@ -51,11 +51,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.port = DEFAULT_PORT
         self.default_system_path = None
         self.serverMode = None
-        self.manual_load_system = False
         self.active_theme = None
         self.select_system_dialog: SelectSystemDialog = None
-        self.pixmapAspectRatio = None
-        self.pixmapResizingNeeded = None
         self.selected_drive = None
         self.timeKeeper = {}
 
@@ -64,22 +61,20 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         self.settings = QSettings()
 
-        """ Windows handlers """
-        self.load_latest_configuration()
+        self.connection_factory = ConnectionFactory(self)
+
+        # Dialogs handlers
         self.smart_widgets = {}
         self.network_settings_dialog = NetworkSettings(self)
 
-        """ Initialization operations """
-        self.localServer = LocalServer()
-        self.localServer.update.connect(self.server_com)
-
-        """ Icons """
+        # Set icons
         if QIcon.hasThemeIcon("data-warning"):
             self._mount_warning_icon = QIcon.fromTheme("data-warning")
         else:
             self._mount_warning_icon = QIcon.fromTheme("dialog-warning")
         self._progress_icon = QIcon(QPixmap(PATH["PROGRESS"]))
 
+        # Setup ui functionalities
         self.setup()
 
         # Start client
