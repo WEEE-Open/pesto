@@ -416,18 +416,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             if dialog[1]:
                 self.load_system(std=True, drives=drives)
 
-    @staticmethod
-    def get_wipe_disks_message(drives):
-        if len(drives) > 1:
-            message = f"Do you want to wipe these disks?"
-            for drive in drives:
-                message += f"\n{drive}"
-        elif len(drives) > 0:
-            message = f"Do you want to wipe {drives[0]}?"
-        else:
-            message = f"Do you want to wipe selected disks?"
-        return message
-
     def erase(self, std=False, drives=None):
         """This function send to the server a queued_badblocks command.
         If "std" is True it will skip the confirm dialog."""
