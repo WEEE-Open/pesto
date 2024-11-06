@@ -4,11 +4,13 @@ DEFAULT_IP = "127.0.0.1"
 DEFAULT_PORT = 1030
 DEFAULT_SYSTEM_PATH = ""
 
+CLIENT_TIMEOUT = 5
+
 PATH = {
-    "REQUIREMENTS": "/requirements_client.txt",
+    "REQUIREMENTS": "/requirements.txt",
     "ENV": "/.env",
-    "SETTINGS_UI": "/assets/qt/NetworkSettingsWidget.ui",
-    "SMART_UI": "/assets/qt/SmartDataWidget.ui",
+    "SETTINGS_UI": "/assets/qt/NetworkSettingsDialog.ui",
+    "SMART_UI": "/assets/qt/SmartDataDialog.ui",
     "INFOUI": "/assets/qt/info.ui",
     "CANNOLOUI": "/assets/qt/cannolo_select.ui",
     "ICON": "/assets/icon.png",
@@ -41,19 +43,40 @@ IGNORE_SMART_RESULTS = [
     "local_time",
 ]
 
+DISK_TABLE_DRIVE = 0
+DISK_TABLE_TARALLO_ID = 1
+DISK_TABLE_DRIVE_SIZE = 2
+
 QUEUE_TABLE = ["ID", "Process", "Disk", "Status", "Eta", "Progress"]
+
+QUEUE_TABLE_ID = 0
+QUEUE_TABLE_PROCESS = 1
+QUEUE_TABLE_DRIVE = 2
+QUEUE_TABLE_STATUS = 3
+QUEUE_TABLE_ETA = 4
+QUEUE_TABLE_PROGRESS = 5
+
+QUEUE_LABELS = {
+    "queued_badblocks": "Erase",
+    "queued_smartctl": "Smart Check",
+    "smartctl": "Smart Check",
+    "queued_cannolo": "Load System",
+    "queued_sleep": "HDD Stop",
+    "queued_upload_to_tarallo": "Upload Data",
+}
 
 QUEUE_COMPLETED = "completed"
 QUEUE_PROGRESS = "progress"
 QUEUE_QUEUED = "queued"
 
-LOCAL_MODE = "local"
-REMOTE_MODE = "remote"
+LOCAL_MODE = "Local"
+REMOTE_MODE = "Remote"
 
-LATEST_SERVER_MODE = "latestServerMode"
-LATEST_SERVER_IP = "latestServerIp"
-LATEST_SERVER_PORT = "latestServerPort"
-LATEST_DEFAULT_SYSTEM_PATH = "latestDefaultSystemPath"
+SERVER_MODE = "latestServerMode"
+SERVER_IP = "latestServerIp"
+SERVER_PORT = "latestServerPort"
+SERVER_IMAGES_DIRECTORY = "latestImageDirectory"
+SERVER_DEFAULT_IMAGE = "latestImage"
 
 QSETTINGS_IP_GROUP = "ipGroup"
 

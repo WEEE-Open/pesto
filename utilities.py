@@ -3,6 +3,10 @@ import os
 import datetime
 from typing import Optional
 from PyQt5 import QtWidgets, QtGui
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QMovie
+from PyQt5.QtWidgets import QProgressBar, QWidget, QVBoxLayout
+from constants import *
 
 
 def critical_dialog(message, dialog_type):
@@ -46,9 +50,9 @@ def warning_dialog(message: str, dialog_type: str):
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
-        cb = QtWidgets.QCheckBox("Click here to load cannolo image.")
-        dialog.setCheckBox(cb)
-        result = [dialog.exec_(), True if cb.isChecked() else False]
+        check_box = QtWidgets.QCheckBox("Click here to load cannolo image.")
+        dialog.setCheckBox(check_box)
+        result = [dialog.exec_(), True if check_box.isChecked() else False]
         return result
     elif dialog_type == "yes_no_cancel":
         dialog.addButton(QtWidgets.QMessageBox.Yes)
@@ -79,14 +83,36 @@ def set_stylesheet(app, path):
         app.setStyleSheet(file.read())
 
 
+def format_size(size: int, round_the_result: bool = False, power_of_2: bool = True) -> str:
+    if power_of_2:
+        notation = ["B", "kiB", "MiB", "GiB", "TiB"]
+        thousand = 1024
+    else:
+        notation = ["B", "kB", "MB", "GB", "TB"]
+        thousand = 1000
+
+    index = 0
+    for count in range(0, len(notation)):
+        if size >> (10 * count) == 0:
+            index = count - 1
+            break
+    size = size / (thousand**index)
+    if round_the_result:
+        result = str(int(round(size)))
+    else:
+        result = "{:.2f}".format(size)
+    result += f" {notation[index]}"
+    return result
+
+
 class SmartTabs(QtWidgets.QTabWidget):
+
     def __init__(self):
         super().__init__()
         self.color = None
         self.tabs = []
         self.setTabsClosable(True)
         self.tabCloseRequested.connect(lambda index: self.removeTab(index))
-
     def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list):
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
@@ -110,23 +136,17 @@ class SmartTabs(QtWidgets.QTabWidget):
         self.tabs.append(widget)
 
 
-def format_size(size: int, round_the_result: bool = False, power_of_2: bool = True) -> str:
-    if power_of_2:
-        notation = ["B", "kiB", "MiB", "GiB", "TiB"]
-        thousand = 1024
-    else:
-        notation = ["B", "kB", "MB", "GB", "TB"]
-        thousand = 1000
+class ProgressBar(QWidget):
 
-    index = 0
-    for count in range(0, len(notation)):
-        if size >> (10 * count) == 0:
-            index = count - 1
-            break
-    size = size / (thousand**index)
-    if round_the_result:
-        result = str(int(round(size)))
-    else:
-        result = "{:.2f}".format(size)
-    result += f" {notation[index]}"
-    return result
+    def __init__(self):
+        super(ProgressBar, self).__init__()
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        self.progress_bar.setMaximum(100 * PROGRESS_BAR_SCALE)
+
+        self.setLayout(QVBoxLayout())
+        self.layout().setContentsMargins(0, 0, 0, 0)
+        self.layout().addWidget(self.progress_bar)
+    def setValue(self, value: int):
+        self.progress_bar.setValue(value)
