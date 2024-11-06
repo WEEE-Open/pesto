@@ -171,10 +171,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         if self.serverModeComboBox.currentText() == REMOTE_MODE:
             image_directory = self.imagesDirectoryLineEdit.text()
             if image_directory == "":
-                warning_dialog(
-                    "The path for the default system image is empty. Set it, plz.",
-                    dialog_type="ok"
-                )
+                warning_dialog("The path for the default system image is empty. Set it, plz.", dialog_type="ok")
                 return
 
             if image_directory[-1] != "/":
@@ -198,6 +195,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
     def closeEvent(self, a0):
         self.cancel()
 
+
 class AsdGif(QMovie):
     def __init__(self, parent: NetworkSettings):
         super(AsdGif, self).__init__(parent)
@@ -209,12 +207,6 @@ class AsdGif(QMovie):
 
     def setup(self):
         self.setFileName(self.gif_path)
-        self.setScaledSize(
-            QSize().scaled(
-                self.parent.asdLabel.width(),
-                self.parent.asdLabel.height(),
-                Qt.KeepAspectRatio
-            )
-        )
+        self.setScaledSize(QSize().scaled(self.parent.asdLabel.width(), self.parent.asdLabel.height(), Qt.KeepAspectRatio))
         self.start()
         self.parent.asdLabel.setMovie(self)

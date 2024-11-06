@@ -36,6 +36,7 @@ from datetime import datetime, timedelta
 
 # Linter settings
 from twisted.internet.interfaces import IReactorTCP
+
 reactor: IReactorTCP
 
 absolute_path(PATH)
@@ -306,7 +307,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         info_dialog(message)
         self.deselect()
 
-    def select_image(self, image_path: str, ):
+    def select_image(
+        self,
+        image_path: str,
+    ):
         self.select_system_dialog = SelectSystemDialog(self)
         self.send_command(f"list_iso {image_path}")
         if self.select_system_dialog.exec_() == QDialog.Accepted:
@@ -379,10 +383,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         selected_rows = self.diskTable.selectionModel().selectedRows()
 
         if len(selected_rows) == 0:
-            warning_dialog(
-                "There are no selected drives.",
-                dialog_type="ok"
-            )
+            warning_dialog("There are no selected drives.", dialog_type="ok")
             return None
 
         for row in selected_rows:
@@ -409,10 +410,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         if drives is None:
             return
-        standard_procedure_dialog = warning_dialog(
-            "Do you want to wipe all disk's data and load a fresh system image?",
-            dialog_type="yes_no_chk"
-        )
+        standard_procedure_dialog = warning_dialog("Do you want to wipe all disk's data and load a fresh system image?", dialog_type="yes_no_chk")
 
         if standard_procedure_dialog[0] == QMessageBox.No:
             return
@@ -500,15 +498,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             tarallo_id = self.get_tarallo_id(drive)
             if not standard_procedure:
                 if tarallo_id != "":
-                    warning_dialog(
-                        f"The drive {drive} already has a TARALLO id.",
-                        dialog_type="ok"
-                    )
+                    warning_dialog(f"The drive {drive} already has a TARALLO id.", dialog_type="ok")
                     continue
-                dialog = warning_dialog(
-                    f"Do you want to create the disk item for {drive} in TARALLO?",
-                    dialog_type="yes_no"
-                )
+                dialog = warning_dialog(f"Do you want to create the disk item for {drive} in TARALLO?", dialog_type="yes_no")
                 if dialog == QMessageBox.No:
                     continue
 
@@ -880,6 +872,7 @@ if __name__ == "__main__":
 
         # Integrate twisted event loop in pyqt loop
         import qt5reactor
+
         qt5reactor.install()
         from twisted.internet import reactor
 
