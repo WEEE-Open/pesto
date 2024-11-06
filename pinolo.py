@@ -405,7 +405,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             for drive in drives:
                 if drive[1] == "":
                     # TODO: allow to enter ID manually?
-                    message = f"{drive[0]} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
+                    message = f"{drive} disk doesn't have a TARALLO id.\n" "Would you like to create the item on TARALLO?"
                     dialog_result = warning_dialog(message, dialog_type="yes_no_cancel")
                     if dialog_result == QMessageBox.Yes:
                         self.upload_to_tarallo(std=True)
@@ -421,9 +421,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if len(drives) > 1:
             message = f"Do you want to wipe these disks?"
             for drive in drives:
-                message += f"\n{drive[0]}"
+                message += f"\n{drive}"
         elif len(drives) > 0:
-            message = f"Do you want to wipe {drives[0][0]}?"
+            message = f"Do you want to wipe {drives[0]}?"
         else:
             message = f"Do you want to wipe selected disks?"
         return message
@@ -449,7 +449,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 if drives_qty > 1:
                     message += "Disks:"
                     for drive in drives:
-                        message += f" {drive[0]}"
+                        message += f" {drive}"
                 else:
                     message += f"Disk: {drives[0]}"
                 if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
