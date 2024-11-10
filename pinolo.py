@@ -184,6 +184,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.images_directory = self.settings.value(LOCAL_IMAGES_DIRECTORY)
             self.default_image = self.settings.value(LOCAL_DEFAULT_IMAGE)
 
+        if self.default_image is not None:
+            self.default_image = os.path.basename(self.default_image)
     def open_url(self, url_type: str):
         url = QUrl(url_type)
         if not QDesktopServices.openUrl(url):
