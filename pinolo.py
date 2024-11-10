@@ -93,7 +93,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def setup(self):
         # Drives table
         self.drivesTableView.setModel(self.drivesTableViewModel)
-        delegate = StatusIconDelegate(self.drivesTableView)
+        delegate = DrivesStatusIconDelegate(self.drivesTableView)
         self.drivesTableView.setItemDelegateForColumn(DRIVES_TABLE_STATUS, delegate)
         self.drivesTableView.addActions([self.actionSleep, self.actionUmount, self.actionShow_SMART_data, self.actionUpload_to_Tarallo])
         self.actionSleep.triggered.connect(self.sleep)
@@ -105,7 +105,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.queueTableView.setModel(self.queueTableViewModel)
         delegate = ProgressBarDelegate(self.queueTableView)
         self.queueTableView.setItemDelegateForColumn(QUEUE_TABLE_PROGRESS, delegate)
-        delegate = StatusIconDelegate(self.queueTableView)
+        delegate = QueueStatusIconDelegate(self.queueTableView)
         self.queueTableView.setItemDelegateForColumn(QUEUE_TABLE_STATUS, delegate)
         self.queueTableView.addActions(
             [self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued]
@@ -832,9 +832,9 @@ class ProgressBarDelegate(QStyledItemDelegate):
             super(ProgressBarDelegate, self).paint(painter, option, index)
 
 
-class StatusIconDelegate(QStyledItemDelegate):
+class QueueStatusIconDelegate(QStyledItemDelegate):
     def __init__(self, parent = None):
-        super(StatusIconDelegate, self).__init__(parent)
+        super(QueueStatusIconDelegate, self).__init__(parent)
         self.icons = {
             "error": QIcon("assets/table/error.png"),
             "started": QIcon("assets/table/progress.png"),
