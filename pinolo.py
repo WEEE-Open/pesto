@@ -144,8 +144,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             warning_dialog(message, dialog_type="ok")
 
         # Connect to server and connect signal to callback
-        reactor.connectTCP(self.host, self.port, self.connection_factory, CLIENT_TIMEOUT)
-        self.connection_factory.data_received.connect(self.gui_update)
+        if self.server_mode == REMOTE_MODE:
+            reactor.connectTCP(self.host, int(self.port), self.connection_factory, CLIENT_TIMEOUT)
+        else:
+            reactor.connectTCP(LOCAL_IP, int(DEFAULT_PORT), self.connection_factory, CLIENT_TIMEOUT)
 
     def send_command(self, msg: str):
         if msg and self.connection_factory.protocol_instance:
@@ -684,6 +686,39 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def _send_sudo_password(self, password: str):
         # password = password.replace('\\', '\\\\').replace(" ", "\\ ")
         self.send_command(f"sudo_password {password}")
+
+    def _check_disk_usage(self):
+        disks_rows = self.diskTable.rowCount()
+        queue_rows = self.queueTableModel.rowCount()
+
+        if queue_rows == 0:
+            return
+
+        # for disk_row in range(disks_rows):
+        #     disk_id = self.diskTable.item(disk_row, DISK_TABLE_DRIVE).text()
+        #     for queue_row in range(queue_rows):
+        #         if disk_id != self.queueTable.item(queue_row, QUEUE_TABLE_DRIVE).text():
+        #             eta = self.queueTable.item(queue_row, QUEUE_TABLE_ETA).text()
+        #             if eta != "":
+
+        if queue_rows > 0 and disks_rows > 0:
+            for disk_row in range(disks_rows + 1):
+                disk_label = self.diskTable.item(disk_row, 0)
+                if disk_label is not None:
+                    disk_label = disk_label.text()
+                    for queue_row in range(queue_rows + 1):
+                        queue_disk_label = self.queueTable.item(queue_row, 2)
+                        queue_progress = self.queueTable.cellWidget(queue_row, 5)
+                        if self.diskTable.item(disk_row, 0).text() in self.current_mountpoints:
+                            continue
+                        if queue_disk_label is not None and queue_progress is not None:
+                            queue_disk_label = queue_disk_label.text()
+                            queue_progress = queue_progress.findChild(QProgressBar).value()
+                            if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
+                                self._decorate_disk(self.diskTable.item(disk_row, 0), True)
+                                break
+                        if queue_row == queue_rows:
+                            self._decorate_disk(self.diskTable.item(disk_row, 0), False)
 
     def _remove_dialog_handler(self, dialog: QDialog):
         self.dialogs.remove(dialog)
