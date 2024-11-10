@@ -484,41 +484,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             print(f"GUI: Sending cannolo to {drive} with {self.default_image}")
             self.send_command(f"queued_cannolo {drive} {self.default_image}")
 
-    def upload_to_tarallo(self, standard_procedure: bool = False):
-        # TODO: check if it's really working
-
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
-            return
-
-        for drive in drives:
-            tarallo_id = self.get_tarallo_id(drive)
-            if not standard_procedure:
-                if tarallo_id != "":
-                    warning_dialog(
-                        f"The drive {drive} already has a TARALLO id.",
-                        dialog_type="ok"
-                    )
-                    continue
-                dialog = warning_dialog(
-                    f"Do you want to create the disk item for {drive} in TARALLO?",
-                    dialog_type="yes_no"
-                )
-                if dialog == QMessageBox.No:
-                    continue
-
-            else:
-                if tarallo_id != "":
-                    continue
-
-            location, ok = input_dialog("Location")
-
-            # If no location is provided or cancel is selected, stop the operation
-            if not ok or location is None or location == "":
-                continue
-
-            self.send_command(f"queued_upload_to_tarallo {drive} {location}")
 
     def sleep(self):
         """This function send to the server a queued_sleep command.
