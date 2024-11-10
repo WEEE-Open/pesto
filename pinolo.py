@@ -648,8 +648,12 @@ class Job:
                 return "Smart check"
             case "queued_cannolo":
                 return "Load system"
+            case "queued_umount":
+                return "Umount"
             case "queued_upload_to_tarallo":
                 return "Upload data"
+            case "queued_sleep":
+                return "Sleep"
             case _:
                 return command
 
