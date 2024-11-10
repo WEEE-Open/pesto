@@ -485,18 +485,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.send_command(f"queued_cannolo {drive} {self.default_image}")
 
 
-    def sleep(self):
-        """This function send to the server a queued_sleep command.
-        If "std" is True it will skip the "no drive selected" check."""
 
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
             return
 
         for drive in drives:
-            drive = drive
-            self.send_command("queued_sleep " + drive)
 
     def refresh(self):
         """This function read the host and port inputs in the settings
