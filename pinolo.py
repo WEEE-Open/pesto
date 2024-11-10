@@ -68,6 +68,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.settings = QSettings()
 
         self.connection_factory = ConnectionFactory(self)
+        self.connection_factory.data_received.connect(self.gui_update)
 
         # Handlers
         self.dialogs = []
