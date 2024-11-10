@@ -476,16 +476,12 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             critical_dialog("There is no default image set in Pinolo settings.", dialog_type="ok")
             return
 
-        if not standard_procedure:
-            self.select_image(image_path)
-            return
+        if standard_procedure:
+            image = self.images_directory + self.default_image
+        else:
+            image = self.select_image(self.images_directory)
 
-        for drive in drives:
-            print(f"GUI: Sending cannolo to {drive} with {self.default_image}")
-            self.send_command(f"queued_cannolo {drive} {self.default_image}")
-
-
-
+        if image is None:
             return
 
         for drive in drives:
@@ -496,84 +492,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         self.client.reconnect(self.host, self.port)
 
-    def queue_table_add_process(self, param: dict):
-        """This function update the queue table with the new entries."""
-
-        # add empty row to queue table
-        new_row = self.queueTable.rowCount()
-        self.queueTable.insertRow(new_row)
-
-        # set pid
-        pid_label = QTableWidgetItem(param["id"])
-        pid_label.setTextAlignment(Qt.AlignCenter)
-        self.queueTable.setItem(new_row, QUEUE_TABLE_ID, pid_label)
-
-        # set process type
-        if param["command"] in QUEUE_LABELS:
-            process_label = QTableWidgetItem(QUEUE_LABELS[param["command"]])
-        else:
-            process_label = QTableWidgetItem("Unknown")
-        process_label.setTextAlignment(Qt.AlignCenter)
-        self.queueTable.setItem(new_row, QUEUE_TABLE_PROCESS, process_label)
-
-        # set disk
-        drive_label = QTableWidgetItem(param["target"])
-        drive_label.setTextAlignment(Qt.AlignCenter)
-        self.queueTable.setItem(new_row, QUEUE_TABLE_DRIVE, drive_label)
-
-        # set status
-        status_label = QLabel()
-        status_label.setPixmap(QPixmap(PATH["PENDING"]).scaled(25, 25, Qt.KeepAspectRatio))
-        status_label.setObjectName(QUEUE_QUEUED)
-        status_label.setAlignment(Qt.AlignCenter)
-        self.queueTable.setCellWidget(new_row, QUEUE_TABLE_STATUS, status_label)
-
-        # set eta
-        eta_label = QLabel("N/D")
-        eta_label.setAlignment(Qt.AlignCenter)
-        self.queueTable.setCellWidget(new_row, QUEUE_TABLE_ETA, eta_label)
-
-        # set progress bar
-        progress_bar = ProgressBar()
-        self.queueTable.setCellWidget(new_row, QUEUE_TABLE_PROGRESS, progress_bar)
-
-    def set_theme(self, theme: str):
-        """This function gets the stylesheet of the theme and sets the dialogs aspect.
-        Only for the Vaporwave theme, it will search a .mp3 file that will be played in background.
-        Just for the meme. asd"""
-
-        if theme == "default":
-            self.app.setStyleSheet("")
-            self.app.setStyleSheet("QWidget {" "font-size: 10pt;" "}")
-            self.asd_gif_set(PATH["ASD"])
-            self.settingsDialog.cannoloLabel.setStyleSheet("color: blue")
-            self.active_theme = "default"
-            self.refreshButton.setIcon(QIcon(PATH["RELOAD"]))
-        else:
-            with open(f"{PATH['THEMES']}{theme}.css", "r") as file:
-                self.app.setStyleSheet(file.read())
-            if self.active_theme == "Vaporwave":
-                self.asd_gif_set(PATH["ASDVAP"])
-                self.refreshButton.setIcon(QIcon(PATH["VAPORWAVERELOAD"]))
-                self.refreshButton.setIconSize(QSize(50, 50))
-            else:
-                self.refreshButton.setIcon(QIcon(PATH["RELOAD"]))
-                self.refreshButton.setIconSize(QSize(25, 25))
-                self.asd_gif_set(PATH["ASD"])
-
-        self.settings.setValue("last_theme", theme)
-        self.active_theme = theme
-
-    def server_com(self, cmd: str, st2: str):
-        """This function tries to reconnect the client to the local server.
-        It will try to find out if the server is already running in background."""
-
-        if cmd == "SERVER_READY":
-            print("GUI: Local server loaded. Connecting...")
-            self.client.reconnect(self.host, self.port)
-        elif cmd == "SERVER_ALREADY_UP":
-            print("GUI: Local server already up. Reconnecting...")
-            self.client.reconnect(self.host, self.port)
 
     def check_disk_usage(self):
         disks_rows = self.diskTable.rowCount()
