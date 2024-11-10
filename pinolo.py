@@ -379,17 +379,19 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         return None
 
     def show_smart_data(self):
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
+        rows = self.drivesTableView.selectionModel().selectedRows()
+        if len(rows) == 0:
             return
+
+        drives = self.drivesTableViewModel.get_selected_drives(rows)
 
         for drive in drives:
             # TODO: check if this works properly
-            if drive in self.smart_results:
-                smart_dialog = SmartDialog(self, drive, self.smart_results[drive])
-                smart_dialog.close_signal.connect(self._remove_dialog_handler)
-                self.dialogs.append(smart_dialog)
+            if drive.smart_data is None:
+                continue
+            smart_dialog = SmartDialog(self, drive.name, drive.smart_data)
+            smart_dialog.close_signal.connect(self._remove_dialog_handler)
+            self.dialogs.append(smart_dialog)
 
     # BUTTONS CALLBACKS
     def refresh(self):
