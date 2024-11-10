@@ -208,10 +208,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
                 return
             image_directory = self.imagesDirectoryLineEdit.text()
             if image_directory == "":
-                warning_dialog(
-                    "The path for the default system image is empty. Set it, plz.",
-                    dialog_type="ok"
-                )
+                warning_dialog("The path for the default system image is empty. Set it, plz.", dialog_type="ok")
                 return
 
             if image_directory[-1] != "/":
@@ -257,12 +254,6 @@ class AsdGif(QMovie):
 
     def setup(self):
         self.setFileName(self.gif_path)
-        self.setScaledSize(
-            QSize().scaled(
-                self.parent.asdLabel.width(),
-                self.parent.asdLabel.height(),
-                Qt.KeepAspectRatio
-            )
-        )
+        self.setScaledSize(QSize().scaled(self.parent.asdLabel.width(), self.parent.asdLabel.height(), Qt.KeepAspectRatio))
         self.start()
         self.parent.asdLabel.setMovie(self)

@@ -97,6 +97,7 @@ class SmartTabs(QtWidgets.QTabWidget):
         self.tabs = []
         self.setTabsClosable(True)
         self.tabCloseRequested.connect(lambda index: self.removeTab(index))
+
     def add_tab(self, drive: str, status: Optional[str], uploaded: bool, text: list):
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()

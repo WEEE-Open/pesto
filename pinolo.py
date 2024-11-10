@@ -39,6 +39,7 @@ from typing import List
 
 # Linter settings
 from twisted.internet.interfaces import IReactorTCP
+
 reactor: IReactorTCP
 
 
@@ -311,7 +312,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         for drive in drives:
             self.send_command("queued_sleep " + drive.name)
 
-    def select_image(self, image_path: str, ):
+    def select_image(
+        self,
+        image_path: str,
+    ):
         self.select_system_dialog = SelectSystemDialog(self)
         self.send_command(f"list_iso {image_path.rstrip('/')}")
         if self.select_system_dialog.exec_() == QDialog.Accepted:
@@ -360,10 +364,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         selected_rows = self.drivesTableView.selectionModel().selectedRows()
 
         if len(selected_rows) == 0:
-            warning_dialog(
-                "There are no selected drives.",
-                dialog_type="ok"
-            )
+            warning_dialog("There are no selected drives.", dialog_type="ok")
             return None
 
         for row in selected_rows:
@@ -1005,6 +1006,7 @@ if __name__ == "__main__":
 
         # Integrate twisted event loop in pyqt loop
         import qt5reactor
+
         qt5reactor.install()
         from twisted.internet import reactor
 
