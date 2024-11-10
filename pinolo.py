@@ -521,6 +521,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.send_command(f"sudo_password {password}")
 
     def _check_disk_usage(self):
+        #TODO: broken
         disks_rows = self.diskTable.rowCount()
         queue_rows = self.queueTableModel.rowCount()
 
