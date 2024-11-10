@@ -43,7 +43,6 @@ reactor: IReactorTCP
 absolute_path(PATH)
 
 
-# UI class
 class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     select_image_requested = pyqtSignal(str)
 
@@ -204,6 +203,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def show_version(self):
         QMessageBox.about(self, "Version", f"Pesto v{VERSION}")
 
+    # QUEUE TABLE ACTIONS
     def queue_stop(self):
         """This function set the "stop" button behaviour on the queue table
         context menu."""
@@ -944,6 +944,7 @@ if __name__ == "__main__":
         window.show()
 
         # Run main loop
+        reactor: IReactorTCP
         reactor.run()
 
     except KeyboardInterrupt:
