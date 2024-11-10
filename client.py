@@ -41,6 +41,7 @@ class ClientProtocol(LineOnlyReceiver):
             self.factory.on_connection(self)
             peer = self.transport.getPeer()
             self.factory.update_host(f"connection_made {peer.host} {peer.port}")
+            print("CLIENT_PROTOCOL: Connection established.")
         except Exception as e:
             print(e)
 
