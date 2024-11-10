@@ -135,25 +135,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def send_command(self, msg: str):
         if msg and self.connection_factory.protocol_instance:
             self.connection_factory.protocol_instance.send_msg(msg)
-
-    def on_table_select(self, selected):
-        """This function set the queue table context menu buttons"""
-
-        sel = selected.count()
-        if sel == 0:
-            self.stop_action.setEnabled(False)
-            self.remove_action.setEnabled(False)
-            self.info_action.setEnabled(False)
-            self.sleep_action.setEnabled(False)
-            self.uploadToTarallo_action.setEnabled(False)
-            self.umount_action.setEnabled(False)
         else:
-            self.stop_action.setEnabled(True)
-            self.remove_action.setEnabled(True)
-            self.info_action.setEnabled(True)
-            self.sleep_action.setEnabled(True)
-            self.uploadToTarallo_action.setEnabled(True)
-            self.umount_action.setEnabled(True)
 
     # noinspection DuplicatedCode
     def set_items_functions(self):
