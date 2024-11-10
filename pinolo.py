@@ -139,18 +139,29 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function try to set the remote configuration used in the last
         pinolo session"""
 
-        self.serverMode = self.settings.value(SERVER_MODE)
-        if self.serverMode == LOCAL_MODE:
-            self.host = DEFAULT_IP
+        # get current server mode
+        self.server_mode = self.settings.value(CURRENT_SERVER_MODE)
+
+        # REMOTE MODE CONFIG
+        if self.server_mode == REMOTE_MODE:
+            # get current configuration
+            self.current_config_key = self.settings.value(CURRENT_SERVER_CONFIG_KEY)
+
+            # get current host and port
+            self.settings.beginGroup(QSETTINGS_IP_GROUP)
+            if self.current_config_key is None:
+                self.host, self.port = (LOCAL_IP, str(DEFAULT_PORT))
+            else:
+                self.host, self.port, self.images_directory, self.default_image = self.settings.value(self.current_config_key)
+            self.settings.endGroup()
+
+        # LOCAL MODE CONFIG
+        else:
+            self.current_config_key = None
+            self.host = LOCAL_IP
             self.port = DEFAULT_PORT
-        if self.serverMode == REMOTE_MODE:
-            try:
-                self.host = self.settings.value(SERVER_IP)
-                self.port = int(self.settings.value(SERVER_PORT))
-                self.default_image = self.settings.value(SERVER_DEFAULT_IMAGE)
-            except (ValueError, TypeError):
-                self.host = DEFAULT_IP
-                self.port = DEFAULT_PORT
+            self.images_directory = self.settings.value(LOCAL_IMAGES_DIRECTORY)
+            self.default_image = self.settings.value(LOCAL_DEFAULT_IMAGE)
 
     def open_url(self, url_type: str):
         url = QUrl(url_type)
