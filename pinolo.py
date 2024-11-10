@@ -302,14 +302,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function send to the server a queued_sleep command.
         If "std" is True it will skip the "no drive selected" check."""
 
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
+        rows = self.drivesTableView.selectionModel().selectedRows()
+        if len(rows) == 0:
             return
 
+        drives = self.drivesTableViewModel.get_selected_drives(rows)
+
         for drive in drives:
-            drive = drive
-            self.send_command("queued_sleep " + drive)
+            self.send_command("queued_sleep " + drive.name)
 
     def select_image(self, image_path: str, ):
         self.select_system_dialog = SelectSystemDialog(self)
