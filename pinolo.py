@@ -76,6 +76,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self._mount_warning_icon = QIcon.fromTheme("dialog-warning")
         self._progress_icon = QIcon(QPixmap(PATH["PROGRESS"]))
 
+        # initialize attributes with latest session parameters (host, port and default system path)
+        self.load_configuration()
+
         # Setup ui functionalities
         self.setup()
 
@@ -83,9 +86,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.connect_to_server()
 
     def setup(self):
-        # initialize attributes with latest session parameters (host, port and default system path)
-        self.load_latest_configuration()
-
         # Disk table
         self.diskTable.addActions([self.actionSleep, self.actionUmount, self.actionShow_SMART_data, self.actionUpload_to_Tarallo])
         self.actionSleep.triggered.connect(self.sleep)
@@ -242,7 +242,56 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 offset += 1
         self.send_command("remove_queued")
 
+    # DISK TABLE ACTIONS
+    def upload_to_tarallo(self, standard_procedure: bool = False):
+        # TODO: check if it's really working
 
+        drives = self.get_multiple_drive_selection()
+
+        if drives is None:
+            return
+
+        for drive in drives:
+            tarallo_id = self.get_tarallo_id(drive)
+            if not standard_procedure:
+                if tarallo_id != "":
+                    warning_dialog(
+                        f"The drive {drive} already has a TARALLO id.",
+                        dialog_type="ok"
+                    )
+                    continue
+                dialog = warning_dialog(
+                    f"Do you want to create the disk item for {drive} in TARALLO?",
+                    dialog_type="yes_no"
+                )
+                if dialog == QMessageBox.No:
+                    continue
+
+            else:
+                if tarallo_id != "":
+                    continue
+
+            location, ok = tarallo_location_dialog(f"Please, set the Tarallo location of drive {drive}.\n"
+                                                   f"Leave blank to avoid upload to Tarallo")
+
+            # If no location is provided or cancel is selected, stop the operation
+            if not ok or location is None or location == "":
+                continue
+
+            self.send_command(f"queued_upload_to_tarallo {drive} {location}")
+
+    def sleep(self):
+        """This function send to the server a queued_sleep command.
+        If "std" is True it will skip the "no drive selected" check."""
+
+        drives = self.get_multiple_drive_selection()
+
+        if drives is None:
+            return
+
+        for drive in drives:
+            drive = drive
+            self.send_command("queued_sleep " + drive)
 
     def select_image(self, image_path: str, ):
         self.select_system_dialog = SelectSystemDialog(self)
