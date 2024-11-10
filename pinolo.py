@@ -91,6 +91,11 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.actionUpload_to_Tarallo.triggered.connect(self.upload_to_tarallo)
 
         # Queue table
+        self.queueTable.setModel(self.queueTableModel)
+        delegate = ProgressBarDelegate(self.queueTable)
+        self.queueTable.setItemDelegateForColumn(QUEUE_TABLE_PROGRESS, delegate)
+        delegate = StatusIconDelegate(self.queueTable)
+        self.queueTable.setItemDelegateForColumn(QUEUE_TABLE_STATUS, delegate)
         self.queueTable.addActions(
             [self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued]
         )
@@ -394,6 +399,16 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 smart_dialog = SmartDialog(self, drive, self.smart_results[drive])
                 smart_dialog.close_signal.connect(self._remove_dialog_handler)
                 self.dialogs.append(smart_dialog)
+
+    # BUTTONS CALLBACKS
+    def refresh(self):
+        """This function read the host and port inputs in the settings
+        tab and try to reconnect to the server, refreshing the disk list."""
+        self._clear_tables()
+        if self.connection_factory.protocol_instance:
+            self.connection_factory.protocol_instance.disconnect()
+        self.connect_to_server()
+
     def standard_procedure(self):
         """This function send to the server a sequence of commands:
         - queued_badblocks
@@ -818,6 +833,247 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if self.connection_factory.protocol_instance:
             self.connection_factory.protocol_instance.disconnect()
         QCoreApplication.instance().quit()
+
+
+class Job:
+    def __init__(self, command_data: dict):
+        self.pid = command_data["id"]
+        self.drive = command_data["target"]
+        self.type = self._format_process_type(command_data["command"])
+        self.status = self._parse_status(command_data)
+        self.progress: float = command_data["percentage"]
+
+        self.status_icon = None
+
+        # Eta attributes
+        self.eta = None
+        self.start_time = time.time()
+
+    def update(self, command_data: dict):
+        self.status = self._parse_status(command_data)
+        self.progress = command_data["percentage"]
+        self._update_eta()
+
+    def _update_eta(self):
+        elapsed_time = time.time() - self.start_time
+        if 0 < self.progress < 100:
+            predicted_total_time = elapsed_time / (self.progress/100)
+            eta = predicted_total_time - elapsed_time
+            self.eta = time.strftime("%H:%M:%S", time.gmtime(eta))
+        else:
+            self.eta = None
+
+    @staticmethod
+    def _format_process_type(command: str):
+        match command:
+            case "queued_badblocks":
+                return "Erase"
+            case "queued_smartctl":
+                return "Smart check"
+            case "queued_cannolo":
+                return "Load system"
+            case "queued_upload_to_tarallo":
+                return "Upload data"
+            case _:
+                return command
+
+    @staticmethod
+    def _parse_status(command_data: list):
+        if command_data["stale"]:
+            return "stale"
+        elif command_data["stopped"]:
+            return "stopped"
+        elif command_data["error"]:
+            return "error"
+        elif command_data["finished"]:  # and not error
+            return "finished"
+        elif command_data["started"]:
+            return "started"
+        else:
+            return "pending"
+
+
+class QueueTableModel(QAbstractTableModel):
+    def __init__(self):
+        super().__init__()
+        self.jobs: List[Job] = []
+        self.header_labels = [
+            "Drive",
+            "Process",
+            "Status",
+            "Eta",
+            "Progress"
+        ]
+
+    def rowCount(self, parent = ...) -> int:
+        return len(self.jobs)
+
+    def columnCount(self, parent = ...) -> int:
+        return len(self.header_labels)
+
+    def headerData(self, section, orientation, role = ...):
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            return self.header_labels[section]
+
+    def data(self, index: QModelIndex, role = ...):
+        # index: specific cell in the table
+
+        match role:
+            case Qt.DisplayRole:
+                job = self.jobs[index.row()]
+                attribute = self.header_labels[index.column()]
+                match attribute:
+                    case "Drive":
+                        return job.drive
+                    case "Process":
+                        return job.type
+                    case "Status":
+                        return job.status
+                    case "Eta":
+                        return job.eta
+                    case "Progress":
+                        return job.progress
+
+            case Qt.TextAlignmentRole:
+                return Qt.AlignHCenter | Qt.AlignVCenter
+            case Qt.ToolTipRole:
+                job = self.jobs[index.row()]
+                if index.column() == QUEUE_TABLE_STATUS:
+                    return job.status
+            case _:
+                return None
+
+
+            # case Qt.DecorationRole:
+            #     if index.column() == QUEUE_TABLE_STATUS:
+            #         return job.status_icon
+
+            # case Qt.UserRole:
+            #     job = self.jobs[index.row()]
+            #     column = index.column()
+            #     if column == QUEUE_TABLE_PROGRESS:
+            #         return job.progress
+
+    def update_table(self, command_data: dict):
+        found_job_idx = self._check_pid(command_data["id"])
+
+        # create row if job does not exist
+        if found_job_idx is None:
+            new_job = Job(command_data)
+            self._insert_row(new_job)
+
+        # update row if job exist
+        else:
+            job = self.jobs[found_job_idx]
+            job.update(command_data)
+            self._update_row(found_job_idx)
+
+    def remove_completed(self):
+        self.beginResetModel()
+        for job in self.jobs[::-1]:
+            if job.status == "finished":
+                self.jobs.remove(job)
+        self.endResetModel()
+
+    def remove_all(self):
+        self.beginResetModel()
+        self.jobs.clear()
+        self.endResetModel()
+
+    def remove_queued(self):
+        self.beginResetModel()
+        for job in self.jobs[::-1]:
+            if job.status == "pending":
+                self.jobs.remove(job)
+        self.endResetModel()
+
+    def remove_row(self, rows: List[QModelIndex]):
+        self.beginResetModel()
+        for index in rows[::-1]:
+            del self.jobs[index.row()]
+        self.endResetModel()
+
+    def get_pid(self, index: QModelIndex):
+        row = index.row()
+        return self.jobs[row].pid
+
+    def _check_pid(self, pid: str):
+        for idx, job in enumerate(self.jobs):
+            if pid == job.pid:
+                return idx
+        return None
+
+    def _update_row(self, row: int):
+        first_cell = self.index(row, 0)
+        last_cell = self.index(row, len(self.header_labels) - 1)
+        self.dataChanged.emit(first_cell, last_cell)
+
+    def _insert_row(self, new_job: Job):
+        self.beginInsertRows(QModelIndex(), len(self.jobs), len(self.jobs))
+        self.jobs.append(new_job)
+        self.endInsertRows()
+
+    def clear(self):
+        self.beginResetModel()
+        self.jobs.clear()
+        self.endResetModel()
+
+
+class ProgressBarDelegate(QStyledItemDelegate):
+    def __init__(self, parent = None):
+        super(ProgressBarDelegate, self).__init__(parent)
+        self.margin = 1
+
+    def paint(self, painter, option, index):
+        if index.column() == QUEUE_TABLE_PROGRESS:
+            progress: float = index.data()
+            if progress is None:
+                progress = 0
+
+            # Create a progress bar widget
+            progress_bar = QProgressBar()
+            progress_bar.setMinimum(0)
+            progress_bar.setMaximum(100*PROGRESS_BAR_SCALE)
+            progress_bar.setValue(int(progress*PROGRESS_BAR_SCALE))
+
+            # Render the progress bar inside the cell
+            rect = option.rect.adjusted(self.margin, 0, -self.margin, 0)
+            progress_bar_height = progress_bar.sizeHint().height()
+            vertical_offset = (rect.height() - progress_bar_height) // 2
+            centered_rect = rect.adjusted(0, vertical_offset, 0, -vertical_offset)
+
+            progress_bar.resize(centered_rect.size())
+            painter.save()
+            painter.translate(option.rect.topLeft())
+            progress_bar.render(painter, QPoint(0, vertical_offset))
+            painter.restore()
+        else:
+            # Default rendering for other columns
+            super(ProgressBarDelegate, self).paint(painter, option, index)
+
+
+class StatusIconDelegate(QStyledItemDelegate):
+    def __init__(self, parent = None):
+        super(StatusIconDelegate, self).__init__(parent)
+        self.icons = {
+            "error": QIcon("assets/table/error.png"),
+            "started": QIcon("assets/table/progress.png"),
+            "pending": QIcon("assets/table/pending.png"),
+            "stop": QIcon("assets/table/stop.png"),
+            "finished": QIcon("assets/table/ok.png")
+        }
+        self.margin = 2
+
+    def paint(self, painter, option, index):
+        if index.column() == QUEUE_TABLE_STATUS:
+            status: str = index.data()
+            if status in self.icons:
+                icon: QIcon = self.icons[status]
+                rect = option.rect.adjusted(self.margin, self.margin, -self.margin, -self.margin)
+                icon.paint(painter, rect)
+                return
+
+        super().paint(painter, option, index)
 
 
 class LocalServer(QThread):
