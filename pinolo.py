@@ -186,6 +186,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         if self.default_image is not None:
             self.default_image = os.path.basename(self.default_image)
+
+    # MENU BAR ACTIONS
     def open_url(self, url_type: str):
         url = QUrl(url_type)
         if not QDesktopServices.openUrl(url):
@@ -203,68 +205,53 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def queue_stop(self):
         """This function set the "stop" button behaviour on the queue table
         context menu."""
+        dialog = warning_dialog(
+            "Do you want to stop the selected processes?",
+            "yes_no"
+        )
+        if dialog == QMessageBox.No:
+            return
 
-        pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
-        message = "Do you want to stop the process?\nID: " + pid
-        if warning_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
+        rows = self.queueTable.selectionModel().selectedRows()
+        for index in rows:
+            pid = self.queueTableModel.get_pid(index)
             self.send_command(f"stop {pid}")
-        self.deselect()
 
-    def queue_remove(self, pid=None, disk=None):
+    def queue_remove(self):
         """This function set the "remove" button behaviour on the queue table
         context menu."""
-        if disk is not None and pid is not None:
-            for row in range(self.queueTable.rowCount()):
-                pid_item = self.queueTable.item(row, 0)
-                if pid_item and f"{pid}" == pid_item.text().split("-")[1]:
-                    disk_item = self.queueTable.item(row, 2)
-                    if disk_item and disk == disk_item.text():
-                        self.send_command(f"remove {pid_item.text()}")
-                        self.queueTable.removeRow(row)
-                        return
+        dialog = warning_dialog(
+            "With this action you will also stop the selected processes.\nDo you want to proceed?",
+            "yes_no"
+        )
+        if dialog == QMessageBox.No:
             return
-        pid = self.queueTable.item(self.queueTable.currentRow(), 0).text()
-        message = "With this action you will also stop the process (ID: " + pid + ")\n"
-        message += "Do you want to proceed?"
-        if warning_dialog(message, dialog_type="yes_no") == QMessageBox.Yes:
-            self.send_command(f"remove {pid}")
-            self.queueTable.removeRow(self.queueTable.currentRow())
-        self.deselect()
+
+        rows = self.queueTable.selectionModel().selectedRows()
+        for index in rows:
+            pid = self.queueTableModel.get_pid(index)
+            self.send_command(f'remove {pid}')
+        self.queueTableModel.remove_row(rows)
 
     def queue_clear(self):
         """This function set the "remove all" button behaviour on the queue table
         context menu."""
 
+        self.queueTableModel.remove_all()
         self.send_command("remove_all")
-        self.queueTable.setRowCount(0)
 
     def queue_clear_completed(self):
         """This function set the "remove completed" button behaviour on the queue table
         context menu."""
 
-        rows = self.queueTable.rowCount()
-        offset = 0
-        for row in range(0, rows):
-            item = self.queueTable.cellWidget(row - offset, 3)
-            status = item.objectName()
-            if status == QUEUE_COMPLETED:
-                self.queueTable.removeRow(row - offset)
-                offset += 1
-
+        self.queueTableModel.remove_completed()
         self.send_command("remove_completed")
 
     def queue_clear_queued(self):
         """This function set the "remove completed" button behaviour on the queue table
         context menu."""
 
-        rows = self.queueTable.rowCount()
-        offset = 0
-        for row in range(0, rows):
-            item = self.queueTable.cellWidget(row - offset, 3)
-            status = item.objectName()
-            if status == QUEUE_QUEUED:
-                self.queueTable.removeRow(row - offset)
-                offset += 1
+        self.queueTableModel.remove_queued()
         self.send_command("remove_queued")
 
     # DISK TABLE ACTIONS
