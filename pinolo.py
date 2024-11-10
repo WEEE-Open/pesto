@@ -500,7 +500,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 del self.current_mountpoints[drive["path"]]
 
     def _clear_tables(self):
-        self.drivesTableView.setRowCount(0)
+        self.drivesTableViewModel.clear()
         self.queueTableViewModel.clear()
 
     def _decorate_disk(self, item: QTableWidgetItem, something_in_progress: bool):
