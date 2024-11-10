@@ -460,10 +460,11 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def load_system(self, standard_procedure=False):
         """This function send to the server a queued_cannolo command.
         If "std" is True it will skip the cannolo dialog."""
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
+        rows = self.drivesTableView.selectionModel().selectedRows()
+        if len(rows) == 0:
             return
+
+        drives = self.drivesTableViewModel.get_selected_drives(rows)
 
         if self.images_directory == "":
             critical_dialog("There is no default image set in Pinolo settings.", dialog_type="ok")
