@@ -44,7 +44,7 @@ absolute_path(PATH)
 
 
 class PinoloMainWindow(QMainWindow, Ui_MainWindow):
-    select_image_requested = pyqtSignal(str)
+    select_image_requested = pyqtSignal(str, bool)
 
     def __init__(self):
         super(PinoloMainWindow, self).__init__()
