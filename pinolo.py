@@ -137,36 +137,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.connection_factory.protocol_instance.send_msg(msg)
         else:
 
-    # noinspection DuplicatedCode
-    def set_items_functions(self):
-        """This function set the widget's function to the respective widget and
-        other widget's constraints"""
-
-        # set icon
-        # self.setWindowIcon(QIcon(PATH["ICON"]))
-
-        # menu actions
-        self.networkSettingsAction.triggered.connect(self.network_settings_dialog.show)
-        self.aboutUsAction.triggered.connect(self.open_website)
-        self.sourceCodeAction.triggered.connect(self.open_source_code)
-        self.versionAction.triggered.connect(self.show_version)
-
-        self.info_action.triggered.connect(self.queue_info)
-        self.queueTable.addAction(self.info_action)
-        self.info_action.setEnabled(False)
-        self.queueTable.selectionModel().selectionChanged.connect(self.on_table_select)
-
-        # find button
-        # self.findButton.clicked.connect(self.find_image)
-
-        # cannolo label
-
-        # if self.remoteMode:
-        #     self.cannoloLabel.setText(
-        #         "When in remote mode, the user must insert manually the cannolo image directory."
-        #     )
-        # else:
-        #     self.cannoloLabel.setText("")
 
     def load_latest_configuration(self):
         """This function try to set the remote configuration used in the last
