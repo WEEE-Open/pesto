@@ -330,36 +330,20 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 dialog.set_default_image_path(image)
 
     def umount(self):
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
+        rows = self.drivesTableView.selectionModel().selectedRows()
+        if len(rows) == 0:
             return
 
-        drives_as_text = " and ".join(drives)
-        mountpoints = []
+        drives = self.drivesTableViewModel.get_selected_drives(rows)
+
+        message = "Are you really sure you want to unmount all partitions of the following drives?\n\n"
         for drive in drives:
-            try:
-                for mp in self.current_mountpoints[drive]:
-                    mountpoints.append(mp)
-            except IndexError:
-                pass
-            except KeyError:
-                pass
-
-        if len(mountpoints) <= 0:
-            return
-
-        mountpoints_as_text = "\n".join(sorted(mountpoints))
-
-        message = f"Are you really sure you want to unmount all partitions of {drives_as_text}?\n"
-        # I love reinventing gettext and solving problems that have been solved since 1995
-        # (maybe we should use the real gettext at some point, even if we don't have translations)
-        if len(drives) <= 1:
-            message += "It has the following mountpoints:\n"
-        else:
-            message += "They have the following mountpoints:\n"
-        message += mountpoints_as_text
-        message += "\nBe careful not to unmount and erase something important."
+            if drive.mounted:
+                mountpoints = str(drive.mountpoints).strip('[').strip(']').strip("'")
+            else:
+                mountpoints = ''
+            message += f"- {drive.name}\t{mountpoints}\n"
+        message += "\n\nBe careful not to unmount and erase something important!"
 
         dialog = warning_dialog(
             message,
@@ -368,7 +352,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         if dialog == QMessageBox.Yes:
             for drive in drives:
-                self.send_command("queued_umount " + drive)
+                self.send_command(f"queued_umount {drive.name}")
 
     def get_multiple_drive_selection(self):
         """This method returns a list with the names of the selected drives on disk_table"""
