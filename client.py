@@ -162,6 +162,7 @@ class ClientProtocol(LineOnlyReceiver):
             be closed gracefully.
         """
         self.transport.loseConnection()
+        print("CLIENT_PROTOCOL: Connection dropped.")
 
 
 class ConnectionFactory(ClientFactory, QObject):
