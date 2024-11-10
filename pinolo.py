@@ -371,13 +371,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         return drives
 
-    def get_tarallo_id(self, drive: str):
-        for row in range(self.drivesTableView.rowCount()):
-            item = self.drivesTableView.item(row, DRIVES_TABLE_NAME)
-            if item.text() == drive:
-                return self.drivesTableView.item(row, DRIVES_TABLE_TARALLO_ID).text()
-        return None
-
     def show_smart_data(self):
         rows = self.drivesTableView.selectionModel().selectedRows()
         if len(rows) == 0:
@@ -597,8 +590,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     warning_dialog(
                         "You did not enter the root password.\n" "Some commands may not work correctly.\n" "Refresh to insert the password.", dialog_type="ok"
                     )
-
-        # self.check_disk_usage()
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         """
@@ -928,6 +919,18 @@ class DrivesTableModel(QAbstractTableModel):
                     drive.update(drive_data)
                     continue
 
+    def get_selected_drives(self, rows: List[QModelIndex]) -> List[Drive]:
+        if rows is None:
+            return None
+        drives = []
+        for index in rows:
+            drives.append(self.drives[index.row()])
+        return drives
+
+    def store_smart_data(self, command_data: dict):
+        for drive in self.drives:
+            if drive.name == command_data["disk"]:
+                drive.smart_data = {"output": command_data["output"], "status": command_data["status"]}
 
     def _resize_columns(self):
         for column in range(3):
