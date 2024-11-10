@@ -182,12 +182,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def show_version(self):
         QMessageBox.about(self, "Version", f"Pesto v{VERSION}")
 
-    def deselect(self):
-        """This function clear the queue table active selection."""
-
-        self.queueTable.clearSelection()
-        self.queueTable.clearFocus()
-
     def queue_stop(self):
         """This function set the "stop" button behaviour on the queue table
         context menu."""
