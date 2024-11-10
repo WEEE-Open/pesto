@@ -264,39 +264,39 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def upload_to_tarallo(self, standard_procedure: bool = False):
         # TODO: check if it's really working
 
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
+        rows = self.drivesTableView.selectionModel().selectedRows()
+        if len(rows) == 0:
             return
 
+        drives = self.drivesTableViewModel.get_selected_drives(rows)
+
         for drive in drives:
-            tarallo_id = self.get_tarallo_id(drive)
             if not standard_procedure:
-                if tarallo_id != "":
+                if drive.tarallo_id is not None:
                     warning_dialog(
-                        f"The drive {drive} already has a TARALLO id.",
+                        f"The drive {drive.name} already has a TARALLO id.",
                         dialog_type="ok"
                     )
                     continue
                 dialog = warning_dialog(
-                    f"Do you want to create the disk item for {drive} in TARALLO?",
+                    f"Do you want to create the disk item for {drive.name} in TARALLO?",
                     dialog_type="yes_no"
                 )
                 if dialog == QMessageBox.No:
                     continue
 
             else:
-                if tarallo_id != "":
+                if drive.tarallo_id != "":
                     continue
 
-            location, ok = tarallo_location_dialog(f"Please, set the Tarallo location of drive {drive}.\n"
+            location, ok = tarallo_location_dialog(f"Please, set the Tarallo location of drive {drive.name}.\n"
                                                    f"Leave blank to avoid upload to Tarallo")
 
             # If no location is provided or cancel is selected, stop the operation
             if not ok or location is None or location == "":
                 continue
 
-            self.send_command(f"queued_upload_to_tarallo {drive} {location}")
+            self.send_command(f"queued_upload_to_tarallo {drive.name} {location}")
 
     def sleep(self):
         """This function send to the server a queued_sleep command.
