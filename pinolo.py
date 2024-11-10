@@ -309,16 +309,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             return image_path + selected_image
         return None
 
-    def load_selected_image(self, image_path: str):
-        image = self.select_image(image_path)
-        drives = self.get_multiple_drive_selection()
-
-        if image is None or drives is None:
-            return
-
-        for drive in drives:
-            self.send_command(f"queued_cannolo {drive} {image}")
-
     def set_default_image(self, image_path: str):
         image = self.select_image(image_path)
 
