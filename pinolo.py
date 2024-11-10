@@ -530,40 +530,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         # password = password.replace('\\', '\\\\').replace(" ", "\\ ")
         self.send_command(f"sudo_password {password}")
 
-    def _check_disk_usage(self):
-        #TODO: broken
-        disks_rows = self.drivesTableView.rowCount()
-        queue_rows = self.queueTableViewModel.rowCount()
-
-        if queue_rows == 0:
-            return
-
-        # for disk_row in range(disks_rows):
-        #     disk_id = self.drivesTableView.item(disk_row, DISK_TABLE_DRIVE).text()
-        #     for queue_row in range(queue_rows):
-        #         if disk_id != self.queueTableView.item(queue_row, QUEUE_TABLE_DRIVE).text():
-        #             eta = self.queueTableView.item(queue_row, QUEUE_TABLE_ETA).text()
-        #             if eta != "":
-
-        if queue_rows > 0 and disks_rows > 0:
-            for disk_row in range(disks_rows + 1):
-                disk_label = self.drivesTableView.item(disk_row, 0)
-                if disk_label is not None:
-                    disk_label = disk_label.text()
-                    for queue_row in range(queue_rows + 1):
-                        queue_disk_label = self.queueTableView.item(queue_row, 2)
-                        queue_progress = self.queueTableView.cellWidget(queue_row, 5)
-                        if self.drivesTableView.item(disk_row, 0).text() in self.current_mountpoints:
-                            continue
-                        if queue_disk_label is not None and queue_progress is not None:
-                            queue_disk_label = queue_disk_label.text()
-                            queue_progress = queue_progress.findChild(QProgressBar).value()
-                            if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
-                                self._decorate_disk(self.drivesTableView.item(disk_row, 0), True)
-                                break
-                        if queue_row == queue_rows:
-                            self._decorate_disk(self.drivesTableView.item(disk_row, 0), False)
-
     def _remove_dialog_handler(self, dialog: QDialog):
         self.dialogs.remove(dialog)
 
