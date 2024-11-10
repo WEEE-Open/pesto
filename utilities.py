@@ -50,7 +50,7 @@ def warning_dialog(message: str, dialog_type: str):
         dialog.setStandardButtons(QtWidgets.QMessageBox.Yes)
         dialog.addButton(QtWidgets.QMessageBox.No)
         dialog.setDefaultButton(QtWidgets.QMessageBox.No)
-        check_box = QtWidgets.QCheckBox("Click here to load cannolo image.")
+        check_box = QtWidgets.QCheckBox("Click here to load default image on selected drives.")
         dialog.setCheckBox(check_box)
         result = [dialog.exec_(), True if check_box.isChecked() else False]
         return result
@@ -62,9 +62,9 @@ def warning_dialog(message: str, dialog_type: str):
         return dialog.exec_()
 
 
-def input_dialog(message: str):
+def tarallo_location_dialog(message: str):
     dialog = QtWidgets.QInputDialog()
-    loc, ok = dialog.getText(dialog, "Input dialog", message, QtWidgets.QLineEdit.Normal)
+    loc, ok = dialog.getText(dialog, "Set Tarallo location", message, QtWidgets.QLineEdit.Normal)
     return loc, ok
 
 
@@ -148,5 +148,6 @@ class ProgressBar(QWidget):
         self.setLayout(QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().addWidget(self.progress_bar)
+
     def setValue(self, value: int):
         self.progress_bar.setValue(value)
