@@ -913,10 +913,10 @@ class DrivesTableModel(QAbstractTableModel):
             case _:
                 return None
 
-    def load_data(self, drives: List[dict]):
-        for drive in drives:
+    def load_data(self, command_data: List[dict]):
+        for drive_data in command_data:
             self.beginInsertRows(QModelIndex(), len(self.drives), len(self.drives))
-            self.drives.append(Drive(drive))
+            self.drives.append(Drive(drive_data))
             self.endInsertRows()
         self._resize_columns()
 
