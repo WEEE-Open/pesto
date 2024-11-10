@@ -553,16 +553,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 self.send_msg("get_disks")
 
             case "get_disks":
-                self.drivesTableViewModel.load_data(command_data)
+                if self.drivesTableViewModel.rowCount() > 0:
+                    self.drivesTableViewModel.update_data(command_data)
+                else:
+                    self.drivesTableViewModel.load_data(command_data)
 
             case "smartctl" | "queued_smartctl":
-                # if params["status"] == "password_required":
-                #     passwd, ok = QInputDialog.getText(self, "Input Password", "Enter server sudo password:", QLineEdit.Password)
-                #     if ok:
-                #         self.smart_check(False, passwd)
-                #         self.queue_remove(params["pid"], params["disk"])
-                #     return
-                self.smart_results[command_data["disk"]] = {"output": command_data["output"], "status": command_data["status"]}
+                self.drivesTableViewModel.store_smart_data(command_data)
+                # self.smart_results[command_data["disk"]] = {"output": command_data["output"], "status": command_data["status"]}
 
             case "connection_failed":
                 self.statusbar.showMessage(f"⚠ Connection failed. Check settings and try to reconnect.")
