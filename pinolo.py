@@ -54,9 +54,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.default_image = None
         self.serverMode = None
         self.active_theme = None
-        self.select_system_dialog: SelectSystemDialog = None
-        self.selected_drive = None
-        self.timeKeeper = {}
 
         self.current_mountpoints = dict()
         self.smart_results = {}
