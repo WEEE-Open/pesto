@@ -448,13 +448,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function send to the server a queued_smartctl command.
         If "std" is True it will skip the "no drive selected" check."""
 
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
+        rows = self.drivesTableView.selectionModel().selectedRows()
+        if len(rows) == 0:
             return
 
+        drives = self.drivesTableViewModel.get_selected_drives(rows)
+
         for drive in drives:
-            self.send_command("queued_smartctl " + drive)
+            self.send_command(f"queued_smartctl {drive.name}")
 
     def load_system(self, standard_procedure=False):
         """This function send to the server a queued_cannolo command.
