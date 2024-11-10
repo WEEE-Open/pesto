@@ -479,8 +479,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             return
 
         for drive in drives:
-            print(f"GUI: Sending cannolo to {drive} with {image}")
-            self.send_command(f"queued_cannolo {drive} {image}")
+            print(f"GUI: Sending cannolo to {drive.name} with {image}")
+            self.send_command(f"queued_cannolo {drive.name} {image}")
 
     # INTERNAL METHODS
     def _set_disk_table_item(self, table: QTableWidget, row: int, drive: dict):
