@@ -382,6 +382,18 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 return self.diskTable.item(row, DISK_TABLE_TARALLO_ID).text()
         return None
 
+    def show_smart_data(self):
+        drives = self.get_multiple_drive_selection()
+
+        if drives is None:
+            return
+
+        for drive in drives:
+            # TODO: check if this works properly
+            if drive in self.smart_results:
+                smart_dialog = SmartDialog(self, drive, self.smart_results[drive])
+                smart_dialog.close_signal.connect(self._remove_dialog_handler)
+                self.dialogs.append(smart_dialog)
     def standard_procedure(self):
         """This function send to the server a sequence of commands:
         - queued_badblocks
@@ -436,21 +448,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         for drive in drives:
             self.send_command("queued_smartctl " + drive)
 
-    def show_smart_data(self):
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
-            return
-
-        for drive in drives:
-            # TODO: check if this works properly
-            if drive in self.smart_results:
-                self.smart_widgets[drive] = SmartWidget(drive, self.smart_results[drive])
-                self.smart_widgets[drive].close_signal.connect(self.remove_smart_widget)
-
-    def remove_smart_widget(self, drive: str):
-        del self.smart_widgets[drive]
-
     def load_system(self, standard_procedure=False):
         """This function send to the server a queued_cannolo command.
         If "std" is True it will skip the cannolo dialog."""
@@ -459,9 +456,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if drives is None:
             return
 
-        if self.default_image:
-            image_path = os.path.dirname(self.default_image)
-        else:
+        if self.images_directory == "":
             critical_dialog("There is no default image set in Pinolo settings.", dialog_type="ok")
             return
 
