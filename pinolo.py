@@ -8,31 +8,33 @@ Created on Fri Jul 30 10:54:18 2021
 import json
 import os.path
 import sys
+import time
 
 from client import ConnectionFactory
 
 from utilities import *
 from ui.PinoloMainWindow import Ui_MainWindow
 from dialogs.NetworkSettings import NetworkSettings
-from dialogs.SmartWidget import SmartWidget
+from dialogs.SmartDialog import SmartDialog
 from dialogs.SelectSystem import SelectSystemDialog
 from typing import Union
 from dotenv import load_dotenv
 from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap, QCloseEvent
-from PyQt5.QtCore import Qt, QSettings, QSize, pyqtSignal, QThread, QUrl, pyqtSlot, QCoreApplication
+from PyQt5.QtCore import Qt, QSettings, pyqtSignal, QThread, QUrl, pyqtSlot, QCoreApplication, \
+    QAbstractTableModel, QModelIndex, QPoint
 from PyQt5.QtWidgets import (
     QTableWidgetItem,
     QTableWidget,
     QMessageBox,
     QMainWindow,
-    QLabel,
     QProgressBar,
     QInputDialog,
     QLineEdit,
     QDialog,
+    QStyledItemDelegate
 )
 from constants import *
-from datetime import datetime, timedelta
+from typing import List
 
 # Linter settings
 from twisted.internet.interfaces import IReactorTCP
