@@ -433,7 +433,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             return
         self.upload_to_tarallo(standard_procedure=True)
         self.erase(standard_procedure=True)
-        self.smart_check(standard_procedure=True)
+        self.smart_check()
         if standard_procedure_dialog[1]:
             self.load_system(standard_procedure=True)
 
