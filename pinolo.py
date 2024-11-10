@@ -895,6 +895,67 @@ class StatusIconDelegate(QStyledItemDelegate):
         super().paint(painter, option, index)
 
 
+class Drive:
+    def __init__(self, data: dict):
+        self.name = None
+        self.status = None
+        self.tarallo_id = None
+        self.size = None
+
+
+class DrivesTableModel(QAbstractTableModel):
+    def __init__(self):
+        super().__init__()
+        self.drives: List[Drive] = []
+        self.header_labels = [
+            "Drive",
+            "Status",
+            "Tarallo ID",
+            "Size"
+        ]
+
+    def rowCount(self, parent = ...) -> int:
+        return len(self.drives)
+
+    def columnCount(self, parent = ...) -> int:
+        return len(self.header_labels)
+
+    def headerData(self, section, orientation, role = ...):
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            return self.header_labels[section]
+
+    def data(self, index: QModelIndex, role = ...):
+        # index: specific cell in the table
+
+        match role:
+            case Qt.DisplayRole:
+                drive = self.drives[index.row()]
+                attribute = self.header_labels[index.column()]
+                match attribute:
+                    case "Drive":
+                        return drive.name
+                    case "Status":
+                        return drive.status
+                    case "Tarallo ID":
+                        return drive.tarallo_id
+                    case "Size":
+                        return drive.size
+
+            case Qt.TextAlignmentRole:
+                return Qt.AlignLeft | Qt.AlignVCenter
+            case Qt.ToolTipRole:
+                drive = self.drives[index.row()]
+                if index.column() == DRIVES_TABLE_STATUS:
+                    return drive.status
+            case _:
+                return None
+
+    def clear(self):
+        self.beginResetModel()
+        self.drives.clear()
+        self.endResetModel()
+
+
 class LocalServer(QThread):
     update = pyqtSignal(str, str, name="update")
 
