@@ -384,9 +384,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def get_tarallo_id(self, drive: str):
         for row in range(self.diskTable.rowCount()):
-            item = self.diskTable.item(row, DISK_TABLE_DRIVE)
+            item = self.diskTable.item(row, DRIVES_TABLE_NAME)
             if item.text() == drive:
-                return self.diskTable.item(row, DISK_TABLE_TARALLO_ID).text()
+                return self.diskTable.item(row, DRIVES_TABLE_TARALLO_ID).text()
         return None
 
     def show_smart_data(self):
