@@ -30,12 +30,6 @@ def critical_dialog(message, dialog_type):
             return False
 
 
-def info_dialog(message):
-    dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, "Info", message)
-    dialog.setStandardButtons(QtWidgets.QMessageBox.Ok)
-    dialog.exec_()
-
-
 def warning_dialog(message: str, dialog_type: str):
     dialog = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Warning, "Warning", message)
     if dialog_type == "yes_no":
@@ -66,16 +60,6 @@ def tarallo_location_dialog(message: str):
     dialog = QtWidgets.QInputDialog()
     loc, ok = dialog.getText(dialog, "Set Tarallo location", message, QtWidgets.QLineEdit.Normal)
     return loc, ok
-
-
-def check_requirements(requirements_path):
-    p = subprocess.Popen(["pip", "install", "-r", requirements_path, "--quiet"])
-    p.wait()
-
-
-def absolute_path(big_path: {}):
-    for path in big_path:
-        big_path[path] = os.path.dirname(os.path.realpath(__file__)) + big_path[path]
 
 
 def set_stylesheet(app, path):

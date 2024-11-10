@@ -40,8 +40,6 @@ from typing import List
 from twisted.internet.interfaces import IReactorTCP
 reactor: IReactorTCP
 
-absolute_path(PATH)
-
 
 class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     select_image_requested = pyqtSignal(str, bool)
