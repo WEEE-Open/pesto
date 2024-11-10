@@ -1,21 +1,21 @@
 import json
-import sys
-
 from PyQt5.QtGui import QFont, QBrush, QColor
-
 from ui.SmartDataDialog import Ui_SmartDataDialog
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QWidget, QTreeWidgetItem, QFileDialog
+from PyQt5.QtWidgets import QTreeWidgetItem, QFileDialog, QDialog
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from pinolo import PinoloMainWindow
 
-class SmartWidget(QWidget, Ui_SmartDataDialog):
-    close_signal = pyqtSignal(str, name="close")
+class SmartDialog(QDialog, Ui_SmartDataDialog):
+    close_signal = pyqtSignal(QDialog)
 
-    def __init__(self, drive: str, smart_results: dict):
-        super(SmartWidget, self).__init__()
+    def __init__(self, parent: 'PinoloMainWindow', drive: str, smart_results: dict):
+        super(SmartDialog, self).__init__(parent)
         self.setupUi(self)
 
-        # Initialize drive related variables
+        self.parent = parent
         self.drive = drive
         self.smart_results = json.loads(smart_results["output"])
         self.smart_status = smart_results["status"]
@@ -144,3 +144,6 @@ class SmartWidget(QWidget, Ui_SmartDataDialog):
         if file_path:
             with open(f"{file_path}.json", "w") as json_file:
                 json.dump(self.smart_results, json_file, indent=4)
+
+    def closeEvent(self, a0):
+        self.close_signal.emit(self)
