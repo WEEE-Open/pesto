@@ -485,13 +485,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             return
 
         for drive in drives:
-
-    def refresh(self):
-        """This function read the host and port inputs in the settings
-        tab and try to reconnect to the server, refreshing the disk list."""
-
-        self.client.reconnect(self.host, self.port)
-
+            print(f"GUI: Sending cannolo to {drive} with {image}")
+            self.send_command(f"queued_cannolo {drive} {image}")
 
     def check_disk_usage(self):
         disks_rows = self.diskTable.rowCount()
@@ -541,11 +536,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         else:
             item.setIcon(QIcon())
             item.setToolTip(None)
-
-    def resize_queue_table_to_contents(self):
-        for col in range(self.queueTable.columnCount() - 1):
-            self.queueTable.resizeColumnToContents(col)
-            self.queueTable.setColumnWidth(col, self.queueTable.columnWidth(col) + 20)
 
     def _send_sudo_password(self, password: str):
         # password = password.replace('\\', '\\\\').replace(" ", "\\ ")
