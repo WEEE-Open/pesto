@@ -772,17 +772,6 @@ class QueueTableModel(QAbstractTableModel):
             case _:
                 return None
 
-
-            # case Qt.DecorationRole:
-            #     if index.column() == QUEUE_TABLE_STATUS:
-            #         return job.status_icon
-
-            # case Qt.UserRole:
-            #     job = self.jobs[index.row()]
-            #     column = index.column()
-            #     if column == QUEUE_TABLE_PROGRESS:
-            #         return job.progress
-
     def update_table(self, command_data: dict):
         found_job_idx = self._check_pid(command_data["id"])
 
