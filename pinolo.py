@@ -53,6 +53,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.port = DEFAULT_PORT
         self.default_image = None
         self.serverMode = None
+        self.queueTableModel = QueueTableModel()
         self.active_theme = None
 
         self.current_mountpoints = dict()
