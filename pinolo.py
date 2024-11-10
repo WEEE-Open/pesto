@@ -410,10 +410,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         - queued_sleep
         """
 
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
+        rows = self.drivesTableView.selectionModel().selectedRows()
+        if len(rows) == 0:
             return
+
         standard_procedure_dialog = warning_dialog(
             "Do you want to wipe all disk's data and load a fresh system image?",
             dialog_type="yes_no_chk"
