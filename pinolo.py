@@ -431,18 +431,18 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function send to the server a queued_badblocks command.
         If "std" is True it will skip the confirm dialog."""
 
-        # noinspection PyBroadException
-        drives = self.get_multiple_drive_selection()
-
-        if drives is None:
+        rows = self.drivesTableView.selectionModel().selectedRows()
+        if len(rows) == 0:
             return
+
+        drives = self.drivesTableViewModel.get_selected_drives(rows)
 
         if not standard_procedure:
             message = f"Do you want to wipe all selected disks' data?\n"
             if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
                 return
         for drive in drives:
-            self.send_command("queued_badblocks " + drive)
+            self.send_command(f"queued_badblocks {drive.name}")
 
     def smart_check(self):
         """This function send to the server a queued_smartctl command.
