@@ -848,12 +848,21 @@ class QueueStatusIconDelegate(QStyledItemDelegate):
 
 
 class Drive:
-    def __init__(self, drive: dict):
-        self.name = drive["path"]
-        self.mounted = True if drive["mountpoint"] else False
-        self.status = None
-        self.tarallo_id = drive["code"]
-        self.size = drive["size"]
+    def __init__(self, drive_data: dict):
+        self.name = drive_data["path"]
+        self.mounted = True if drive_data["mountpoint"] else False
+        self.mountpoints = drive_data["mountpoint"] if self.mounted else None
+        self.serial = drive_data["serial"]
+        self.size = drive_data["size"]
+        self.smart_data = None
+        self.status = "warning" if self.mounted else None
+        self.tarallo_id = drive_data["code"]
+
+    def update(self, drive_data: dict):
+        self.mounted = True if drive_data["mountpoint"] else False
+        self.mountpoints = drive_data["mountpoint"] if self.mounted else None
+        self.status = "warning" if self.mounted else None
+        self.tarallo_id = drive_data["code"]
 
 
 class DrivesTableModel(QAbstractTableModel):
