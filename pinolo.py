@@ -558,7 +558,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.dialogs.remove(dialog)
 
     @pyqtSlot(str, str)
-    def gui_update(self, cmd: str, params: str):
+    def gui_update(self, command: str, command_data: str):
         """
         This function gets all the server responses and update, if possible, the UI.
 
@@ -569,77 +569,27 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             queue_status --> Information about badblocks process
 
         """
-        if len(params) > 0:
+        if len(command_data) > 0:
             try:
-                params = json.loads(params)
-                params: Union[dict, list]
+                command_data = json.loads(command_data)
+                command_data: Union[dict, list]
             except json.decoder.JSONDecodeError:
-                print(f"GUI: Ignored exception while parsing {cmd}, expected JSON but this isn't: {params}")
+                print(f"GUI: Ignored exception while parsing {command}, expected JSON but this isn't: {command_data}")
 
-        match cmd:
+        match command:
             case "queue_status" | "get_queue":
-                if cmd == "queue_status":
-                    params = [params]
-                for param in params:
-                    param: dict
-                    row = 0
-                    rows = self.queueTable.rowCount()
-                    for row in range(rows + 1):
-                        # Check if we already have that id
-                        item = self.queueTable.item(row, QUEUE_TABLE_ID)
-                        if item is not None and item.text() == param["id"]:
-                            break
-                        elif item is None:
-                            # self.queue_table_add_process(
-                            #     pid=param["id"],
-                            #     drive=param["target"],
-                            #     mode=param["command"],
-                            # )
-                            self.queue_table_add_process(param)
-                            rows += 1
-                    progress_bar = self.queueTable.cellWidget(row, 5).findChild(QProgressBar)
-                    status_cell = self.queueTable.cellWidget(row, 3)
-                    eta_cell = self.queueTable.cellWidget(row, 4)
-                    if param["id"] in self.timeKeeper:
-                        deltatime = (datetime.now() - self.timeKeeper[param["id"]]["time"]).seconds
-                        deltaperc = param["percentage"] - self.timeKeeper[param["id"]]["perc"]
-                        try:
-                            seconds = (100 - param["percentage"]) / (deltaperc / deltatime)
-                            eta = str(timedelta(seconds=seconds)).split(".")[0]
-                        except ZeroDivisionError:
-                            eta = eta_cell.text()
-                        eta_cell.setText(eta)
-                    progress_bar.setValue(int(param["percentage"] * PROGRESS_BAR_SCALE))
-                    self.timeKeeper[param["id"]] = {"perc": param["percentage"], "time": datetime.now()}
-
-                    if param["stale"]:
-                        # TODO: we don't have an icon for this, maybe we should
-                        pass
-                    elif param["stopped"]:
-                        status_cell.setPixmap(QPixmap(PATH["STOP"]).scaledToHeight(25, Qt.SmoothTransformation))
-                        status_cell.setObjectName(QUEUE_COMPLETED)
-                    elif param["error"]:
-                        status_cell.setPixmap(QPixmap(PATH["ERROR"]).scaledToHeight(25, Qt.SmoothTransformation))
-                        status_cell.setObjectName(QUEUE_COMPLETED)
-                    elif param["finished"]:  # and not error
-                        status_cell.setPixmap(QPixmap(PATH["OK"]).scaledToHeight(25, Qt.SmoothTransformation))
-                        status_cell.setObjectName(QUEUE_COMPLETED)
-                    elif param["started"]:
-                        status_cell.setPixmap(QPixmap(PATH["PROGRESS"]).scaledToHeight(25, Qt.SmoothTransformation))
-                        status_cell.setObjectName(QUEUE_PROGRESS)
-                        self.resize_queue_table_to_contents()
-                    else:
-                        status_cell.setPixmap(QPixmap(PATH["PENDING"]).scaledToHeight(25, Qt.SmoothTransformation))
-                        status_cell.setObjectName(QUEUE_QUEUED)
-
-                    if "text" in param:
-                        status_cell.setToolTip(param["text"])
+                # if cmd == "queue_status":
+                #     params = [params]
+                if isinstance(command_data, dict):
+                    command_data = [command_data]
+                for data in command_data:
+                    self.queueTableModel.update_table(data)
 
             case "queued_umount":
                 self.send_msg("get_disks")
 
             case "get_disks":
-                drives = params
+                drives = command_data
                 self.current_mountpoints = dict()
 
                 if len(drives) <= 0:
@@ -648,7 +598,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                     # compile disks table with disks list
                 for row, d in enumerate(drives):
                     d: dict
-                    self.set_disk_table_item(self.diskTable, row, d)
+                    self._set_disk_table_item(self.diskTable, row, d)
                 self.diskTable.resizeColumnToContents(0)
                 self.diskTable.resizeColumnToContents(1)
 
@@ -659,40 +609,33 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 #         self.smart_check(False, passwd)
                 #         self.queue_remove(params["pid"], params["disk"])
                 #     return
-                self.smart_results[params["disk"]] = {"output": params["output"], "status": params["status"]}
+                self.smart_results[command_data["disk"]] = {"output": command_data["output"], "status": command_data["status"]}
 
-            case " connection_failed":
-                message = params["reason"]
-                if not self.serverMode:
-                    print("GUI: Connection Failed: Local server not running.")
-                    print("GUI: Trying to start local server...")
-                    self.localServer.start()
-                    return
-                if "Connection was refused by other side" in message:
-                    message = "Cannot find BASILICO server.\nCheck if it's running in the " "targeted machine."
-                warning_dialog(message, dialog_type="ok")
+            case "connection_failed":
+                self.statusbar.showMessage(f"⚠ Connection failed. Check settings and try to reconnect.")
+                self._clear_tables()
+                pass
 
             case "connection_lost":
-                self.statusbar.showMessage(f"⚠ Connection lost. Press the reload button to reconnect.")
-                self.queueTable.setRowCount(0)
-                self.diskTable.setRowCount(0)
+                self.statusbar.showMessage(f"⚠ Connection lost.")
+                self._clear_tables()
 
             case "connection_made":
-                self.statusbar.showMessage(f"Connected to {params['host']}:{params['port']}")
+                self.statusbar.showMessage(f"Connected to {command_data['host']}:{command_data['port']}")
                 self.connection_factory.protocol_instance.send_msg("get_disks")
                 self.connection_factory.protocol_instance.send_msg("get_queue")
 
             case "list_iso":
-                self.select_system_dialog.load_images(params)
+                self.select_system_dialog.load_images(command_data)
 
             case "error":
-                message = f"{params['message']}"
-                if "command" in params:
-                    message += f":\n{params['command']}"
+                message = f"{command_data['message']}"
+                if "command" in command_data:
+                    message += f":\n{command_data['command']}"
                 critical_dialog(message, dialog_type="ok")
 
             case "error_that_can_be_manually_fixed":
-                message = params["message"]
+                message = command_data["message"]
                 warning_dialog(message, dialog_type="ok")
 
             case "sudo_password":
@@ -704,7 +647,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                         "You did not enter the root password.\n" "Some commands may not work correctly.\n" "Refresh to insert the password.", dialog_type="ok"
                     )
 
-        self.check_disk_usage()
+        # self.check_disk_usage()
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         """
