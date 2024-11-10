@@ -121,6 +121,13 @@
            </spacer>
           </item>
           <item>
+           <widget class="QPushButton" name="connectButton">
+            <property name="text">
+             <string>Connect</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="deleteConfigButton">
             <property name="text">
              <string>Delete this IP</string>

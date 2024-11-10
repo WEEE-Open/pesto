@@ -17,3 +17,4 @@ typing_extensions==4.3.0
 urllib3==1.26.19
 zope.interface==5.4.0
 python-daemon
+qt5reactor~=0.6.3

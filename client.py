@@ -41,6 +41,7 @@ class ClientProtocol(LineOnlyReceiver):
             self.factory.on_connection(self)
             peer = self.transport.getPeer()
             self.factory.update_host(f"connection_made {peer.host} {peer.port}")
+            print("CLIENT_PROTOCOL: Connection established.")
         except Exception as e:
             print(e)
 
@@ -161,6 +162,7 @@ class ClientProtocol(LineOnlyReceiver):
             be closed gracefully.
         """
         self.transport.loseConnection()
+        print("CLIENT_PROTOCOL: Connection dropped.")
 
 
 class ConnectionFactory(ClientFactory, QObject):
@@ -182,11 +184,11 @@ class ConnectionFactory(ClientFactory, QObject):
         print("CLIENT_FACTORY: Connecting.")
 
     def clientConnectionFailed(self, connector, reason):
-        print(f"CLIENT_FACTORY: Lost connection. Reason: {reason}")
-        self.data_received.emit("connection_lost", str(reason.value))
+        print(f"CLIENT_FACTORY: Connection failed. Reason: {reason.value}")
+        self.data_received.emit("connection_failed", json.dumps({"reason": str(reason.value)}))
 
     def clientConnectionLost(self, connector, reason):
-        print(f"CLIENT_FACTORY: Lost connection. Reason: {reason}")
+        print(f"CLIENT_FACTORY: Lost connection. Reason: {reason.value}")
 
     def update_host(self, line: str):
         """Processes the given line to extract command and arguments, then emits the data.

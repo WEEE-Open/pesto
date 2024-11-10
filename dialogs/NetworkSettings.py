@@ -11,7 +11,6 @@ from utilities import warning_dialog
 from constants import *
 from ui.NetworkSettingsDialog import Ui_NetworkSettingsDialog
 from typing import TYPE_CHECKING
-from dialogs.SelectSystem import SelectSystemDialog
 
 if TYPE_CHECKING:
     from pinolo import PinoloMainWindow
@@ -19,115 +18,145 @@ if TYPE_CHECKING:
 
 class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
     found_image = pyqtSignal(str)
+    close_signal = pyqtSignal(QDialog)
+    update_configuration = pyqtSignal()
 
     def __init__(self, parent: "PinoloMainWindow"):
-        super(NetworkSettings, self).__init__()
+        super(NetworkSettings, self).__init__(parent)
         self.setupUi(self)
 
         self.parent = parent
         self.settings = QSettings()
         self.asdGif = AsdGif(self)
 
+        self.host = None
+        self.port = None
+        self.current_config_key = None
+        self.images_directory = None
+        self.default_image = None
+        self.server_mode = None
+
         self.setup()
 
     def setup(self):
-        self.init_server_mode()
+        self.get_settings()
         self.init_buttons()
-        self.init_line_edits()
+        self.init_connection_settings()
+        self.init_system_image_settings()
 
         self.found_image.connect(self.set_default_image_path)
-
-    def init_server_mode(self):
-        server_mode = self.settings.value(SERVER_MODE)
-        if server_mode is None:
-            self.serverModeComboBox.setCurrentIndex(0)
-            return
-        self.serverModeComboBox.setCurrentText(server_mode)
 
     def init_buttons(self):
         self.saveButton.clicked.connect(self.save)
         self.cancelButton.clicked.connect(self.cancel)
         self.deleteConfigButton.clicked.connect(self.delete_config)
+        self.connectButton.clicked.connect(self.connect)
         self.findButton.clicked.connect(self.find_image)
 
-    def init_line_edits(self):
-        host = self.settings.value(SERVER_IP)
-        port = self.settings.value(SERVER_PORT)
-        images_directory = self.settings.value(SERVER_IMAGES_DIRECTORY)
-        default_image = self.settings.value(SERVER_DEFAULT_IMAGE)
-
-        if default_image is not None:
-            default_image = os.path.basename(default_image)
-
-        # server ip
-        if host is None:
-            self.serverIpLineEdit.setText(DEFAULT_IP)
+    def init_connection_settings(self):
+        # set combo box
+        if self.server_mode == LOCAL_MODE:
+            self.serverModeComboBox.setCurrentIndex(0)
         else:
-            self.serverIpLineEdit.setText(host)
+            self.serverModeComboBox.setCurrentIndex(1)
+        self.serverModeComboBox.currentTextChanged.connect(self.update_line_edits)
+
+        # set server ip line edits
+        if self.server_mode == LOCAL_MODE:
+            self.serverIpLineEdit.setReadOnly(True)
+            self.serverPortLineEdit.setReadOnly(True)
+
+        if self.host is None:
+            self.serverIpLineEdit.setText(LOCAL_IP)
+        else:
+            self.serverIpLineEdit.setText(self.host)
         self.load_completer()
 
-        # server port
-        if port is None:
+        # set server port line edits
+        if self.port is None:
             self.serverPortLineEdit.setText(str(DEFAULT_PORT))
         else:
-            self.serverPortLineEdit.setText(port)
+            self.serverPortLineEdit.setText(self.port)
 
-        # images directory
-        self.imagesDirectoryLineEdit.setText(images_directory)
+        self.init_system_image_settings()
+
+    def init_system_image_settings(self):
+        # set images directory line edit
+        self.imagesDirectoryLineEdit.setText(self.images_directory)
         self.imagesDirectoryLineEdit.textChanged.connect(self.defaultImageLineEdit.clear)
+        # set default image line edit
+        self.defaultImageLineEdit.setText(self.default_image)
 
-        # default image
-        self.defaultImageLineEdit.setText(default_image)
+    def get_settings(self):
+        # get current server mode
+        self.server_mode = self.settings.value(CURRENT_SERVER_MODE)
+        if self.server_mode is None:
+            self.server_mode = LOCAL_MODE
 
-    def save(self):
-        self.save_config()
+        # get current configuration
+        self.current_config_key = self.settings.value(CURRENT_SERVER_CONFIG_KEY)
 
-        server_mode = self.serverModeComboBox.currentText()
-        host = self.serverIpLineEdit.text()
-        port = self.serverPortLineEdit.text()
-        images_directory = self.imagesDirectoryLineEdit.text()
-        default_image = self.defaultImageLineEdit.text()
-
-        self.settings.setValue(SERVER_MODE, server_mode)
-        self.settings.setValue(SERVER_IP, host)
-        self.settings.setValue(SERVER_PORT, port)
-        self.settings.setValue(SERVER_IMAGES_DIRECTORY, images_directory)
-        self.settings.setValue(SERVER_DEFAULT_IMAGE, default_image)
-
-        self.parent.host = host
-        self.parent.port = int(port)
-        self.parent.default_image = default_image
-
-        self.close()
-
-    def save_config(self):
-        """This function saves the active host and port configuration in the qt settings
-        file, showing them in the recent ip list."""
-
-        ip = self.serverIpLineEdit.text()
-        port = self.serverPortLineEdit.text()
-
+        # get current host and port
         self.settings.beginGroup(QSETTINGS_IP_GROUP)
-        for key in self.settings.childKeys():
-            config = self.settings.value(key)  # [ip, port]
-            if ip in config:
-                message = "Do you want to overwrite the old configuration?"
-                if warning_dialog(message, dialog_type="yes_no") == QMessageBox.No:
-                    self.settings.endGroup()
-                    return
-                else:
-                    self.settings.setValue(key, [ip, port])
-                    self.settings.endGroup()
-                    return
-
-        self.settings.setValue(str(len(self.settings.childKeys()) + 1), [ip, port])
+        if self.current_config_key is None:
+            self.host, self.port = (LOCAL_IP, str(DEFAULT_PORT))
+        else:
+            self.host, self.port,  self.images_directory, self.default_image = self.settings.value(self.current_config_key)
         self.settings.endGroup()
 
-        self.load_completer()
+        # get disk image settings
+        # self.images_directory = self.settings.value(CURRENT_SERVER_IMAGES_DIRECTORY)
+        # self.default_image = self.settings.value(CURRENT_SERVER_DEFAULT_IMAGE)
+        if self.default_image is not None:
+            self.default_image = os.path.basename(self.default_image)
+
+    def update_line_edits(self):
+        self.server_mode = self.serverModeComboBox.currentText()
+        if self.server_mode == LOCAL_MODE:
+            self.serverIpLineEdit.setReadOnly(True)
+            self.serverPortLineEdit.setReadOnly(True)
+        else:
+            self.serverIpLineEdit.setReadOnly(False)
+            self.serverPortLineEdit.setReadOnly(False)
+
+    def save(self):
+        self.save_configuration()
+        self.close_signal.emit(self)
+        self.accept()
+
+    def save_configuration(self):
+        self.server_mode = self.serverModeComboBox.currentText()
+        self.host = self.serverIpLineEdit.text()
+        self.port = self.serverPortLineEdit.text()
+        self.images_directory = self.imagesDirectoryLineEdit.text()
+        self.default_image = self.defaultImageLineEdit.text()
+        self.settings.setValue(CURRENT_SERVER_MODE, self.server_mode)
+        if self.server_mode == REMOTE_MODE:
+            self.settings.beginGroup(QSETTINGS_IP_GROUP)
+            for key in self.settings.childKeys():
+                config = self.settings.value(key)  # [ip, port, ]
+
+                if self.host in config:
+                    self.settings.setValue(key, [
+                        self.host, self.port, self.images_directory, self.default_image
+                    ])
+                    self.settings.endGroup()
+                    self.settings.setValue(CURRENT_SERVER_CONFIG_KEY, key)  # save current configuration key
+                    break
+            else:
+                key = str(len(self.settings.childKeys()) + 1)
+                self.settings.setValue(key, [self.host, self.port, self.images_directory, self.default_image])
+                self.settings.endGroup()
+                self.settings.setValue(CURRENT_SERVER_CONFIG_KEY, key)  # save current configuration key
+        else:
+            self.settings.setValue(LOCAL_IMAGES_DIRECTORY, self.images_directory)
+            self.settings.setValue(LOCAL_DEFAULT_IMAGE, self.default_image)
+
+        self.update_configuration.emit()
 
     def cancel(self):
-        self.setup()
-        self.close()
+        self.close_signal.emit(self)
+        self.reject()
 
     def delete_config(self):
         ip = self.serverIpLineEdit.text()
@@ -169,6 +198,14 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         """
 
         if self.serverModeComboBox.currentText() == REMOTE_MODE:
+            connection = self.parent.connection_factory.protocol_instance
+            requested_connection = False
+            if not connection:
+                warning_dialog(
+                    "No connection. Connect to the server and retry.",
+                    "ok"
+                )
+                return
             image_directory = self.imagesDirectoryLineEdit.text()
             if image_directory == "":
                 warning_dialog("The path for the default system image is empty. Set it, plz.", dialog_type="ok")
@@ -178,7 +215,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
                 image_directory += "/"
                 self.imagesDirectoryLineEdit.setText(image_directory)
 
-            self.parent.select_image_requested.emit(image_directory)
+            self.parent.select_image_requested.emit(image_directory, requested_connection)
             # if self.parent.select_system_dialog:
             #     self.parent.select_system_dialog.close()
             # self.parent.select_system_dialog = SelectSystemDialog(self, False, image_path)
@@ -191,6 +228,16 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
 
     def set_default_image_path(self, path: str):
         self.defaultImageLineEdit.setText(os.path.basename(path))
+
+    def connect(self):
+        dialog = warning_dialog(
+            "Do you want to save the current settings and connect to the server?",
+            "yes_no"
+        )
+        if dialog == QMessageBox.No:
+            return
+        self.save_configuration()
+        self.parent.connect_to_server()
 
     def closeEvent(self, a0):
         self.cancel()
