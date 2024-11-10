@@ -95,14 +95,13 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         # Queue table
         self.queueTable.addActions(
-            [self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued, self.actionInfo]
+            [self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued]
         )
         self.actionStop.triggered.connect(self.queue_stop)
         self.actionRemove.triggered.connect(self.queue_remove)
         self.actionRemove_All.triggered.connect(self.queue_clear)
         self.actionRemove_completed.triggered.connect(self.queue_clear_completed)
         self.actionRemove_Queued.triggered.connect(self.queue_clear_queued)
-        self.actionInfo.triggered.connect(self.queue_info)
 
         # Buttons
         self.standardProcedureButton.clicked.connect(self.standard_procedure)
@@ -136,9 +135,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if msg and self.connection_factory.protocol_instance:
             self.connection_factory.protocol_instance.send_msg(msg)
         else:
+            print("PINOLO: No connection. Cannot send message.")
 
-
-    def load_latest_configuration(self):
+    # SETTINGS
+    def load_configuration(self):
         """This function try to set the remote configuration used in the last
         pinolo session"""
 
@@ -242,21 +242,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 offset += 1
         self.send_command("remove_queued")
 
-    def queue_info(self):
-        """This function set the "info" button behaviour on the queue table
-        context menu."""
 
-        process = self.queueTable.item(self.queueTable.currentRow(), 1).text()
-        message = ""
-        if process == "Smart check":
-            message += "Process type: " + process + "\n"
-            message += "Get SMART data from the selected drive\n"
-            message += "and print the output to the console."
-        elif process == "Erase":
-            message += "Process type: " + process + "\n"
-            message += "Wipe off all data in the selected drive."
-        info_dialog(message)
-        self.deselect()
 
     def select_image(self, image_path: str, ):
         self.select_system_dialog = SelectSystemDialog(self)
