@@ -8,10 +8,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pinolo import PinoloMainWindow
 
+
 class SmartDialog(QDialog, Ui_SmartDataDialog):
     close_signal = pyqtSignal(QDialog)
 
-    def __init__(self, parent: 'PinoloMainWindow', drive: str, smart_results: dict):
+    def __init__(self, parent: "PinoloMainWindow", drive: str, smart_results: dict):
         super(SmartDialog, self).__init__(parent)
         self.setupUi(self)
 

@@ -101,7 +101,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         if self.current_config_key is None:
             self.host, self.port = (LOCAL_IP, str(DEFAULT_PORT))
         else:
-            self.host, self.port,  self.images_directory, self.default_image = self.settings.value(self.current_config_key)
+            self.host, self.port, self.images_directory, self.default_image = self.settings.value(self.current_config_key)
         self.settings.endGroup()
 
         # get disk image settings
@@ -137,9 +137,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
                 config = self.settings.value(key)  # [ip, port, ]
 
                 if self.host in config:
-                    self.settings.setValue(key, [
-                        self.host, self.port, self.images_directory, self.default_image
-                    ])
+                    self.settings.setValue(key, [self.host, self.port, self.images_directory, self.default_image])
                     self.settings.endGroup()
                     self.settings.setValue(CURRENT_SERVER_CONFIG_KEY, key)  # save current configuration key
                     break
@@ -201,10 +199,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
             connection = self.parent.connection_factory.protocol_instance
             requested_connection = False
             if not connection:
-                warning_dialog(
-                    "No connection. Connect to the server and retry.",
-                    "ok"
-                )
+                warning_dialog("No connection. Connect to the server and retry.", "ok")
                 return
             image_directory = self.imagesDirectoryLineEdit.text()
             if image_directory == "":
@@ -230,10 +225,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         self.defaultImageLineEdit.setText(os.path.basename(path))
 
     def connect(self):
-        dialog = warning_dialog(
-            "Do you want to save the current settings and connect to the server?",
-            "yes_no"
-        )
+        dialog = warning_dialog("Do you want to save the current settings and connect to the server?", "yes_no")
         if dialog == QMessageBox.No:
             return
         self.save_configuration()

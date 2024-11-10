@@ -20,8 +20,7 @@ from dialogs.SelectSystem import SelectSystemDialog
 from typing import Union
 from dotenv import load_dotenv
 from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap, QCloseEvent
-from PyQt5.QtCore import Qt, QSettings, pyqtSignal, QThread, QUrl, pyqtSlot, QCoreApplication, \
-    QAbstractTableModel, QModelIndex, QPoint
+from PyQt5.QtCore import Qt, QSettings, pyqtSignal, QThread, QUrl, pyqtSlot, QCoreApplication, QAbstractTableModel, QModelIndex, QPoint
 from PyQt5.QtWidgets import (
     QTableWidgetItem,
     QTableWidget,
@@ -32,7 +31,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QDialog,
     QStyledItemDelegate,
-    QTableView
+    QTableView,
 )
 from constants import *
 from typing import List
@@ -108,9 +107,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.queueTableView.setItemDelegateForColumn(QUEUE_TABLE_PROGRESS, delegate)
         delegate = QueueStatusIconDelegate(self.queueTableView)
         self.queueTableView.setItemDelegateForColumn(QUEUE_TABLE_STATUS, delegate)
-        self.queueTableView.addActions(
-            [self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued]
-        )
+        self.queueTableView.addActions([self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued])
         self.actionStop.triggered.connect(self.queue_stop)
         self.actionRemove.triggered.connect(self.queue_remove)
         self.actionRemove_All.triggered.connect(self.queue_clear)
@@ -212,10 +209,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def queue_stop(self):
         """This function set the "stop" button behaviour on the queue table
         context menu."""
-        dialog = warning_dialog(
-            "Do you want to stop the selected processes?",
-            "yes_no"
-        )
+        dialog = warning_dialog("Do you want to stop the selected processes?", "yes_no")
         if dialog == QMessageBox.No:
             return
 
@@ -227,17 +221,14 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def queue_remove(self):
         """This function set the "remove" button behaviour on the queue table
         context menu."""
-        dialog = warning_dialog(
-            "With this action you will also stop the selected processes.\nDo you want to proceed?",
-            "yes_no"
-        )
+        dialog = warning_dialog("With this action you will also stop the selected processes.\nDo you want to proceed?", "yes_no")
         if dialog == QMessageBox.No:
             return
 
         rows = self.queueTableView.selectionModel().selectedRows()
         for index in rows:
             pid = self.queueTableViewModel.get_pid(index)
-            self.send_command(f'remove {pid}')
+            self.send_command(f"remove {pid}")
         self.queueTableViewModel.remove_row(rows)
 
     def queue_clear(self):
@@ -274,15 +265,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         for drive in drives:
             if not standard_procedure:
                 if drive.tarallo_id is not None:
-                    warning_dialog(
-                        f"The drive {drive.name} already has a TARALLO id.",
-                        dialog_type="ok"
-                    )
+                    warning_dialog(f"The drive {drive.name} already has a TARALLO id.", dialog_type="ok")
                     continue
-                dialog = warning_dialog(
-                    f"Do you want to create the disk item for {drive.name} in TARALLO?",
-                    dialog_type="yes_no"
-                )
+                dialog = warning_dialog(f"Do you want to create the disk item for {drive.name} in TARALLO?", dialog_type="yes_no")
                 if dialog == QMessageBox.No:
                     continue
 
@@ -290,8 +275,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 if drive.tarallo_id != "":
                     continue
 
-            location, ok = tarallo_location_dialog(f"Please, set the Tarallo location of drive {drive.name}.\n"
-                                                   f"Leave blank to avoid upload to Tarallo")
+            location, ok = tarallo_location_dialog(f"Please, set the Tarallo location of drive {drive.name}.\n" f"Leave blank to avoid upload to Tarallo")
 
             # If no location is provided or cancel is selected, stop the operation
             if not ok or location is None or location == "":
@@ -343,9 +327,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         message = "Are you really sure you want to unmount all partitions of the following drives?\n\n"
         for drive in drives:
             if drive.mounted:
-                mountpoints = str(drive.mountpoints).strip('[').strip(']').strip("'")
+                mountpoints = str(drive.mountpoints).strip("[").strip("]").strip("'")
             else:
-                mountpoints = ''
+                mountpoints = ""
             message += f"- {drive.name}\t{mountpoints}\n"
         message += "\n\nBe careful not to unmount and erase something important!"
 
@@ -408,10 +392,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if len(rows) == 0:
             return
 
-        standard_procedure_dialog = warning_dialog(
-            "Do you want to wipe all disk's data and load a fresh system image?",
-            dialog_type="yes_no_chk"
-        )
+        standard_procedure_dialog = warning_dialog("Do you want to wipe all disk's data and load a fresh system image?", dialog_type="yes_no_chk")
 
         if standard_procedure_dialog[0] == QMessageBox.No:
             return
@@ -625,7 +606,7 @@ class Job:
     def _update_eta(self):
         elapsed_time = time.time() - self.start_time
         if 0 < self.progress < 100:
-            predicted_total_time = elapsed_time / (self.progress/100)
+            predicted_total_time = elapsed_time / (self.progress / 100)
             eta = predicted_total_time - elapsed_time
             self.eta = time.strftime("%H:%M:%S", time.gmtime(eta))
         else:
@@ -670,25 +651,19 @@ class QueueTableModel(QAbstractTableModel):
         self.parent = parent
         super().__init__()
         self.jobs: List[Job] = []
-        self.header_labels = [
-            "Drive",
-            "Process",
-            "Status",
-            "Eta",
-            "Progress"
-        ]
+        self.header_labels = ["Drive", "Process", "Status", "Eta", "Progress"]
 
-    def rowCount(self, parent = ...) -> int:
+    def rowCount(self, parent=...) -> int:
         return len(self.jobs)
 
-    def columnCount(self, parent = ...) -> int:
+    def columnCount(self, parent=...) -> int:
         return len(self.header_labels)
 
-    def headerData(self, section, orientation, role = ...):
+    def headerData(self, section, orientation, role=...):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
             return self.header_labels[section]
 
-    def data(self, index: QModelIndex, role = ...):
+    def data(self, index: QModelIndex, role=...):
         # index: specific cell in the table
 
         match role:
@@ -782,7 +757,7 @@ class QueueTableModel(QAbstractTableModel):
 
 
 class ProgressBarDelegate(QStyledItemDelegate):
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         super(ProgressBarDelegate, self).__init__(parent)
         self.margin = 1
 
@@ -795,8 +770,8 @@ class ProgressBarDelegate(QStyledItemDelegate):
             # Create a progress bar widget
             progress_bar = QProgressBar()
             progress_bar.setMinimum(0)
-            progress_bar.setMaximum(100*PROGRESS_BAR_SCALE)
-            progress_bar.setValue(int(progress*PROGRESS_BAR_SCALE))
+            progress_bar.setMaximum(100 * PROGRESS_BAR_SCALE)
+            progress_bar.setValue(int(progress * PROGRESS_BAR_SCALE))
 
             # Render the progress bar inside the cell
             rect = option.rect.adjusted(self.margin, 0, -self.margin, 0)
@@ -815,7 +790,7 @@ class ProgressBarDelegate(QStyledItemDelegate):
 
 
 class QueueStatusIconDelegate(QStyledItemDelegate):
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         super(QueueStatusIconDelegate, self).__init__(parent)
         self.icons = {
             "error": QIcon("assets/table/error.png"),
@@ -862,24 +837,19 @@ class DrivesTableModel(QAbstractTableModel):
         super().__init__()
         self.parent = parent
         self.drives: List[Drive] = []
-        self.header_labels = [
-            "Drive",
-            "Status",
-            "Tarallo ID",
-            "Size"
-        ]
+        self.header_labels = ["Drive", "Status", "Tarallo ID", "Size"]
 
-    def rowCount(self, parent = ...) -> int:
+    def rowCount(self, parent=...) -> int:
         return len(self.drives)
 
-    def columnCount(self, parent = ...) -> int:
+    def columnCount(self, parent=...) -> int:
         return len(self.header_labels)
 
-    def headerData(self, section, orientation, role = ...):
+    def headerData(self, section, orientation, role=...):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
             return self.header_labels[section]
 
-    def data(self, index: QModelIndex, role = ...):
+    def data(self, index: QModelIndex, role=...):
         # index: specific cell in the table
 
         match role:
@@ -944,7 +914,7 @@ class DrivesTableModel(QAbstractTableModel):
 
 
 class DrivesStatusIconDelegate(QStyledItemDelegate):
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         super(DrivesStatusIconDelegate, self).__init__(parent)
         self.icons = {
             "started": QIcon("assets/table/progress.png"),
