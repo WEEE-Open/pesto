@@ -49,11 +49,16 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         super(PinoloMainWindow, self).__init__()
         self.setupUi(self)
 
-        self.host = DEFAULT_IP
-        self.port = DEFAULT_PORT
+        self.host = None
+        self.port = None
+        self.current_config_key = None
+        self.images_directory = None
         self.default_image = None
-        self.serverMode = None
+        self.server_mode = None
+
         self.queueTableModel = QueueTableModel()
+
+        # TO BE FIXED THINGS
         self.active_theme = None
 
         self.current_mountpoints = dict()
