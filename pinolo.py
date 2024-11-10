@@ -920,6 +920,15 @@ class DrivesTableModel(QAbstractTableModel):
             self.endInsertRows()
         self._resize_columns()
 
+    def update_data(self, command_data: List[dict]):
+        for drive_data in command_data:
+            serial = drive_data["serial"]
+            for drive in self.drives:
+                if drive.serial == serial:
+                    drive.update(drive_data)
+                    continue
+
+
     def _resize_columns(self):
         for column in range(3):
             self.parent.resizeColumnToContents(column)
