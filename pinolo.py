@@ -879,7 +879,8 @@ class StatusIconDelegate(QStyledItemDelegate):
             "started": QIcon("assets/table/progress.png"),
             "pending": QIcon("assets/table/pending.png"),
             "stop": QIcon("assets/table/stop.png"),
-            "finished": QIcon("assets/table/ok.png")
+            "finished": QIcon("assets/table/ok.png"),
+            "warning": QIcon("assets/table/warning.png"),
         }
         self.margin = 2
 
