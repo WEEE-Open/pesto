@@ -9,7 +9,7 @@ import json
 import os.path
 import sys
 import time
-
+import humanize
 from client import ConnectionFactory
 
 from utilities import *
@@ -31,7 +31,8 @@ from PyQt5.QtWidgets import (
     QInputDialog,
     QLineEdit,
     QDialog,
-    QStyledItemDelegate
+    QStyledItemDelegate,
+    QTableView
 )
 from constants import *
 from typing import List
@@ -55,7 +56,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.default_image = None
         self.server_mode = None
 
-        self.queueTableModel = QueueTableModel()
+        self.drivesTableViewModel = DrivesTableModel(self.drivesTableView)
+        self.queueTableViewModel = QueueTableModel(self.queueTableView)
 
         # TO BE FIXED THINGS
         self.active_theme = None
@@ -89,20 +91,23 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.connect_to_server()
 
     def setup(self):
-        # Disk table
-        self.diskTable.addActions([self.actionSleep, self.actionUmount, self.actionShow_SMART_data, self.actionUpload_to_Tarallo])
+        # Drives table
+        self.drivesTableView.setModel(self.drivesTableViewModel)
+        delegate = StatusIconDelegate(self.drivesTableView)
+        self.drivesTableView.setItemDelegateForColumn(DRIVES_TABLE_STATUS, delegate)
+        self.drivesTableView.addActions([self.actionSleep, self.actionUmount, self.actionShow_SMART_data, self.actionUpload_to_Tarallo])
         self.actionSleep.triggered.connect(self.sleep)
         self.actionUmount.triggered.connect(self.umount)
         self.actionShow_SMART_data.triggered.connect(self.show_smart_data)
         self.actionUpload_to_Tarallo.triggered.connect(self.upload_to_tarallo)
 
         # Queue table
-        self.queueTable.setModel(self.queueTableModel)
-        delegate = ProgressBarDelegate(self.queueTable)
-        self.queueTable.setItemDelegateForColumn(QUEUE_TABLE_PROGRESS, delegate)
-        delegate = StatusIconDelegate(self.queueTable)
-        self.queueTable.setItemDelegateForColumn(QUEUE_TABLE_STATUS, delegate)
-        self.queueTable.addActions(
+        self.queueTableView.setModel(self.queueTableViewModel)
+        delegate = ProgressBarDelegate(self.queueTableView)
+        self.queueTableView.setItemDelegateForColumn(QUEUE_TABLE_PROGRESS, delegate)
+        delegate = StatusIconDelegate(self.queueTableView)
+        self.queueTableView.setItemDelegateForColumn(QUEUE_TABLE_STATUS, delegate)
+        self.queueTableView.addActions(
             [self.actionStop, self.actionRemove, self.actionRemove_All, self.actionRemove_completed, self.actionRemove_Queued]
         )
         self.actionStop.triggered.connect(self.queue_stop)
@@ -213,9 +218,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if dialog == QMessageBox.No:
             return
 
-        rows = self.queueTable.selectionModel().selectedRows()
+        rows = self.queueTableView.selectionModel().selectedRows()
         for index in rows:
-            pid = self.queueTableModel.get_pid(index)
+            pid = self.queueTableViewModel.get_pid(index)
             self.send_command(f"stop {pid}")
 
     def queue_remove(self):
@@ -228,31 +233,31 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if dialog == QMessageBox.No:
             return
 
-        rows = self.queueTable.selectionModel().selectedRows()
+        rows = self.queueTableView.selectionModel().selectedRows()
         for index in rows:
-            pid = self.queueTableModel.get_pid(index)
+            pid = self.queueTableViewModel.get_pid(index)
             self.send_command(f'remove {pid}')
-        self.queueTableModel.remove_row(rows)
+        self.queueTableViewModel.remove_row(rows)
 
     def queue_clear(self):
         """This function set the "remove all" button behaviour on the queue table
         context menu."""
 
-        self.queueTableModel.remove_all()
+        self.queueTableViewModel.remove_all()
         self.send_command("remove_all")
 
     def queue_clear_completed(self):
         """This function set the "remove completed" button behaviour on the queue table
         context menu."""
 
-        self.queueTableModel.remove_completed()
+        self.queueTableViewModel.remove_completed()
         self.send_command("remove_completed")
 
     def queue_clear_queued(self):
         """This function set the "remove completed" button behaviour on the queue table
         context menu."""
 
-        self.queueTableModel.remove_queued()
+        self.queueTableViewModel.remove_queued()
         self.send_command("remove_queued")
 
     # DISK TABLE ACTIONS
@@ -368,7 +373,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def get_multiple_drive_selection(self):
         """This method returns a list with the names of the selected drives on disk_table"""
         drives = []
-        selected_rows = self.diskTable.selectionModel().selectedRows()
+        selected_rows = self.drivesTableView.selectionModel().selectedRows()
 
         if len(selected_rows) == 0:
             warning_dialog(
@@ -383,10 +388,10 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         return drives
 
     def get_tarallo_id(self, drive: str):
-        for row in range(self.diskTable.rowCount()):
-            item = self.diskTable.item(row, DRIVES_TABLE_NAME)
+        for row in range(self.drivesTableView.rowCount()):
+            item = self.drivesTableView.item(row, DRIVES_TABLE_NAME)
             if item.text() == drive:
-                return self.diskTable.item(row, DRIVES_TABLE_TARALLO_ID).text()
+                return self.drivesTableView.item(row, DRIVES_TABLE_TARALLO_ID).text()
         return None
 
     def show_smart_data(self):
@@ -507,8 +512,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 del self.current_mountpoints[drive["path"]]
 
     def _clear_tables(self):
-        self.diskTable.setRowCount(0)
-        self.queueTableModel.clear()
+        self.drivesTableView.setRowCount(0)
+        self.queueTableViewModel.clear()
 
     def _decorate_disk(self, item: QTableWidgetItem, something_in_progress: bool):
         if something_in_progress:
@@ -527,37 +532,37 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def _check_disk_usage(self):
         #TODO: broken
-        disks_rows = self.diskTable.rowCount()
-        queue_rows = self.queueTableModel.rowCount()
+        disks_rows = self.drivesTableView.rowCount()
+        queue_rows = self.queueTableViewModel.rowCount()
 
         if queue_rows == 0:
             return
 
         # for disk_row in range(disks_rows):
-        #     disk_id = self.diskTable.item(disk_row, DISK_TABLE_DRIVE).text()
+        #     disk_id = self.drivesTableView.item(disk_row, DISK_TABLE_DRIVE).text()
         #     for queue_row in range(queue_rows):
-        #         if disk_id != self.queueTable.item(queue_row, QUEUE_TABLE_DRIVE).text():
-        #             eta = self.queueTable.item(queue_row, QUEUE_TABLE_ETA).text()
+        #         if disk_id != self.queueTableView.item(queue_row, QUEUE_TABLE_DRIVE).text():
+        #             eta = self.queueTableView.item(queue_row, QUEUE_TABLE_ETA).text()
         #             if eta != "":
 
         if queue_rows > 0 and disks_rows > 0:
             for disk_row in range(disks_rows + 1):
-                disk_label = self.diskTable.item(disk_row, 0)
+                disk_label = self.drivesTableView.item(disk_row, 0)
                 if disk_label is not None:
                     disk_label = disk_label.text()
                     for queue_row in range(queue_rows + 1):
-                        queue_disk_label = self.queueTable.item(queue_row, 2)
-                        queue_progress = self.queueTable.cellWidget(queue_row, 5)
-                        if self.diskTable.item(disk_row, 0).text() in self.current_mountpoints:
+                        queue_disk_label = self.queueTableView.item(queue_row, 2)
+                        queue_progress = self.queueTableView.cellWidget(queue_row, 5)
+                        if self.drivesTableView.item(disk_row, 0).text() in self.current_mountpoints:
                             continue
                         if queue_disk_label is not None and queue_progress is not None:
                             queue_disk_label = queue_disk_label.text()
                             queue_progress = queue_progress.findChild(QProgressBar).value()
                             if queue_disk_label == disk_label and queue_progress != (100 * PROGRESS_BAR_SCALE):
-                                self._decorate_disk(self.diskTable.item(disk_row, 0), True)
+                                self._decorate_disk(self.drivesTableView.item(disk_row, 0), True)
                                 break
                         if queue_row == queue_rows:
-                            self._decorate_disk(self.diskTable.item(disk_row, 0), False)
+                            self._decorate_disk(self.drivesTableView.item(disk_row, 0), False)
 
     def _remove_dialog_handler(self, dialog: QDialog):
         self.dialogs.remove(dialog)
@@ -588,24 +593,13 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 if isinstance(command_data, dict):
                     command_data = [command_data]
                 for data in command_data:
-                    self.queueTableModel.update_table(data)
+                    self.queueTableViewModel.update_table(data)
 
             case "queued_umount":
                 self.send_msg("get_disks")
 
             case "get_disks":
-                drives = command_data
-                self.current_mountpoints = dict()
-
-                if len(drives) <= 0:
-                    self.diskTable.setRowCount(0)
-                    return
-                    # compile disks table with disks list
-                for row, d in enumerate(drives):
-                    d: dict
-                    self._set_disk_table_item(self.diskTable, row, d)
-                self.diskTable.resizeColumnToContents(0)
-                self.diskTable.resizeColumnToContents(1)
+                self.drivesTableViewModel.load_data(command_data)
 
             case "smartctl" | "queued_smartctl":
                 # if params["status"] == "password_required":
@@ -724,7 +718,8 @@ class Job:
 
 
 class QueueTableModel(QAbstractTableModel):
-    def __init__(self):
+    def __init__(self, parent: QTableView):
+        self.parent = parent
         super().__init__()
         self.jobs: List[Job] = []
         self.header_labels = [
@@ -897,16 +892,18 @@ class StatusIconDelegate(QStyledItemDelegate):
 
 
 class Drive:
-    def __init__(self, data: dict):
-        self.name = None
+    def __init__(self, drive: dict):
+        self.name = drive["path"]
+        self.mounted = True if drive["mountpoint"] else False
         self.status = None
-        self.tarallo_id = None
-        self.size = None
+        self.tarallo_id = drive["code"]
+        self.size = drive["size"]
 
 
 class DrivesTableModel(QAbstractTableModel):
-    def __init__(self):
+    def __init__(self, parent: QTableView):
         super().__init__()
+        self.parent = parent
         self.drives: List[Drive] = []
         self.header_labels = [
             "Drive",
@@ -940,7 +937,7 @@ class DrivesTableModel(QAbstractTableModel):
                     case "Tarallo ID":
                         return drive.tarallo_id
                     case "Size":
-                        return drive.size
+                        return humanize.naturalsize(drive.size)
 
             case Qt.TextAlignmentRole:
                 return Qt.AlignLeft | Qt.AlignVCenter
@@ -950,6 +947,17 @@ class DrivesTableModel(QAbstractTableModel):
                     return drive.status
             case _:
                 return None
+
+    def load_data(self, drives: List[dict]):
+        for drive in drives:
+            self.beginInsertRows(QModelIndex(), len(self.drives), len(self.drives))
+            self.drives.append(Drive(drive))
+            self.endInsertRows()
+        self._resize_columns()
+
+    def _resize_columns(self):
+        for column in range(3):
+            self.parent.resizeColumnToContents(column)
 
     def clear(self):
         self.beginResetModel()
