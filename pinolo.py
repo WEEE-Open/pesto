@@ -68,9 +68,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         self.connection_factory = ConnectionFactory(self)
 
-        # Dialogs handlers
-        self.smart_widgets = {}
-        self.network_settings_dialog = NetworkSettings(self)
+        # Handlers
+        self.dialogs = []
+        self.select_system_dialog: SelectSystemDialog = None
 
         # Set icons
         if QIcon.hasThemeIcon("data-warning"):
@@ -119,12 +119,20 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.refreshButton.clicked.connect(self.refresh)
 
         # Menu bar
-        self.actionNetworkSettings.triggered.connect(self.network_settings_dialog.show)
+        self.actionNetworkSettings.triggered.connect(self.open_network_settings)
         self.actionSourceCode.triggered.connect(self.open_source_code)
         self.actionAboutUs.triggered.connect(self.open_website)
         self.actionVersion.triggered.connect(self.show_version)
 
         self.select_image_requested.connect(self.set_default_image)
+
+    # NETWORKING
+    def open_network_settings(self):
+        network_settings = NetworkSettings(self)
+        network_settings.close_signal.connect(self._remove_dialog_handler)
+        network_settings.update_configuration.connect(self.load_configuration)
+        network_settings.show()
+        self.dialogs.append(network_settings)
 
     def connect_to_server(self):
         """This method must be called in __init__ function of Ui class
@@ -320,7 +328,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         if image is None:
             return
 
-        self.network_settings_dialog.set_default_image_path(image)
+        for dialog in self.dialogs:
+            if isinstance(dialog, NetworkSettings):
+                dialog.set_default_image_path(image)
 
     def umount(self):
         drives = self.get_multiple_drive_selection()
@@ -674,6 +684,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def _send_sudo_password(self, password: str):
         # password = password.replace('\\', '\\\\').replace(" ", "\\ ")
         self.send_command(f"sudo_password {password}")
+
+    def _remove_dialog_handler(self, dialog: QDialog):
+        self.dialogs.remove(dialog)
 
     @pyqtSlot(str, str)
     def gui_update(self, cmd: str, params: str):
