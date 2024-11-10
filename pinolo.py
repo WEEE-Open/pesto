@@ -931,6 +931,29 @@ class DrivesTableModel(QAbstractTableModel):
         self.endResetModel()
 
 
+class DrivesStatusIconDelegate(QStyledItemDelegate):
+    def __init__(self, parent = None):
+        super(DrivesStatusIconDelegate, self).__init__(parent)
+        self.icons = {
+            "started": QIcon("assets/table/progress.png"),
+            "pending": QIcon("assets/table/pending.png"),
+            "finished": QIcon("assets/table/ok.png"),
+            "warning": QIcon("assets/table/warning.png"),
+        }
+        self.margin = 5
+
+    def paint(self, painter, option, index):
+        if index.column() == DRIVES_TABLE_STATUS:
+            status: str = index.data()
+            if status in self.icons:
+                icon: QIcon = self.icons[status]
+                rect = option.rect.adjusted(self.margin, self.margin, -self.margin, -self.margin)
+                icon.paint(painter, rect)
+                return
+
+        super().paint(painter, option, index)
+
+
 class LocalServer(QThread):
     update = pyqtSignal(str, str, name="update")
 
