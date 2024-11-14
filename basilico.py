@@ -600,10 +600,10 @@ class CommandRunner(threading.Thread):
         output = subprocess.getoutput(f"lsblk -o PATH,PARTN,PARTTYPE -J {dev}")
         jsonized = json.loads(output)
         for entry in reversed(jsonized["blockdevices"]):
-            if entry["partn"] and entry["path"]:  # lsblk also returns the device itself, which has no partitions
+            if entry["path"]:  # lsblk also returns the device itself, which has no partitions
                 # GPT or MBR Linux partition ID
                 if entry["parttype"] == "0fc63daf-8483-4772-8e79-3d69d8477de4" or entry["parttype"] == "0x83":
-                    return entry["path"], entry["partn"]
+                    return entry["path"], int(entry["path"][-1])  # Breaks if more than 9 partitions
         return None, None
 
     def cannolo(self, _cmd: str, dev_and_iso: str):
