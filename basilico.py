@@ -239,7 +239,7 @@ class SudoSessionKeeper(threading.Thread):
             threading.Event().wait(241)
 
 
-class ErrorThatCanBeManuallyFixed(BaseException):
+class ErrorThatCanBeManuallyFixed(Exception):
     pass
 
 
@@ -302,7 +302,7 @@ class CommandRunner(threading.Thread):
 
             try:
                 self._function(self._cmd, self._args)
-            except BaseException as e:
+            except Exception as e:
                 logging.error(f"[{self._the_id}] BIG ERROR in command thread", exc_info=e)
         finally:
             # The next thread on the disk can start, if there's a queue
@@ -395,7 +395,7 @@ class CommandRunner(threading.Thread):
                 {"message": f"Cannot read {iso_dir} on server: permission denied"},
             )
             return
-        except BaseException as e:
+        except Exception as e:
             self.send_msg(
                 "error",
                 {"message": f"Cannot list files in iso dir {iso_dir}: {str(e)}"},
@@ -569,7 +569,7 @@ class CommandRunner(threading.Thread):
         # noinspection PyBroadException
         try:
             disk_ref.update_erase(completed, all_ok)
-        except BaseException as e:
+        except Exception as e:
             final_message = f"Error during upload. {final_message}"
             self._queued_command.notify_error(final_message)
             logging.warning(
@@ -682,7 +682,7 @@ class CommandRunner(threading.Thread):
             # noinspection PyBroadException
             try:
                 disk_ref.update_software(pretty_iso)
-            except BaseException as e:
+            except Exception as e:
                 final_message = f"{pretty_iso} installed, failed to update Tarallo"
                 self._queued_command.notify_error(f"{pretty_iso} installed, failed to update Tarallo")
                 logging.warning(
@@ -866,7 +866,7 @@ class CommandRunner(threading.Thread):
             # noinspection PyBroadException
             try:
                 updated = disk_ref.update_status(status)
-            except BaseException as e:
+            except Exception as e:
                 self._queued_command.notify_error("Error during upload")
                 logging.warning(
                     f"[{self._the_id}] Can't update status of {dev} on tarallo",
@@ -990,7 +990,7 @@ class CommandRunner(threading.Thread):
                 # It's there but pycharm doesn't believe it
                 # noinspection PyUnresolvedReferences
                 reactor.callFromThread(TurboProtocol.send_msg, thread, response_string)
-            except BaseException:
+            except Exception:
                 logging.warning(f"[{the_id}] Something blew up while trying to send {cmd} (connection already closed?)")
 
     def get_disks(self, cmd: str, _nothing: str):
@@ -1322,7 +1322,7 @@ def update_disks_if_needed(this_thread: Optional[CommandRunner], send: bool = Tr
                     global TARALLO
                     disks[path] = Disk(lsblk, TARALLO)
                     changes = True
-                except BaseException as e:
+                except Exception as e:
                     logging.warning("Exception while re-scanning for disks, skipping", exc_info=e)
 
         # RuntimeError: dictionary changed size during iteration
@@ -1361,7 +1361,7 @@ def scan_for_disks():
             try:
                 global TARALLO
                 disks[path] = Disk(disk_lsblk, TARALLO)
-            except BaseException as e:
+            except Exception as e:
                 logging.warning("Exception while scanning for disks, skipping", exc_info=e)
 
 
@@ -1447,7 +1447,7 @@ def get_smartctl_status(smartctl_output: str) -> Optional[str]:
         smart, failing_now = extract_smart_data(smartctl)
         status = smart_health_status(smart, failing_now)
         return status
-    except BaseException as e:
+    except Exception as e:
         logging.error("Failed to parse smartctl output", exc_info=e)
         return None
 
