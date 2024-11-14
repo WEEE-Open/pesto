@@ -304,7 +304,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.send_command(f"list_iso {image_path.rstrip('/')}")
         if self.select_system_dialog.exec_() == QDialog.Accepted:
             selected_image = self.select_system_dialog.get_selected_image()
-            return image_path + selected_image
+            return os.path.join(image_path, selected_image)
         return None
 
     def set_default_image(self, image_path: str):
