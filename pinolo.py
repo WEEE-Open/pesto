@@ -9,7 +9,6 @@ import json
 import os.path
 import sys
 import time
-import humanize
 from client import ConnectionFactory
 
 from utilities import *
@@ -23,7 +22,6 @@ from PyQt5.QtGui import QIcon, QDesktopServices, QPixmap, QCloseEvent
 from PyQt5.QtCore import Qt, QSettings, pyqtSignal, QThread, QUrl, pyqtSlot, QCoreApplication, QAbstractTableModel, QModelIndex, QPoint
 from PyQt5.QtWidgets import (
     QTableWidgetItem,
-    QTableWidget,
     QMessageBox,
     QMainWindow,
     QProgressBar,
@@ -457,23 +455,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             print(f"GUI: Sending cannolo to {drive.name} with {image}")
             self.send_command(f"queued_cannolo {drive.name} {image}")
 
-    # INTERNAL METHODS
-    def _set_disk_table_item(self, table: QTableWidget, row: int, drive: dict):
-        table.setRowCount(row + 1)
-        table.setItem(row, 0, QTableWidgetItem(drive["path"]))
-        table.setItem(row, 1, QTableWidgetItem(drive["code"]))
-        table.setItem(
-            row,
-            2,
-            QTableWidgetItem(format_size(drive["size"], True, False)),
-        )
-        if drive["mountpoint"]:
-            self.current_mountpoints[drive["path"]] = drive["mountpoint"]
-            self._decorate_disk(table.item(row, 0), False)
-        else:
-            if drive["path"] in self.current_mountpoints:
-                del self.current_mountpoints[drive["path"]]
-
     def _clear_tables(self):
         self.drivesTableViewModel.clear()
         self.queueTableViewModel.clear()
@@ -863,7 +844,7 @@ class DrivesTableModel(QAbstractTableModel):
                     case "Tarallo ID":
                         return drive.tarallo_id
                     case "Size":
-                        return humanize.naturalsize(drive.size)
+                        return format_size(drive.size, True, False)
 
             case Qt.TextAlignmentRole:
                 return Qt.AlignLeft | Qt.AlignVCenter
