@@ -63,7 +63,6 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.active_theme = None
 
         self.current_mountpoints = dict()
-        self.smart_results = {}
 
         self.settings = QSettings()
 
@@ -71,8 +70,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         self.connection_factory.data_received.connect(self.gui_update)
 
         # Handlers
+        # TODO: self.dialogs shouldn't exist, use signals instead of adding and removing and looping on this stuff
         self.dialogs = []
-        self.select_system_dialog: SelectSystemDialog = None
+        self.select_system_dialog: Optional[SelectSystemDialog] = None
 
         # Set icons
         if QIcon.hasThemeIcon("data-warning"):
@@ -357,6 +357,11 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         return drives
 
     def show_smart_data(self):
+        """
+        Non-queued smartctl, requests data from the server with the intention of displaying such data to the user in a dialog
+
+        :return:
+        """
         rows = self.drivesTableView.selectionModel().selectedRows()
         if len(rows) == 0:
             return
@@ -364,12 +369,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         drives = self.drivesTableViewModel.get_selected_drives(rows)
 
         for drive in drives:
-            # TODO: check if this works properly
-            if drive.smart_data is None:
-                continue
-            smart_dialog = SmartDialog(self, drive.name, drive.smart_data)
-            smart_dialog.close_signal.connect(self._remove_dialog_handler)
-            self.dialogs.append(smart_dialog)
+            self.send_command(f"smartctl {drive.name}")
 
     # BUTTONS CALLBACKS
     def refresh(self):
@@ -533,9 +533,9 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
                 else:
                     self.drivesTableViewModel.load_data(command_data)
 
-            case "smartctl" | "queued_smartctl":
-                self.drivesTableViewModel.store_smart_data(command_data)
-                # self.smart_results[command_data["disk"]] = {"output": command_data["output"], "status": command_data["status"]}
+            # Standalone smartctl (not the queued/standard procedure/button one)
+            case "smartctl":
+                smart_dialog = SmartDialog(self, command_data["disk"], command_data["output"], command_data["status"])
 
             case "connection_failed":
                 self.statusbar.showMessage(f"⚠ Connection failed. Check settings and try to reconnect.")
@@ -821,7 +821,6 @@ class Drive:
         self.mountpoints = drive_data["mountpoint"] if self.mounted else None
         self.serial = drive_data["serial"]
         self.size = drive_data["size"]
-        self.smart_data = None
         self.status = "warning" if self.mounted else None
         self.tarallo_id = drive_data["code"]
 
@@ -892,16 +891,11 @@ class DrivesTableModel(QAbstractTableModel):
 
     def get_selected_drives(self, rows: List[QModelIndex]) -> List[Drive]:
         if rows is None:
-            return None
+            return []
         drives = []
         for index in rows:
             drives.append(self.drives[index.row()])
         return drives
-
-    def store_smart_data(self, command_data: dict):
-        for drive in self.drives:
-            if drive.name == command_data["disk"]:
-                drive.smart_data = {"output": command_data["output"], "status": command_data["status"]}
 
     def _resize_columns(self):
         for column in range(3):

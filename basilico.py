@@ -800,9 +800,9 @@ class CommandRunner(threading.Thread):
             self.send_msg(cmd, params)
 
     def queued_get_smartctl(self, cmd: str, args: str):
-        params = self._get_smartctl(args, True)
-        if params:
-            self.send_msg(cmd, params)
+        self._get_smartctl(args, True)
+        # if params:
+        #     self.send_msg(cmd, params)
 
     def _get_smartctl(self, dev: str, queued: bool):
         if queued:

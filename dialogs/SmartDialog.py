@@ -12,14 +12,14 @@ if TYPE_CHECKING:
 class SmartDialog(QDialog, Ui_SmartDataDialog):
     close_signal = pyqtSignal(QDialog)
 
-    def __init__(self, parent: "PinoloMainWindow", drive: str, smart_results: dict):
+    def __init__(self, parent: "PinoloMainWindow", drive: str, output: str, status: str):
         super(SmartDialog, self).__init__(parent)
         self.setupUi(self)
 
         self.parent = parent
         self.drive = drive
-        self.smart_results = json.loads(smart_results["output"])
-        self.smart_status = smart_results["status"]
+        self.smart_results = json.loads(output)
+        self.smart_status = status
 
         self.setup()
         self.show()
