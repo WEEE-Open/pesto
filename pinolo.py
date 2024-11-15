@@ -91,8 +91,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
     def setup(self):
         # Drives table
         self.drivesTableView.setModel(self.drivesTableViewModel)
-        delegate = DrivesStatusIconDelegate(self.drivesTableView)
-        self.drivesTableView.setItemDelegateForColumn(DRIVES_TABLE_STATUS, delegate)
+        # delegate = DrivesStatusIconDelegate(self.drivesTableView)
+        # self.drivesTableView.setItemDelegateForColumn(DRIVES_TABLE_NAME, delegate)
         self.drivesTableView.addActions([self.actionSleep, self.actionUmount, self.actionShow_SMART_data, self.actionUpload_to_Tarallo])
         self.actionSleep.triggered.connect(self.sleep)
         self.actionUmount.triggered.connect(self.umount)
@@ -802,13 +802,11 @@ class Drive:
         self.mountpoints = drive_data["mountpoint"] if self.mounted else None
         self.serial = drive_data["serial"]
         self.size = drive_data["size"]
-        self.status = "warning" if self.mounted else None
         self.tarallo_id = drive_data["code"]
 
     def update(self, drive_data: dict):
         self.mounted = True if drive_data["mountpoint"] else False
         self.mountpoints = drive_data["mountpoint"] if self.mounted else None
-        self.status = "warning" if self.mounted else None
         self.tarallo_id = drive_data["code"]
 
 
@@ -817,7 +815,12 @@ class DrivesTableModel(QAbstractTableModel):
         super().__init__()
         self.parent = parent
         self.drives: List[Drive] = []
-        self.header_labels = ["Drive", "Status", "Tarallo ID", "Size"]
+        self.header_labels = ["Drive", "Tarallo ID", "Size"]
+
+        if QIcon.hasThemeIcon("data-warning"):
+            self._mount_warning_icon = QIcon.fromTheme("data-warning")
+        else:
+            self._mount_warning_icon = QIcon.fromTheme("security-medium")
 
     def rowCount(self, parent=...) -> int:
         return len(self.drives)
@@ -839,19 +842,20 @@ class DrivesTableModel(QAbstractTableModel):
                 match attribute:
                     case "Drive":
                         return drive.name
-                    case "Status":
-                        return drive.status
                     case "Tarallo ID":
                         return drive.tarallo_id
                     case "Size":
                         return format_size(drive.size, True, False)
-
+            case Qt.DecorationRole:
+                if index.column() == DRIVES_TABLE_NAME:
+                    return self._mount_warning_icon
             case Qt.TextAlignmentRole:
                 return Qt.AlignLeft | Qt.AlignVCenter
             case Qt.ToolTipRole:
                 drive = self.drives[index.row()]
-                if index.column() == DRIVES_TABLE_STATUS:
-                    return drive.status
+                if index.column() == DRIVES_TABLE_NAME:
+                    if drive.mounted:
+                        return "Drive has mounted partitions"
             case _:
                 return None
 
@@ -888,27 +892,13 @@ class DrivesTableModel(QAbstractTableModel):
         self.endResetModel()
 
 
-class DrivesStatusIconDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
-        super(DrivesStatusIconDelegate, self).__init__(parent)
-        self.icons = {
-            "started": QIcon("assets/table/progress.png"),
-            "pending": QIcon("assets/table/pending.png"),
-            "finished": QIcon("assets/table/ok.png"),
-            "warning": QIcon("assets/table/warning.png"),
-        }
-        self.margin = 5
-
-    def paint(self, painter, option, index):
-        if index.column() == DRIVES_TABLE_STATUS:
-            status: str = index.data()
-            if status in self.icons:
-                icon: QIcon = self.icons[status]
-                rect = option.rect.adjusted(self.margin, self.margin, -self.margin, -self.margin)
-                icon.paint(painter, rect)
-                return
-
-        super().paint(painter, option, index)
+# class DrivesStatusIconDelegate(QStyledItemDelegate):
+#     def __init__(self, parent=None):
+#         super(DrivesStatusIconDelegate, self).__init__(parent)
+#
+#     def initStyleOption(self, option, index):
+#         super().initStyleOption(option, index)
+#         option.decorationPosition = QtWidgets.QStyleOptionViewItem.Right
 
 
 class LocalServer(QThread):
