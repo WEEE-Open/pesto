@@ -13,7 +13,8 @@ def _remove_partn(lsblk):
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_basic(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
        "blockdevices": [
           {
@@ -31,7 +32,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_basic(fallback)
           }
        ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
     expected = ("/dev/sda2", 2)
@@ -44,7 +46,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_basic(fallback)
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_lots_of_partitions(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
        "blockdevices": [
           {
@@ -98,7 +101,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_lots_of_partiti
           }
        ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
     expected = ("/dev/sda11", 11)
@@ -111,7 +115,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_lots_of_partiti
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_no_linux(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
        "blockdevices": [
           {
@@ -133,7 +138,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_no_linux(fallba
           }
        ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
 
@@ -148,7 +154,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_no_linux(fallba
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_gpt(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
        "blockdevices": [
           {
@@ -174,7 +181,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt(fallback):
           }
        ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
     expected = ("/dev/loop0p4", 4)
@@ -187,7 +195,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt(fallback):
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_dont_trust_the_names(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
        "blockdevices": [
           {
@@ -213,7 +222,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_dont_trust_the_name
           }
        ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
     expected = ("/dev/that_partition", 4)
@@ -226,7 +236,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_dont_trust_the_name
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_dont_trust_the_names_2(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
        "blockdevices": [
           {
@@ -252,7 +263,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_dont_trust_the_name
           }
        ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
     expected = ("/dev/csd999", 4)
@@ -265,7 +277,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_dont_trust_the_name
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_with_other_type(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
        "blockdevices": [
           {
@@ -291,7 +304,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_with_other_type
           }
        ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
 
@@ -306,7 +320,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_with_other_type
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_empty(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
        "blockdevices": [
           {
@@ -316,7 +331,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_empty(fallback)
           }
        ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
 
@@ -330,12 +346,14 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_empty(fallback)
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_emptier(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
     {
         "blockdevices": [
         ]
     }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
 
@@ -349,7 +367,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_gpt_emptier(fallbac
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_mbr(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
         {
            "blockdevices": [
               {
@@ -371,7 +390,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr(fallback):
               }
            ]
         }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
 
@@ -385,7 +405,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr(fallback):
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_not_last(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
         {
            "blockdevices": [
               {
@@ -407,7 +428,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_not_last(fallba
               }
            ]
         }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
 
@@ -421,7 +443,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_not_last(fallba
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_none(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
         {
            "blockdevices": [
               {
@@ -443,7 +466,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_none(fallback):
               }
            ]
         }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
 
@@ -457,7 +481,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_none(fallback):
 
 @pytest.mark.parametrize("fallback", [False, True])
 def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_none(fallback):
-    lsblk = json.loads("""
+    lsblk = json.loads(
+        """
         {
            "blockdevices": [
               {
@@ -479,7 +504,8 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_none(fallback):
               }
            ]
         }
-    """)
+    """
+    )
     if fallback:
         _remove_partn(lsblk)
 
