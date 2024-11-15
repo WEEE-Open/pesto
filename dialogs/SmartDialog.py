@@ -1,7 +1,7 @@
 import json
 from PyQt5.QtGui import QFont, QBrush, QColor
 from ui.SmartDataDialog import Ui_SmartDataDialog
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, QDateTime
 from PyQt5.QtWidgets import QTreeWidgetItem, QFileDialog, QDialog
 from typing import TYPE_CHECKING
 
@@ -29,15 +29,25 @@ class SmartDialog(QDialog, Ui_SmartDataDialog):
         self.setWindowTitle(f"SMART data - {self.drive}")
         self.closeButton.clicked.connect(self.close)
 
+        self.updateAtLabel.setText(QDateTime.currentDateTime().toString("HH:mm (yyyy-MM-dd)"))
+
         # status line setup
-        self.statusLineEdit.setText(self.smart_status)
         match self.smart_status:
             case "ok":
-                self.statusLineEdit.setStyleSheet("background-color: green; color: black;")
+                self.statusLineEdit.setText("OK")
+                self.statusLineEdit.setStyleSheet("background-color: #66ff33; color: black;")
             case "old":
-                self.statusLineEdit.setStyleSheet("background-color: yellow; color: black;")
+                self.statusLineEdit.setText("Old but not yet failing")
+                self.statusLineEdit.setStyleSheet("background-color: #ffff00; color: black;")
+            case "sus":
+                self.statusLineEdit.setText("Probably failing, but check manually")
+                self.statusLineEdit.setStyleSheet("background-color: #e65c00; color: black;")
+            case "fail":
+                self.statusLineEdit.setText("Failing, throw it away")
+                self.statusLineEdit.setStyleSheet("background-color: #e60000; color: black;")
             case _:
-                self.statusLineEdit.setStyleSheet("background-color: red; color: black;")
+                self.statusLineEdit.setText(f"Unknown ({self.smart_status})")
+                self.statusLineEdit.setStyleSheet("background-color: none; color: black;")
 
         # tree widget setup
         self.populate_tree_widget(self.smart_results)
