@@ -599,7 +599,7 @@ class CommandRunner(threading.Thread):
         # PARTTYPENAME could be useful, too
         output = subprocess.getoutput(f"lsblk -o PATH,PARTN,PARTTYPE -J {dev}")
         jsonized = json.loads(output)
-        for i, entry in reversed(enumerate(jsonized["blockdevices"])):
+        for i, entry in enumerate(jsonized["blockdevices"]):
             if entry["path"]:  # lsblk also returns the device itself, which has no partitions
                 # GPT or MBR Linux partition ID
                 if entry["parttype"] == "0fc63daf-8483-4772-8e79-3d69d8477de4" or entry["parttype"] == "0x83":
