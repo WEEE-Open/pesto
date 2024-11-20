@@ -637,28 +637,13 @@ class CommandRunner(threading.Thread):
         if not go_ahead:
             return
 
-        success = True
-
         self._queued_command.notify_start("Cannoling")
+
         if TEST_MODE:
-            self._queued_command.notify_percentage(10)
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(20)
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(30)
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(40)
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(50)
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(60)
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(70)
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(80)
-            threading.Event().wait(2)
-            self._queued_command.notify_percentage(90)
-            threading.Event().wait(2)
+            for i in range(10, 100, 10):
+                self._queued_command.notify_percentage(i)
+                threading.Event().wait(1)
+            success = True
         else:
             success = self.dd(iso, dev)
             if success:
