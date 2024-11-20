@@ -610,7 +610,7 @@ class CommandRunner(threading.Thread):
     def _get_last_linux_partition_path_and_number_from_lsblk(lsblk_json: dict) -> tuple[str, str] | tuple[None, None]:
         last_linux_entry = (None, None)
         for i, entry in enumerate(lsblk_json["blockdevices"]):
-            if entry["path"]:  # lsblk also returns the device itself, which has no partitions
+            if entry["parttype"] != None:  # lsblk also returns the device itself, which is not a partition and therefore does not have a partition type
                 # GPT or MBR Linux partition ID
                 if entry["parttype"] == "0fc63daf-8483-4772-8e79-3d69d8477de4" or entry["parttype"] == "0x83":
                     last_linux_entry = entry["path"], (entry["partn"] if "partn" in entry else i)
