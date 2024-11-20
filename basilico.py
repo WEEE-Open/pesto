@@ -1021,8 +1021,11 @@ class CommandRunner(threading.Thread):
                         elapsed_time = 0
                         actual_time = time.time()
                         while True:
+                            #capture asap stop request from client
+                            if ( not self._go):
+                                return False
                             if fout.write(fin.read(bs)) == 0:
-                                break
+                                return True
                             completed_size += bs
                             if elapsed_time > output_delay:
                                 percentage = (completed_size / total_size) * 100
@@ -1031,7 +1034,6 @@ class CommandRunner(threading.Thread):
                             else:
                                 elapsed_time += time.time() - actual_time
                                 actual_time = time.time()
-                        return True
             except KeyboardInterrupt:
                 print("\nInterrupted!")
                 os.system("sync")
