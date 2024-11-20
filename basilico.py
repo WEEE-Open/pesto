@@ -969,8 +969,9 @@ class CommandRunner(threading.Thread):
     def _encode_param(param):
         return json.dumps(param, separators=(",", ":"), indent=None)
 
-    def send_msg(self, cmd: str, param=None, the_id: Optional[int] = None):
-        logging.debug(f"[{self._the_id}] Sending {cmd}{ ' with args' if param else ''} to client")
+    def send_msg(self, cmd: str, param=None, the_id: Optional[int] = None, doLog=True):
+        if(doLog):
+            logging.debug(f"[{self._the_id}] Sending {cmd}{ ' with args' if param else ''} to client")
         the_id = the_id or self._the_id
         thread = clients.get(the_id)
         if thread is None:
@@ -1155,7 +1156,7 @@ class QueuedCommand:
             if text is not None:
                 self._text = text
             self._percentage = percent
-            self.send_to_all_clients()
+            self.send_to_all_clients(doLog=False)
 
     def delete_when_done(self):
         self._to_delete = True
@@ -1180,7 +1181,7 @@ class QueuedCommand:
             if self._deleted:
                 self.delete_from_all_clients()
 
-    def send_to_all_clients(self):
+    def send_to_all_clients(self, doLog=True):
         # For added safety, do not send updates of deleted rows (the reference may still exist)
         if self._deleted:
             return
@@ -1190,7 +1191,7 @@ class QueuedCommand:
         for client in clients:
             # send_msg calls reactor.callFromThread and reactor is single threaded, so no risk here
             # send_all is always called with a lock, so all status updates are sent in the expected order
-            self.command_runner.send_msg("queue_status", param, client)
+            self.command_runner.send_msg("queue_status", param, client, doLog)
 
     def delete_from_all_clients(self):
         param = {
