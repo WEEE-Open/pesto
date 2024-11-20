@@ -597,7 +597,7 @@ class CommandRunner(threading.Thread):
     def _get_last_linux_partition_path_and_number(dev: str) -> tuple[str, str] | tuple[None, None]:
         # Use PTTYPE to get MBR/GPT (dos/gpt are the possible values)
         # PARTTYPENAME could be useful, too
-        
+
         exitcode, output = subprocess.getstatusoutput(f"lsblk -o PATH,PARTTYPE,PARTN -J {dev}")
         if exitcode != 0:
             exitcode, output = subprocess.getstatusoutput(f"lsblk -o PATH,PARTTYPE -J {dev}")
