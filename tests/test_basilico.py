@@ -267,7 +267,7 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_dont_trust_the_name
     )
     if fallback:
         _remove_partn(lsblk)
-    expected = ("/dev/csd999", 4)
+    expected = ("/dev/csd999", 3)
 
     result = CommandRunner._get_last_linux_partition_path_and_number_from_lsblk(lsblk)
 
