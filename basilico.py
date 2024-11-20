@@ -597,18 +597,24 @@ class CommandRunner(threading.Thread):
     def _get_last_linux_partition_path_and_number(dev: str) -> tuple[str, str] | tuple[None, None]:
         # Use PTTYPE to get MBR/GPT (dos/gpt are the possible values)
         # PARTTYPENAME could be useful, too
-        output = subprocess.getoutput(f"lsblk -o PATH,PARTN,PARTTYPE -J {dev}")
+        
+        exitcode, output = subprocess.getstatusoutput(f"lsblk -o PATH,PARTTYPE,PARTN -J {dev}")
+        if exitcode != 0:
+            exitcode, output = subprocess.getstatusoutput(f"lsblk -o PATH,PARTTYPE -J {dev}")
+            if exitcode != 0:
+                raise Exception(f"Error while running lsblk on {dev}")
         jsonized = json.loads(output)
         return CommandRunner._get_last_linux_partition_path_and_number_from_lsblk(jsonized)
 
     @staticmethod
     def _get_last_linux_partition_path_and_number_from_lsblk(lsblk_json: dict) -> tuple[str, str] | tuple[None, None]:
+        last_linux_entry = (None, None)
         for i, entry in enumerate(lsblk_json["blockdevices"]):
             if entry["path"]:  # lsblk also returns the device itself, which has no partitions
                 # GPT or MBR Linux partition ID
                 if entry["parttype"] == "0fc63daf-8483-4772-8e79-3d69d8477de4" or entry["parttype"] == "0x83":
-                    return entry["path"], (entry["partn"] if "partn" in entry else i)
-        return None, None
+                    last_linux_entry = entry["path"], (entry["partn"] if "partn" in entry else i)
+        return last_linux_entry
 
     def cannolo(self, _cmd: str, dev_and_iso: str):
         parts: list[Optional[str]] = dev_and_iso.split(" ", 1)
@@ -656,6 +662,7 @@ class CommandRunner(threading.Thread):
         else:
             success = self.dd(iso, dev)
             if success:
+                logging.debug(f"{dev = }")
                 part_path, part_number = self._get_last_linux_partition_path_and_number(dev)
 
                 success = run_command_on_partition(dev, f"sudo growpart {dev} {part_number}")
