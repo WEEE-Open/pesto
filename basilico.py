@@ -645,26 +645,26 @@ class CommandRunner(threading.Thread):
                 threading.Event().wait(1)
             success = True
         else:
-            success = self.dd(iso, dev)
-            if success:
+            try:
+                success = self.dd(iso, dev)
+                if not success:
+                    raise Exception("DD operation failed")
                 logging.debug(f"{dev = }")
                 part_path, part_number = self._get_last_linux_partition_path_and_number(dev)
-
+                if part_number is None:
+                    success=False
+                    raise Exception("Partition to be resized not found")
                 success = run_command_on_partition(dev, f"sudo growpart {dev} {part_number}")
-                if success:
-                    success = run_command_on_partition(dev, f"sudo e2fsck -fy {part_path}")
-                    if success:
-                        success = run_command_on_partition(dev, f"sudo resize2fs {part_path}")
-                        if success:
-                            pass
-                        else:
-                            self._queued_command.notify_error(f"resize2fs failed")
-                    else:
-                        self._queued_command.notify_error(f"e2fsck failed")
-                else:
-                    self._queued_command.notify_error(f"growpart failed")
-            else:
-                self._queued_command.notify_error(f"Disk imaging failed")
+                if not success:
+                    raise Exception("growpart failed")
+                success = run_command_on_partition(dev, f"sudo e2fsck -fy {part_path}")
+                if not success:
+                    raise Exception("e2fsck failed")
+                success = run_command_on_partition(dev, f"sudo resize2fs {part_path}")
+                if not success:
+                    raise Exception("resize2fs failed")
+            except Exception as e:
+                self._queued_command.notify_error(str(e))
 
         if success:
             with disks_lock:
@@ -687,6 +687,7 @@ class CommandRunner(threading.Thread):
                 )
             self._queued_command.notify_finish(final_message)
         else:
+            self._queued_command.notify_error(f"Disk imaging failed")
             self._queued_command.notify_finish()
 
     def umount(self, _cmd: str, dev: str):
