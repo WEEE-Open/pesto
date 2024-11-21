@@ -937,7 +937,7 @@ if __name__ == "__main__":
         # Create application
         app = QtWidgets.QApplication(sys.argv)
         app.setOrganizationName("WEEE-Open")
-        app.setApplicationName("PESTO")
+        app.setApplicationName("Pinolo")
 
         # Integrate twisted event loop in pyqt loop
         import qt5reactor
