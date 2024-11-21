@@ -972,6 +972,7 @@ class CommandRunner(threading.Thread):
     def send_msg(self, cmd: str, param=None, the_id: Optional[int] = None, doLog=True):
         if(doLog):
             logging.debug(f"[{self._the_id}] Sending {cmd}{ ' with args' if param else ''} to client")
+            logging.debug(f"{param}")
         the_id = the_id or self._the_id
         thread = clients.get(the_id)
         if thread is None:
