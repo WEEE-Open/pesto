@@ -11,3 +11,5 @@ venv/
 tmp/crashreport.txt
 tmp/crashreport.py
 images/
+venv
+.pytest_cache

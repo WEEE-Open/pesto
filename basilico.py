@@ -603,6 +603,7 @@ class CommandRunner(threading.Thread):
             exitcode, output = subprocess.getstatusoutput(f"lsblk -o PATH,PARTTYPE -J {dev}")
             if exitcode != 0:
                 raise Exception(f"Error while running lsblk on {dev}")
+        logging.debug(f"{output}")
         jsonized = json.loads(output)
         return CommandRunner._get_last_linux_partition_path_and_number_from_lsblk(jsonized)
 
@@ -649,7 +650,7 @@ class CommandRunner(threading.Thread):
                 success = self.dd(iso, dev)
                 if not success:
                     raise Exception("DD operation failed")
-                logging.debug(f"{dev = }")
+                subprocess.run("udevadm settle", shell=True)
                 part_path, part_number = self._get_last_linux_partition_path_and_number(dev)
                 if part_number is None:
                     success=False
@@ -1026,6 +1027,7 @@ class CommandRunner(threading.Thread):
                             if ( not self._go):
                                 return False
                             if fout.write(fin.read(bs)) == 0:
+                                fout.flush()
                                 return True
                             completed_size += bs
                             if elapsed_time > output_delay:
