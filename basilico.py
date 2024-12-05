@@ -653,7 +653,7 @@ class CommandRunner(threading.Thread):
                 subprocess.run("udevadm settle", shell=True)
                 part_path, part_number = self._get_last_linux_partition_path_and_number(dev)
                 if part_number is None:
-                    success=False
+                    success = False
                     raise Exception("Partition to be resized not found")
                 success = run_command_on_partition(dev, f"sudo growpart {dev} {part_number}")
                 if not success:
@@ -971,7 +971,7 @@ class CommandRunner(threading.Thread):
         return json.dumps(param, separators=(",", ":"), indent=None)
 
     def send_msg(self, cmd: str, param=None, the_id: Optional[int] = None, doLog=True):
-        if(doLog):
+        if doLog:
             logging.debug(f"[{self._the_id}] Sending {cmd}{ ' with args' if param else ''} to client")
             logging.debug(f"{param}")
         the_id = the_id or self._the_id
@@ -1023,8 +1023,8 @@ class CommandRunner(threading.Thread):
                         elapsed_time = 0
                         actual_time = time.time()
                         while True:
-                            #capture asap stop request from client
-                            if ( not self._go):
+                            # capture asap stop request from client
+                            if not self._go:
                                 return False
                             if fout.write(fin.read(bs)) == 0:
                                 fout.flush()
