@@ -475,6 +475,7 @@ class CommandRunner(threading.Thread):
                 "sudo",
                 "-n",
                 "blkdiscard",
+                "-z",
                 "-f",
                 dev,
             ),
