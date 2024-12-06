@@ -526,19 +526,19 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_null_parttypes(
               {
                  "path": "/dev/sdz",
                  "parttype": null,
-                 "partn": null,
+                 "partn": null
               },{
                  "path": "/dev/sdz1",
                  "parttype": null,
-                 "partn": null,
+                 "partn": null
               },{
                  "path": "/dev/sdz2",
                  "parttype": "c12a7328-f81f-11d2-ba4b-00a0c93ec93b",
-                 "partn": 2,
+                 "partn": 2
               },{
                  "path": "/dev/sdz3",
                  "parttype": "0fc63daf-8483-4772-8e79-3d69d8477de4",
-                 "partn": 3,
+                 "partn": 3
               }
            ]
         }
@@ -564,19 +564,19 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_null_parttypes(
               {
                  "path": "/dev/sdz",
                  "parttype": null,
-                 "partn": null,
+                 "partn": null
               },{
                  "path": "/dev/sdz1",
                  "parttype": null,
-                 "partn": null,
+                 "partn": null
               },{
                  "path": "/dev/sdz2",
                  "parttype": null,
-                 "partn": null,
+                 "partn": null
               },{
                  "path": "/dev/sdz3",
                  "parttype": null,
-                 "partn": null,
+                 "partn": null
               }
            ]
         }
