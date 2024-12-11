@@ -192,7 +192,7 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
     def find_image(self):
         """
         This function opens a different dialog if
-        the user is in local or remote mode to search for a cannolo image.
+        the user is in local or remote mode to search for a mountISO image.
         """
 
         if self.serverModeComboBox.currentText() == REMOTE_MODE:

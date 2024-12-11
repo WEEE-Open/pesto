@@ -382,7 +382,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
         """This function send to the server a sequence of commands:
         - queued_badblocks
         - queued_smartctl
-        - queued_cannolo (if the cannolo flag on the dialog is checked)
+        - queued_mountISO (if the mountISO flag on the dialog is checked)
         - queued_sleep
         """
 
@@ -431,8 +431,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.send_command(f"queued_smartctl {drive.name}")
 
     def load_system(self, standard_procedure=False):
-        """This function send to the server a queued_cannolo command.
-        If "std" is True it will skip the cannolo dialog."""
+        """This function send to the server a queued_mountISO command.
+        If "std" is True it will skip the mountISO dialog."""
         rows = self.drivesTableView.selectionModel().selectedRows()
         if len(rows) == 0:
             return
@@ -452,8 +452,8 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             return
 
         for drive in drives:
-            print(f"GUI: Sending cannolo to {drive.name} with {image}")
-            self.send_command(f"queued_cannolo {drive.name} {image}")
+            print(f"GUI: Mounting {image} to {drive.name}")
+            self.send_command(f"queued_mountISO {drive.name} {image}")
 
     def _clear_tables(self):
         self.drivesTableViewModel.clear()
@@ -600,7 +600,7 @@ class Job:
                 return "Erase"
             case "queued_smartctl":
                 return "Smart check"
-            case "queued_cannolo":
+            case "queued_mountISO":
                 return "Load system"
             case "queued_umount":
                 return "Umount"

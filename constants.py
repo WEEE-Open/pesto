@@ -13,7 +13,6 @@ PATH = {
     "SETTINGS_UI": "/assets/qt/NetworkSettingsDialog.ui",
     "SMART_UI": "/assets/qt/SmartDataDialog.ui",
     "INFOUI": "/assets/qt/info.ui",
-    "CANNOLOUI": "/assets/qt/cannolo_select.ui",
     "ICON": "/assets/icon.png",
     "VAPORWAVE_AUDIO": "/assets/vaporwave_theme.mp3",
     "ASD": "/assets/asd/asd.gif",
@@ -60,7 +59,7 @@ QUEUE_LABELS = {
     "queued_badblocks": "Erase",
     "queued_smartctl": "Smart Check",
     "smartctl": "Smart Check",
-    "queued_cannolo": "Load System",
+    "queued_mountISO": "Load System",
     "queued_sleep": "HDD Stop",
     "queued_upload_to_tarallo": "Upload Data",
 }

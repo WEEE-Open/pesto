@@ -12,7 +12,7 @@ Is constituted by:
 PESTO is a utility software that allows you to make some operations on hard disks or SSDs, like:
 - ERASE: Wipe all data on the selected drive.
 - SMART: Check SMART data of the selected drive to give an estimate of the operating status of the device.
-- CANNOLO: Load an operating system image on the selected drive.
+- mountISO: Load an operating system image on the selected drive.
 - LOAD TO TARALLO: Utility that can communicate with TARALLO, sending all the necessary data to add the selected device to the inventory.  
 
 `pinolo.py` is the user interface of the software with which the user can perform all the operations on the drives. This program by itself will be useless if not coupled with the server `basilico.py`. This one is the heart of PESTO: it performs all the commands that the user send to him, constantly sending back informations to the client that shows them to the user in a more human friendly way.
@@ -83,7 +83,7 @@ LOCKFILE_PATH=/var/run/basilico.pid
 TARALLO_URL=http://127.0.0.1:8080
 # Tarallo token, default none. This is an example token.
 TARALLO_TOKEN=yoLeCHmEhNNseN0BlG0s3A:ksfPYziGg7ebj0goT0Zc7pbmQEIYvZpRTIkwuscAM_k
-# If true, no destructive actions will be performed: no badblocks, no trimming, no cannolo. Default false.
+# If true, no destructive actions will be performed: no badblocks, no trimming, no mountISO. Default false.
 TEST_MODE=1
 ```
 
