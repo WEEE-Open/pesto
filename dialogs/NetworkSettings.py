@@ -191,8 +191,9 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
 
     def find_image(self):
         """
-        This function opens a different dialog if
-        the user is in local or remote mode to search for a write image.
+        Opens a dialog to select a system image.
+        If in remote mode, it connects to the server and lets the user choose an image from the server's image directory.
+        If in local mode, it opens a file dialog to select an image from the local filesystem.
         """
 
         if self.serverModeComboBox.currentText() == REMOTE_MODE:
