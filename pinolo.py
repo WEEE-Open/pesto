@@ -380,7 +380,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
     def standard_procedure(self):
         """This function send to the server a sequence of commands:
-        - queued_badblocks
+        - queued_erase
         - queued_smartctl
         - queued_cannolo (if the cannolo flag on the dialog is checked)
         - queued_sleep
@@ -401,7 +401,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             self.load_system(standard_procedure=True)
 
     def erase(self, standard_procedure=False):
-        """This function send to the server a queued_badblocks command.
+        """This function send to the server a queued_erase command.
         If "std" is True it will skip the confirm dialog."""
 
         rows = self.drivesTableView.selectionModel().selectedRows()
@@ -415,7 +415,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
             if critical_dialog(message, dialog_type="yes_no") != QMessageBox.Yes:
                 return
         for drive in drives:
-            self.send_command(f"queued_badblocks {drive.name}")
+            self.send_command(f"queued_erase {drive.name}")
 
     def smart_check(self):
         """This function send to the server a queued_smartctl command.

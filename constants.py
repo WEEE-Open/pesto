@@ -57,7 +57,7 @@ QUEUE_TABLE_ETA = 3
 QUEUE_TABLE_PROGRESS = 4
 
 QUEUE_LABELS = {
-    "queued_badblocks": "Erase",
+    "queued_erase": "Erase",
     "queued_smartctl": "Smart Check",
     "smartctl": "Smart Check",
     "queued_cannolo": "Load System",
