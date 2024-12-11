@@ -330,7 +330,7 @@ class CommandRunner(threading.Thread):
             "smartctl": self.get_smartctl,
             "queued_smartctl": self.queued_get_smartctl,
             "queued_badblocks": self.badblocks,
-            "queued_mountISO": self.mountISO,
+            "queued_write": self.write,
             "queued_sleep": self.sleep,
             "queued_umount": self.umount,
             "upload_to_tarallo": self.upload_to_tarallo,
@@ -617,7 +617,7 @@ class CommandRunner(threading.Thread):
                     last_linux_entry = entry["path"], (entry["partn"] if "partn" in entry else i)
         return last_linux_entry
 
-    def mountISO(self, _cmd: str, dev_and_iso: str):
+    def write(self, _cmd: str, dev_and_iso: str):
         parts: list[Optional[str]] = dev_and_iso.split(" ", 1)
         while len(parts) < 2:
             parts.append(None)

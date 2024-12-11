@@ -59,7 +59,7 @@ QUEUE_LABELS = {
     "queued_badblocks": "Erase",
     "queued_smartctl": "Smart Check",
     "smartctl": "Smart Check",
-    "queued_mountISO": "Load System",
+    "queued_write": "Load System",
     "queued_sleep": "HDD Stop",
     "queued_upload_to_tarallo": "Upload Data",
 }
