@@ -467,47 +467,79 @@ class CommandRunner(threading.Thread):
             else:
                 return self.badblocks(_cmd, dev)
             
-    def blkdiscard(self, _cmd: str, dev: str):
-        custom_env = os.environ.copy()
-        custom_env["LC_ALL"] = "C"
-        pipe = subprocess.Popen(
-            (
-                "sudo",
-                "-n",
-                "blkdiscard",
-                "-z",
-                "-f",
-                dev,
-            ),
-            stderr=subprocess.PIPE,
-            env=custom_env,
-        ),
-        stderr = pipe.stderr.read().decode("utf-8")
-        exitcode = pipe.wait()
-        if exitcode == 0:
-            completed = True
-            all_ok = True
-        else:
-            self._queued_command.notify_error()
-            self._queued_command.notify_finish_with_error(f"blkdiscard exited with status {exitcode}")
-            completed = False
-            all_ok = False
+def blkdiscard(self, _cmd: str, dev: str):
+    import time
 
-        with disks_lock:
-            update_disks_if_needed(self)
-            disk_ref = disks[dev]
+    # Get the size of the device in GB
+    result = subprocess.run(
+        ['lsblk', '-bnd', '-o', 'SIZE', dev],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode != 0:
+        logging.error(f"Failed to get device size: {result.stderr}")
+        return False
 
-        # noinspection PyBroadException
-        try:
-            disk_ref.update_erase(completed, all_ok)
-        except Exception as e:
-            final_message = f"Error during upload. {final_message}"
-            self._queued_command.notify_error(final_message)
-            logging.warning(
-                f"[{self._the_id}] Can't update blkdiscard results of {dev} on tarallo",
-                exc_info=e,
-            )
-        self._queued_command.notify_finish(final_message)
+    device_size_bytes = int(result.stdout.strip())
+    device_size_gb = device_size_bytes / (1024 ** 3)
+
+    # Estimate total time in seconds (4 seconds per GB)
+    estimated_total_time = device_size_gb * 4
+
+    # Start the blkdiscard process
+    custom_env = os.environ.copy()
+    custom_env["LC_ALL"] = "C"
+    pipe = subprocess.Popen(
+        [
+            "sudo",
+            "-n",
+            "blkdiscard",
+            "-z",
+            "-f",
+            dev,
+        ],
+        stderr=subprocess.PIPE,
+        env=custom_env,
+    )
+
+    # Progress estimation
+    start_time = time.time()
+    while pipe.poll() is None:
+        elapsed_time = time.time() - start_time
+        percentage = min((elapsed_time / estimated_total_time) * 100, 99.9)
+        self._queued_command.notify_percentage(percentage)
+        time.sleep(1)
+
+    stderr = pipe.stderr.read().decode("utf-8")
+    exitcode = pipe.wait()
+
+    if exitcode == 0:
+        completed = True
+        all_ok = True
+        self._queued_command.notify_percentage(100)
+    else:
+        self._queued_command.notify_error()
+        self._queued_command.notify_finish_with_error(f"blkdiscard exited with status {exitcode}")
+        completed = False
+        all_ok = False
+
+    with disks_lock:
+        update_disks_if_needed(self)
+        disk_ref = disks[dev]
+
+    # noinspection PyBroadException
+
+    try:
+        disk_ref.update_erase(completed, all_ok)
+    except Exception as e:
+        final_message = f"Error during upload. {final_message}"
+        self._queued_command.notify_error(final_message)
+        logging.warning(
+            f"[{self._the_id}] Can't update blkdiscard results of {dev} on tarallo",
+            exc_info=e,
+        )
+    self._queued_command.notify_finish(final_message)
 
     def badblocks(self, _cmd: str, dev: str):
         self._queued_command.notify_start("Running badblocks")
