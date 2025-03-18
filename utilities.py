@@ -68,25 +68,28 @@ def set_stylesheet(app, path):
 
 
 def format_size(size: int, round_the_result: bool = False, power_of_2: bool = True) -> str:
+    import math
+    
     if power_of_2:
         notation = ["B", "kiB", "MiB", "GiB", "TiB"]
         thousand = 1024
     else:
         notation = ["B", "kB", "MB", "GB", "TB"]
         thousand = 1000
-
-    index = 0
-    for count in range(0, len(notation)):
-        if size >> (10 * count) == 0:
-            index = count - 1
-            break
-    size = size / (thousand**index)
+    
+    if size <= 0:
+        return f"0 {notation[0]}"
+        
+    index = min(int(math.log(size, thousand)), len(notation) - 1)
+    
+    normalized_size = size / (thousand ** index)
+    
     if round_the_result:
-        result = str(int(round(size)))
+        result = str(int(round(normalized_size)))
     else:
-        result = "{:.2f}".format(size)
-    result += f" {notation[index]}"
-    return result
+        result = f"{normalized_size:.2f}"
+    
+    return f"{result} {notation[index]}"
 
 
 class SmartTabs(QtWidgets.QTabWidget):
