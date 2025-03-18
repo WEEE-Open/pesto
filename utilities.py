@@ -1,6 +1,7 @@
 import subprocess
 import os
 import datetime
+import math
 from typing import Optional
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.QtCore import Qt, QSize
@@ -68,7 +69,6 @@ def set_stylesheet(app, path):
 
 
 def format_size(size: int, round_the_result: bool = False, power_of_2: bool = True) -> str:
-    import math
     
     if power_of_2:
         notation = ["B", "kiB", "MiB", "GiB", "TiB"]
