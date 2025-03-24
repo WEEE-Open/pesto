@@ -465,7 +465,7 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_none(fallback):
                  "parttype": "0x8e"
               }
            ]
-        }
+         }
     """
     )
     if fallback:
@@ -480,36 +480,36 @@ def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_none(fallback):
 
 
 @pytest.mark.parametrize("fallback", [False, True])
-def test_get_last_linux_partition_path_and_number_from_lsblk_mbr_none(fallback):
+def test_get_last_linux_partition_path_and_number_from_lsblk_parttype_null(fallback):
     lsblk = json.loads(
         """
-        {
-           "blockdevices": [
-              {
-                 "path": "/dev/sdz0",
-                 "partn": null,
-                 "parttype": null
-              },{
-                 "path": "/dev/sdz1",
-                 "partn": 1,
-                 "parttype": "0xab"
-              },{
-                 "path": "/dev/sdz2",
-                 "partn": 2,
-                 "parttype": "0x6"
-              },{
-                 "path": "/dev/sdz3",
-                 "partn": 3,
-                 "parttype": "0x8e"
-              }
-           ]
-        }
-    """
+      {
+         "blockdevices": [
+            {
+               "path": "/dev/sdz",
+               "partn": null,
+               "parttype": null
+            },{
+               "path": "/dev/sdz1",
+               "partn": null,
+               "parttype": null
+            },{
+               "path": "/dev/sdz2",
+               "partn": 2,
+               "parttype": "c12a7328-f81f-11d2-ba4b-00a0c93ec93b"
+            },{
+               "path": "/dev/sdz3",
+               "partn": 3,
+               "parttype": "0fc63daf-8483-4772-8e79-3d69d8477de4"
+            }
+         ]
+      }
+      """
     )
     if fallback:
         _remove_partn(lsblk)
 
-    expected = (None, None)
+    expected = ("/dev/sdz3", 3)
 
     result = CommandRunner._get_last_linux_partition_path_and_number_from_lsblk(lsblk)
 
