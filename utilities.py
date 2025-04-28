@@ -69,31 +69,30 @@ def set_stylesheet(app, path):
 
 
 def format_size(size: int, round_the_result: bool = False, power_of_2: bool = True) -> str:
-    
+
     if power_of_2:
         notation = ["B", "kiB", "MiB", "GiB", "TiB"]
         thousand = 1024
     else:
         notation = ["B", "kB", "MB", "GB", "TB"]
         thousand = 1000
-    
+
     if size <= 0:
         return f"0 {notation[0]}"
-        
+
     index = min(int(math.log(size, thousand)), len(notation) - 1)
-    
-    normalized_size = size / (thousand ** index)
-    
+
+    normalized_size = size / (thousand**index)
+
     if round_the_result:
         result = str(int(round(normalized_size)))
     else:
         result = f"{normalized_size:.2f}"
-    
+
     return f"{result} {notation[index]}"
 
 
 class SmartTabs(QtWidgets.QTabWidget):
-
     def __init__(self):
         super().__init__()
         self.color = None
@@ -125,7 +124,6 @@ class SmartTabs(QtWidgets.QTabWidget):
 
 
 class ProgressBar(QWidget):
-
     def __init__(self):
         super(ProgressBar, self).__init__()
 
