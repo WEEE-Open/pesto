@@ -1,15 +1,19 @@
-# P.E.S.T.O.
+# P.E.S.T.O
+
 Progetto di Erase Smart con Taralli Olistici
 
 Hard disk SMART data checker, cleaner and system image loader.
 Successor of [Turbofresa](https://github.com/WEEE-Open/turbofresa) and [redeemer](https://github.com/WEEE-Open/redeemer).
 
 Is constituted by:
+
 - B.A.S.I.L.I.C.O. "Badblocks Asincrono Smart Incredibile Lancio Istantaneo di Cannoli Olistico", the server
 - P.I.N.O.L.O. "Procacciatore di Informazioni Notevoli e Operazioni Laboriose Online", the client
 
 ## Functioning
+
 PESTO is a utility software that allows you to make some operations on hard disks or SSDs, like:
+
 - ERASE: Wipe all data on the selected drive.
 - SMART: Check SMART data of the selected drive to give an estimate of the operating status of the device.
 - CANNOLO: Load an operating system image on the selected drive.
@@ -21,30 +25,44 @@ PESTO is a utility software that allows you to make some operations on hard disk
 There is no authentication and no encryption of any message.
 
 ## Development
+
 You can edit the user interface in two ways:
+
 - Graphics editing: use `pyqt5-tools designer` and open the .ui file that you need to modify
 - Functional editing: edit code in `pinolo.py`
 
 To build UI files:
-```
+
+```sh
 make ui
 ```
 
 Compiled UI files are located inside the `ui` folder.
 
-### Generate documentation
-To build documentation
+To setup the dev environment, run in a virtual environment:
+
+```sh
+pip install -r dev-requirements.txt
+pre-commit install
 ```
+
+### Generate documentation
+
+To build documentation
+
+```sh
 sphinx-apidox -o docs .
 cd docs
 make html
 ```
 
 If `sphinx` is not installed in your system, install it in Pesto venv
-```
+
+```sh
 source ./venv/bin/activate
 pip install sphinx sphinx-rtd-theme
 ```
+
 ## Installation
 
 To install pesto in the system:
@@ -97,8 +115,6 @@ TARALLO features you have to set the TARALLO_URL and TARALLO_TOKEN environment v
 ![Screenshot_20220923_104143](https://user-images.githubusercontent.com/39865402/191923577-c5d0baf1-5a94-48c0-9aaf-6b28f8304274.png)
 ![Screenshot_20220923_104157](https://user-images.githubusercontent.com/39865402/191923589-4d1f9975-00e5-401c-bddd-434eb7f06396.png)
 ![Screenshot_20220923_104400](https://user-images.githubusercontent.com/39865402/191923858-6c130e19-265c-4d15-8228-95e21658f04c.png)
-
-
 
 ## Credits and license
 
