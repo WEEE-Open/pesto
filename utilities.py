@@ -59,7 +59,7 @@ def warning_dialog(message: str, dialog_type: str):
 
 def tarallo_location_dialog(message: str):
     dialog = QtWidgets.QInputDialog()
-    loc, ok = dialog.getText(dialog, "Set Tarallo location", message, QtWidgets.QLineEdit.Normal)
+    loc, ok = dialog.getText(dialog, "Set Tarallo location", message, QtWidgets.QLineEdit.Normal, text="Box16")
     return loc, ok
 
 
