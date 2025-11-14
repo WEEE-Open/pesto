@@ -64,15 +64,16 @@ deactivate
 echo "Installing system dependencies"
 if [[ "$(which apt)" != "" ]]; then
   sudo apt update
-  sudo apt install -y cloud-utils smartmontools
+  sudo apt install -y cloud-utils smartmontools libxcb-xinerama0
 elif [[ "$(which pacman)" != "" ]]; then
-  sudo pacman -Sy --noconfirm cloud-utils smartmontools
+  sudo pacman -Sy --noconfirm cloud-utils smartmontools libxcb
 else
   tput setab $RED
   tput setaf $BLACK
   echo "Cannot install system dependencies. User have to install manually the following packages:"
   echo "     cloud-utils"
   echo "     smartmontools"
+  echo "     libxcb-xinerama0"
   tput sgr0
 fi
 
