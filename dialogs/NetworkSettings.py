@@ -78,8 +78,6 @@ class NetworkSettings(QDialog, Ui_NetworkSettingsDialog):
         else:
             self.serverPortLineEdit.setText(self.port)
 
-        self.init_system_image_settings()
-
     def init_system_image_settings(self):
         # set images directory line edit
         self.imagesDirectoryLineEdit.setText(self.images_directory)
