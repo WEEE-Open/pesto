@@ -439,7 +439,7 @@ class PinoloMainWindow(QMainWindow, Ui_MainWindow):
 
         drives = self.drivesTableViewModel.get_selected_drives(rows)
 
-        if self.images_directory == "":
+        if self.images_directory == None or self.images_directory == "" :
             critical_dialog("There is no default image set in Pinolo settings.", dialog_type="ok")
             return
 
