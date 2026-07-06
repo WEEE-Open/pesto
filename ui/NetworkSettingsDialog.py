@@ -21,7 +21,7 @@ class Ui_NetworkSettingsDialog(object):
         sizePolicy.setHeightForWidth(NetworkSettingsDialog.sizePolicy().hasHeightForWidth())
         NetworkSettingsDialog.setSizePolicy(sizePolicy)
         NetworkSettingsDialog.setMinimumSize(QtCore.QSize(600, 0))
-        NetworkSettingsDialog.setMaximumSize(QtCore.QSize(16777215, 355))
+        # NetworkSettingsDialog.setMaximumSize(QtCore.QSize(16777215, 355))
         self.verticalLayout_2 = QtWidgets.QVBoxLayout(NetworkSettingsDialog)
         self.verticalLayout_2.setObjectName("verticalLayout_2")
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
