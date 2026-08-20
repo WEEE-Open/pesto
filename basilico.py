@@ -329,7 +329,7 @@ class CommandRunner(threading.Thread):
             "sudo_password": self.sudo_password,
             "smartctl": self.get_smartctl,
             "queued_smartctl": self.queued_get_smartctl,
-            "queued_badblocks": self.badblocks,
+            "queued_erase": self.erase,
             "queued_cannolo": self.cannolo,
             "queued_sleep": self.sleep,
             "queued_umount": self.umount,
@@ -443,12 +443,10 @@ class CommandRunner(threading.Thread):
                 break
         return None
 
-    def badblocks(self, _cmd: str, dev: str):
+    def erase(self, _cmd: str, dev: str):
         go_ahead = self._unswap()
         if not go_ahead:
             return
-
-        self._queued_command.notify_start("Running badblocks")
         if TEST_MODE:
             final_message = ""
             for progress in range(0, 100, 10):
@@ -463,104 +461,186 @@ class CommandRunner(threading.Thread):
             completed = True
             all_ok = False
         else:
-            custom_env = os.environ.copy()
-            custom_env["LC_ALL"] = "C"
+            is_ssd = subprocess.run(f"lsblk -o ROTA {dev}", shell=True).stdout.split("\n")[1].strip() == "1"
+            if is_ssd:
+                return self.blkdiscard(_cmd, dev)
+            else:
+                return self.badblocks(_cmd, dev)
+            
+    def blkdiscard(self, _cmd: str, dev: str):
+        import time
 
-            pipe = subprocess.Popen(
-                (
-                    "sudo",
-                    "-n",
-                    "badblocks",
-                    "-w",
-                    "-s",
-                    "-p",
-                    "0",
-                    "-t",
-                    "0x00",
-                    "-b",
-                    "4096",
-                    dev,
-                ),
-                stderr=subprocess.PIPE,
-                env=custom_env,
-            )  # , stdout=subprocess.PIPE)
+        # Get the size of the device in GB
+        result = subprocess.run(
+            ['lsblk', '-bnd', '-o', 'SIZE', dev],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if result.returncode != 0:
+            logging.error(f"Failed to get device size: {result.stderr}")
+            return False
 
-            percent = 0.0
-            reading_and_comparing = False
-            errors = -1
-            deleting = False
-            buffer = bytearray()
-            for char in iter(lambda: pipe.stderr.read(1), b""):
-                if not self._go:
-                    pipe.kill()
-                    pipe.wait()
-                    print(f"Killed badblocks process {self.get_queued_command().id()}")
-                    self._queued_command.notify_finish_with_error("Process terminated by user.")
-                    return
-                if char == b"":
-                    if pipe.poll() is not None:
-                        break
-                elif char == b"\b":
-                    if not deleting:
-                        result = buffer.decode("utf-8")
-                        errors_print = "?"
+        device_size_bytes = int(result.stdout.strip())
+        device_size_gb = device_size_bytes / (1024 ** 3)
 
-                        reading_and_comparing = reading_and_comparing or ("Reading and comparing" in result)
+        # Estimate total time in seconds (4 seconds per GB)
+        estimated_total_time = device_size_gb * 4
 
-                        # If other messages are printed, ignore them
-                        i = result.index("% done")
+        # Start the blkdiscard process
+        custom_env = os.environ.copy()
+        custom_env["LC_ALL"] = "C"
+        pipe = subprocess.Popen(
+            [
+                "sudo",
+                "-n",
+                "blkdiscard",
+                "-z",
+                "-f",
+                dev,
+            ],
+            stderr=subprocess.PIPE,
+            env=custom_env,
+        )
+
+        # Progress estimation
+        start_time = time.time()
+        while pipe.poll() is None:
+            elapsed_time = time.time() - start_time
+            percentage = min((elapsed_time / estimated_total_time) * 100, 99.9)
+            self._queued_command.notify_percentage(percentage)
+            time.sleep(1)
+
+        stderr = pipe.stderr.read().decode("utf-8")
+        exitcode = pipe.wait()
+
+        if exitcode == 0:
+            completed = True
+            all_ok = True
+            self._queued_command.notify_percentage(100)
+        else:
+            self._queued_command.notify_error()
+            self._queued_command.notify_finish_with_error(f"blkdiscard exited with status {exitcode}")
+            completed = False
+            all_ok = False
+
+        with disks_lock:
+            update_disks_if_needed(self)
+            disk_ref = disks[dev]
+
+        # noinspection PyBroadException
+
+        try:
+            disk_ref.update_erase(completed, all_ok)
+        except Exception as e:
+            final_message = f"Error during upload. {final_message}"
+            self._queued_command.notify_error(final_message)
+            logging.warning(
+                f"[{self._the_id}] Can't update blkdiscard results of {dev} on tarallo",
+                exc_info=e,
+            )
+        self._queued_command.notify_finish(final_message)
+
+    def badblocks(self, _cmd: str, dev: str):
+        self._queued_command.notify_start("Running badblocks")
+        custom_env = os.environ.copy()
+        custom_env["LC_ALL"] = "C"
+
+        pipe = subprocess.Popen(
+            (
+                "sudo",
+                "-n",
+                "badblocks",
+                "-w",
+                "-s",
+                "-p",
+                "0",
+                "-t",
+                "0x00",
+                "-b",
+                "4096",
+                dev,
+            ),
+            stderr=subprocess.PIPE,
+            env=custom_env,
+        )  # , stdout=subprocess.PIPE)
+
+        percent = 0.0
+        reading_and_comparing = False
+        errors = -1
+        deleting = False
+        buffer = bytearray()
+        for char in iter(lambda: pipe.stderr.read(1), b""):
+            if not self._go:
+                pipe.kill()
+                pipe.wait()
+                print(f"Killed badblocks process {self.get_queued_command().id()}")
+                self._queued_command.notify_finish_with_error("Process terminated by user.")
+                return
+            if char == b"":
+                if pipe.poll() is not None:
+                    break
+            elif char == b"\b":
+                if not deleting:
+                    result = buffer.decode("utf-8")
+                    errors_print = "?"
+
+                    reading_and_comparing = reading_and_comparing or ("Reading and comparing" in result)
+
+                    # If other messages are printed, ignore them
+                    i = result.index("% done")
+                    if i >= 0:
+                        # /2 due to the 0x00 test + read & compare
+                        percent = float(result[i - 6 : i]) / 2
+                        if reading_and_comparing:
+                            percent += 50
+                        i = result.index("(", i)
                         if i >= 0:
-                            # /2 due to the 0x00 test + read & compare
-                            percent = float(result[i - 6 : i]) / 2
-                            if reading_and_comparing:
-                                percent += 50
-                            i = result.index("(", i)
-                            if i >= 0:
-                                # errors_str = result[i+1:].split(")", 1)[0]
-                                errors_str = result[i + 1 :].split(" ", 1)[0]
-                                # The errors are read, write and corruption
-                                errors_str = errors_str.split("/")
-                                errors = 0  # badblocks prints the 3 totals every time
-                                for error in errors_str:
-                                    errors += int(error)
-                                errors_print = str(errors)
-                            self._queued_command.notify_percentage(percent, f"{errors_print} errors")
-                        buffer.clear()
-                        deleting = True
-                # elif char == b'\n':
-                #     # Skip the first lines (total number of blocks)
-                #     buffer.clear()
-                else:
-                    if deleting:
-                        deleting = False
-                    buffer += char
-
-            # TODO: was this needed? Why were we doing it twice?
-            # pipe.wait()
-            exitcode = pipe.wait()
-
-            if errors <= -1:
-                all_ok = None
-                errors_print = "an unknown amount of"
-            elif errors == 0:
-                all_ok = True
-                errors_print = "no"
+                            # errors_str = result[i+1:].split(")", 1)[0]
+                            errors_str = result[i + 1 :].split(" ", 1)[0]
+                            # The errors are read, write and corruption
+                            errors_str = errors_str.split("/")
+                            errors = 0  # badblocks prints the 3 totals every time
+                            for error in errors_str:
+                                errors += int(error)
+                            errors_print = str(errors)
+                        self._queued_command.notify_percentage(percent, f"{errors_print} errors")
+                    buffer.clear()
+                    deleting = True
+            # elif char == b'\n':
+            #     # Skip the first lines (total number of blocks)
+            #     buffer.clear()
             else:
-                all_ok = False
-                errors_print = str(errors)
-            final_message = f"Finished with {errors_print} errors"
+                if deleting:
+                    deleting = False
+                buffer += char
 
-            if exitcode == 0:
-                # self._queued_command.notify_finish(final_message)
-                completed = True
-            else:
-                self._queued_command.notify_error()
-                final_message += f" and badblocks exited with status {exitcode}"
-                # self._queued_command.notify_finish(final_message)
-                completed = False
+        # TODO: was this needed? Why were we doing it twice?
+        # pipe.wait()
+        exitcode = pipe.wait()
 
-            # print(pipe.stdout.readline().decode('utf-8'))
-            # print(pipe.stderr.readline().decode('utf-8'))
+        if errors <= -1:
+            all_ok = None
+            errors_print = "an unknown amount of"
+        elif errors == 0:
+            all_ok = True
+            errors_print = "no"
+        else:
+            all_ok = False
+            errors_print = str(errors)
+        final_message = f"Finished with {errors_print} errors"
+
+        if exitcode == 0:
+            # self._queued_command.notify_finish(final_message)
+            completed = True
+        else:
+            self._queued_command.notify_error()
+            final_message += f" and badblocks exited with status {exitcode}"
+            # self._queued_command.notify_finish(final_message)
+            completed = False
+
+        # print(pipe.stdout.readline().decode('utf-8'))
+        # print(pipe.stderr.readline().decode('utf-8'))
 
         with disks_lock:
             update_disks_if_needed(self)
